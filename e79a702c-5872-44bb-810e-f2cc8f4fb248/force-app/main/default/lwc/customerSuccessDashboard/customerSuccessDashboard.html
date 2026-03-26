@@ -1,0 +1,687 @@
+<template>
+    <lightning-card class="dashboard-card">
+        <div slot="title" class="dashboard-header">
+            <lightning-icon icon-name="standard:account" size="small" class="header-icon"></lightning-icon>
+            <h2 class="dashboard-title">Customer Success Dashboard</h2>
+        </div>
+        <div slot="actions">
+            <lightning-button-icon
+                icon-name="utility:refresh"
+                variant="border-filled"
+                alternative-text="Refresh"
+                title="Refresh Dashboard"
+                onclick={handleRefresh}
+                class="refresh-button">
+            </lightning-button-icon>
+        </div>
+
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <div class="loading-container">
+                <lightning-spinner alternative-text="Loading dashboard..." size="medium"></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- Main Dashboard Content -->
+        <template if:false={isLoading}>
+            <div class="dashboard-content">
+
+                <!-- Premium 3-Zone Header Layout -->
+                <template if:true={hasSummary}>
+                    <div class="premium-header">
+
+                        <!-- ZONE 1: Hero Health Score Card -->
+                        <div class="hero-card-container grid-area-health">
+                            <div class={heroCardClass}>
+                                <div class="hero-label">HEALTH SCORE</div>
+                                <div class="hero-value">{summary.accountHealthScore}</div>
+                                <div class={trendValueClass}>
+                                    <span class="trend-arrow">{trendIcon}</span>
+                                    {trendText}
+                                </div>
+                                <div class="hero-updated">Updated 2 hours ago</div>
+                                <button class="custom-btn custom-btn--secondary" onclick={handleViewBreakdown}>
+                                    View Breakdown
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ZONE 2: Critical Metrics Grid (2x3) -->
+                        <div class="metrics-grid grid-area-metrics">
+                            <!-- Row 1 -->
+                            <div class="metric-card metric-card--clickable" onclick={handleMetricClick} data-metric="cases">
+                                <div class="metric-label-with-icon">
+                                    <lightning-icon icon-name="standard:case" size="small" class="metric-icon-inline"></lightning-icon>
+                                    <span class="metric-label">OPEN CASES</span>
+                                </div>
+                                <div class={openCasesValueClass}>{summary.openCasesCount}</div>
+                                <template if:true={summary.highPriorityCasesCount}>
+                                    <div class="metric-subtitle metric-subtitle--warning">
+                                        {summary.highPriorityCasesCount} high priority
+                                    </div>
+                                </template>
+                                <template if:false={summary.highPriorityCasesCount}>
+                                    <div class="metric-subtitle">All cases normal</div>
+                                </template>
+                            </div>
+
+                            <div class="metric-card metric-card--clickable" onclick={handleMetricClick} data-metric="tasks">
+                                <div class="metric-label-with-icon">
+                                    <lightning-icon icon-name="standard:task" size="small" class="metric-icon-inline"></lightning-icon>
+                                    <span class="metric-label">OVERDUE TASKS</span>
+                                </div>
+                                <div class={overdueTasksValueClass}>{summary.overdueTasks}</div>
+                                <template if:true={hasOverdueTasks}>
+                                    <div class="metric-subtitle metric-subtitle--danger">Action required</div>
+                                </template>
+                                <template if:false={hasOverdueTasks}>
+                                    <div class="metric-subtitle">All on track</div>
+                                </template>
+                            </div>
+
+                            <div class="metric-card metric-card--clickable" onclick={handleMetricClick} data-metric="opportunities">
+                                <div class="metric-label-with-icon">
+                                    <lightning-icon icon-name="standard:opportunity" size="small" class="metric-icon-inline"></lightning-icon>
+                                    <span class="metric-label">OPPORTUNITIES</span>
+                                </div>
+                                <div class="metric-value">{summary.opportunityCount}</div>
+                                <div class="metric-subtitle">{nextOppText}</div>
+                            </div>
+
+                            <!-- Row 2 -->
+                            <div class="metric-card metric-card--relationship">
+                                <div class="metric-label">RELATIONSHIP DEPTH</div>
+                                <div class="relationship-stars">{relationshipDepthStars}</div>
+                                <div class="relationship-label">{relationshipDepthLabel}</div>
+                                <div class="metric-subtitle">{contactCountText}</div>
+                            </div>
+
+                            <div class="metric-card metric-card--touchpoint">
+                                <div class="metric-label-with-icon">
+                                    <lightning-icon icon-name="utility:event" size="small" class="metric-icon-inline"></lightning-icon>
+                                    <span class="metric-label">NEXT TOUCHPOINT</span>
+                                </div>
+                                <div class={nextActivityValueClass}>{nextTouchpointDisplay}</div>
+                                <template if:true={hasNextTouchpoint}>
+                                    <div class="metric-subtitle touchpoint-subject">{nextTouchpointSubject}</div>
+                                    <template if:true={nextTouchpointTime}>
+                                        <div class="metric-subtitle touchpoint-time">{nextTouchpointTime}</div>
+                                    </template>
+                                </template>
+                                <template if:false={hasNextTouchpoint}>
+                                    <div class="metric-subtitle">No upcoming touchpoint</div>
+                                </template>
+                            </div>
+
+                            <div class="metric-card metric-card--csm">
+                                <div class="metric-label">CSM</div>
+                                <div class="csm-avatar">
+                                    <lightning-icon icon-name="standard:user" size="small"></lightning-icon>
+                                </div>
+                                <div class="metric-subtitle">{summary.csmName}</div>
+                            </div>
+                        </div>
+
+                        <!-- ZONE 3A: Suggested Actions -->
+                        <div class="suggested-actions-container grid-area-actions">
+                            <div class="action-section-label">SUGGESTED ACTIONS</div>
+
+                            <!-- Suggested Action 1 -->
+                            <template if:true={hasSuggestedAction1}>
+                                <div class={suggestedAction1Class} onclick={handleSuggestedAction} data-action={suggestedAction1.handler}>
+                                    <div class="suggested-action-content">
+                                        <div class="suggested-action-text">{suggestedAction1.text}</div>
+                                        <div class="suggested-action-badge">{suggestedAction1.badge}</div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Suggested Action 2 -->
+                            <template if:true={hasSuggestedAction2}>
+                                <div class={suggestedAction2Class} onclick={handleSuggestedAction} data-action={suggestedAction2.handler}>
+                                    <div class="suggested-action-content">
+                                        <div class="suggested-action-text">{suggestedAction2.text}</div>
+                                        <div class="suggested-action-badge">{suggestedAction2.badge}</div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Suggested Action 3 -->
+                            <template if:true={hasSuggestedAction3}>
+                                <div class={suggestedAction3Class} onclick={handleSuggestedAction} data-action={suggestedAction3.handler}>
+                                    <div class="suggested-action-content">
+                                        <div class="suggested-action-text">{suggestedAction3.text}</div>
+                                        <div class="suggested-action-badge">{suggestedAction3.badge}</div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Suggested Action 4 -->
+                            <template if:true={hasSuggestedAction4}>
+                                <div class={suggestedAction4Class} onclick={handleSuggestedAction} data-action={suggestedAction4.handler}>
+                                    <div class="suggested-action-content">
+                                        <div class="suggested-action-text">{suggestedAction4.text}</div>
+                                        <div class="suggested-action-badge">{suggestedAction4.badge}</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- ZONE 3B: Quick Actions -->
+                        <div class="quick-actions-container grid-area-quick">
+                            <div class="action-section-label">QUICK ACTIONS</div>
+                            <div class="quick-action-grid">
+                                <button class="quick-action-btn" onclick={handleLogCall} title="Log a Call">
+                                    <lightning-icon icon-name="utility:call" size="small"></lightning-icon>
+                                    <span class="quick-action-label">Call</span>
+                                </button>
+                                <button class="quick-action-btn" onclick={handleCreateTask} title="Create Task">
+                                    <lightning-icon icon-name="utility:task" size="small"></lightning-icon>
+                                    <span class="quick-action-label">Task</span>
+                                </button>
+                                <button class="quick-action-btn" onclick={handleCreateEvent} title="Schedule Event">
+                                    <lightning-icon icon-name="utility:event" size="small"></lightning-icon>
+                                    <span class="quick-action-label">Event</span>
+                                </button>
+                                <button class="quick-action-btn" onclick={handleCreateCase} title="Create Case">
+                                    <lightning-icon icon-name="utility:case" size="small"></lightning-icon>
+                                    <span class="quick-action-label">Case</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </template>
+
+                <!-- Two Column Layout for Details -->
+                <div class="dashboard-grid">
+
+                    <!-- Left Column -->
+                    <div class="grid-column">
+
+                        <!-- Overdue Tasks Section - TOP LEFT -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <h3 class="section-title">Overdue Tasks</h3>
+                            </div>
+
+                            <template if:true={hasOverdueTasksList}>
+                                <div class="activity-list">
+                                    <template for:each={overdueTasks} for:item="task">
+                                        <div key={task.activityId} data-id={task.activityId} onclick={handleActivityClick} class="activity-item activity-item--overdue">
+                                            <div class="activity-icon-wrapper">
+                                                <lightning-icon icon-name="standard:task" size="small"></lightning-icon>
+                                            </div>
+                                            <div class="activity-content">
+                                                <div class="activity-subject">{task.subject}</div>
+                                                <div class="activity-meta">
+                                                    <span>{task.ownerName}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span class="overdue-text">{task.daysOverdue} days overdue</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template if:false={hasOverdueTasksList}>
+                                <div class="empty-state">
+                                    <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
+                                    <p class="empty-text">No overdue tasks</p>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Open Support Cases Section - MIDDLE LEFT -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <h3 class="section-title">Open Support Cases</h3>
+                                <template if:true={hasCases}>
+                                    <button class="custom-btn custom-btn--link" onclick={handleViewAllCases}>
+                                        View All
+                                    </button>
+                                </template>
+                            </div>
+
+                            <template if:true={hasCases}>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Case #</th>
+                                                <th>Subject</th>
+                                                <th>Status</th>
+                                                <th>Priority</th>
+                                                <th>Age</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={cases} for:item="caseItem">
+                                                <tr key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleCaseClick} class="table-row">
+                                                    <td>
+                                                        <span class="case-number">{caseItem.caseNumber}</span>
+                                                        <template if:true={caseItem.isEscalated}>
+                                                            <lightning-icon icon-name="utility:warning" size="xx-small" class="escalated-icon"></lightning-icon>
+                                                        </template>
+                                                    </td>
+                                                    <td class="subject-cell">{caseItem.subject}</td>
+                                                    <td>
+                                                        <span class="status-badge">{caseItem.status}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="priority-badge">{caseItem.priority}</span>
+                                                    </td>
+                                                    <td>{caseItem.age} days</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+
+                            <template if:false={hasCases}>
+                                <div class="empty-state">
+                                    <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
+                                    <p class="empty-text">No open cases for this account</p>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Open Opportunities Section - BOTTOM LEFT -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <h3 class="section-title">Open Opportunities</h3>
+                                <template if:true={hasOpportunities}>
+                                    <button class="custom-btn custom-btn--link" onclick={handleViewAllOpportunities}>
+                                        View All
+                                    </button>
+                                </template>
+                            </div>
+
+                            <template if:true={hasOpportunities}>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Stage</th>
+                                                <th>Close Date</th>
+                                                <th>Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={opportunities} for:item="opp">
+                                                <tr key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleOpportunityClick} class="table-row">
+                                                    <td class="subject-cell">{opp.name}</td>
+                                                    <td><span class="status-badge">{opp.stageName}</span></td>
+                                                    <td>{opp.closeDate}</td>
+                                                    <td>
+                                                        <template if:true={opp.amount}>
+                                                            <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                        </template>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+
+                            <template if:false={hasOpportunities}>
+                                <div class="empty-state">
+                                    <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
+                                    <p class="empty-text">No open opportunities</p>
+                                </div>
+                            </template>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="grid-column">
+
+                        <!-- Upcoming Activities Section - TOP RIGHT -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <h3 class="section-title">Upcoming Activities</h3>
+                                <template if:true={hasUpcomingActivities}>
+                                    <button class="custom-btn custom-btn--link" onclick={handleViewAllActivities}>
+                                        View All
+                                    </button>
+                                </template>
+                            </div>
+
+                            <template if:true={hasUpcomingActivities}>
+                                <div class="activity-list">
+                                    <template for:each={upcomingActivities} for:item="activity">
+                                        <div key={activity.activityId} data-id={activity.activityId} onclick={handleActivityClick} class="activity-item">
+                                            <div class="activity-icon-wrapper">
+                                                <template if:true={activity.activityType}>
+                                                    <lightning-icon icon-name="standard:task" size="small"></lightning-icon>
+                                                </template>
+                                            </div>
+                                            <div class="activity-content">
+                                                <div class="activity-subject">{activity.subject}</div>
+                                                <div class="activity-meta">
+                                                    <span class="activity-type-badge">{activity.activityType}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{activity.activityDate}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{activity.ownerName}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template if:false={hasUpcomingActivities}>
+                                <div class="empty-state">
+                                    <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
+                                    <p class="empty-text">No upcoming activities scheduled</p>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Contacts Section - MIDDLE RIGHT -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <h3 class="section-title">Contacts</h3>
+                                <template if:true={hasContacts}>
+                                    <button class="custom-btn custom-btn--link" onclick={handleViewAllContacts}>
+                                        View All
+                                    </button>
+                                </template>
+                            </div>
+
+                            <template if:true={hasContacts}>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Title</th>
+                                                <th>Email</th>
+                                                <th>Phone</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={contacts} for:item="contact">
+                                                <tr key={contact.contactId} data-id={contact.contactId} onclick={handleContactClick} class="table-row">
+                                                    <td class="subject-cell">{contact.name}</td>
+                                                    <td>{contact.title}</td>
+                                                    <td>{contact.email}</td>
+                                                    <td>{contact.phone}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+
+                            <template if:false={hasContacts}>
+                                <div class="empty-state">
+                                    <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
+                                    <p class="empty-text">No contacts found</p>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Inactivity Warning -->
+                        <template if:true={showInactivityWarning}>
+                            <div class="section-card warning-card">
+                                <div class="warning-content">
+                                    <lightning-icon icon-name="utility:warning" size="small" class="warning-icon"></lightning-icon>
+                                    <div>
+                                        <h4 class="warning-title">No Recent Activity</h4>
+                                        <p class="warning-text">This account has had no activity in over 30 days. Consider reaching out to maintain engagement.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                    </div>
+                </div>
+
+            </div>
+        </template>
+
+        <!-- Health Score Breakdown Modal -->
+        <template if:true={showHealthBreakdownModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-modal__title slds-hyphenate">Health Score Breakdown</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <div class="health-breakdown-content">
+                            <!-- Overall Health Score -->
+                            <div class="breakdown-section">
+                                <div class="breakdown-header">
+                                    <h3 class="breakdown-title">Overall Health Score</h3>
+                                    <div class={healthScoreBadgeClass}>{summary.accountHealthScore}</div>
+                                </div>
+                                <div class="breakdown-description">
+                                    <p>Current account health status based on multiple factors including support cases, activity engagement, and opportunities.</p>
+                                </div>
+                            </div>
+
+                            <!-- Trend Analysis -->
+                            <div class="breakdown-section">
+                                <h3 class="breakdown-title">Trend</h3>
+                                <div class="breakdown-metric">
+                                    <span class={trendIconClass}>{trendIcon}</span>
+                                    <span class={trendLabelClass}>{trendText}</span>
+                                </div>
+                                <p class="breakdown-text">Health score trend over the past 30 days</p>
+                            </div>
+
+                            <!-- Contributing Factors -->
+                            <div class="breakdown-section">
+                                <h3 class="breakdown-title">Contributing Factors</h3>
+
+                                <div class="breakdown-factor">
+                                    <div class="factor-row">
+                                        <span class="factor-label">Open Cases</span>
+                                        <span class={openCasesFactorClass}>{summary.openCasesCount}</span>
+                                    </div>
+                                    <template if:true={summary.highPriorityCasesCount}>
+                                        <p class="factor-note factor-note--warning">{summary.highPriorityCasesCount} high priority case(s) requiring attention</p>
+                                    </template>
+                                </div>
+
+                                <div class="breakdown-factor">
+                                    <div class="factor-row">
+                                        <span class="factor-label">Overdue Tasks</span>
+                                        <span class={overdueTasksFactorClass}>{summary.overdueTasks}</span>
+                                    </div>
+                                    <template if:true={hasOverdueTasks}>
+                                        <p class="factor-note factor-note--danger">Action required on overdue tasks</p>
+                                    </template>
+                                </div>
+
+                                <div class="breakdown-factor">
+                                    <div class="factor-row">
+                                        <span class="factor-label">Days Since Last Activity</span>
+                                        <span class={lastActivityFactorClass}>{daysSinceLastActivityText}</span>
+                                    </div>
+                                    <template if:true={showInactivityWarning}>
+                                        <p class="factor-note factor-note--warning">No activity in over 30 days</p>
+                                    </template>
+                                </div>
+
+                                <div class="breakdown-factor">
+                                    <div class="factor-row">
+                                        <span class="factor-label">Opportunities</span>
+                                        <span class="factor-value">{summary.opportunityCount}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Last Updated -->
+                            <div class="breakdown-footer">
+                                <p class="breakdown-timestamp">Last updated: 2 hours ago</p>
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="custom-btn custom-btn--secondary" onclick={handleCloseModal}>
+                            Close
+                        </button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- KPI Details Modal -->
+        <template if:true={showKpiModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseKpiModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-modal__title slds-hyphenate">{kpiModalTitle}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+
+                        <!-- Cases Table -->
+                        <template if:true={showCasesModal}>
+                            <template if:true={hasKpiModalData}>
+                                <div class="kpi-modal-table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Case #</th>
+                                                <th>Subject</th>
+                                                <th>Status</th>
+                                                <th>Priority</th>
+                                                <th>Owner</th>
+                                                <th>Age (days)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={kpiModalData} for:item="caseItem">
+                                                <tr key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleKpiRecordClick} class="table-row">
+                                                    <td>
+                                                        <span class="case-number">{caseItem.caseNumber}</span>
+                                                        <template if:true={caseItem.isEscalated}>
+                                                            <lightning-icon icon-name="utility:warning" size="xx-small" class="escalated-icon"></lightning-icon>
+                                                        </template>
+                                                    </td>
+                                                    <td class="subject-cell">{caseItem.subject}</td>
+                                                    <td><span class="status-badge">{caseItem.status}</span></td>
+                                                    <td><span class="priority-badge">{caseItem.priority}</span></td>
+                                                    <td>{caseItem.ownerName}</td>
+                                                    <td>{caseItem.age}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:false={hasKpiModalData}>
+                                <div class="kpi-modal-empty-state">
+                                    <lightning-icon icon-name="utility:success" size="large" class="empty-state-icon"></lightning-icon>
+                                    <p class="empty-state-message">{kpiModalEmptyMessage}</p>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Tasks Table -->
+                        <template if:true={showTasksModal}>
+                            <template if:true={hasKpiModalData}>
+                                <div class="kpi-modal-table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Subject</th>
+                                                <th>Due Date</th>
+                                                <th>Days Overdue</th>
+                                                <th>Owner</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={kpiModalData} for:item="task">
+                                                <tr key={task.activityId} data-id={task.activityId} onclick={handleKpiRecordClick} class="table-row">
+                                                    <td class="subject-cell">{task.subject}</td>
+                                                    <td>{task.activityDate}</td>
+                                                    <td><span class="overdue-badge">{task.daysOverdue} days</span></td>
+                                                    <td>{task.ownerName}</td>
+                                                    <td><span class="status-badge">{task.status}</span></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:false={hasKpiModalData}>
+                                <div class="kpi-modal-empty-state">
+                                    <lightning-icon icon-name="utility:success" size="large" class="empty-state-icon"></lightning-icon>
+                                    <p class="empty-state-message">{kpiModalEmptyMessage}</p>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Opportunities Table -->
+                        <template if:true={showOpportunitiesModal}>
+                            <template if:true={hasKpiModalData}>
+                                <div class="kpi-modal-table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Stage</th>
+                                                <th>Close Date</th>
+                                                <th>Amount</th>
+                                                <th>Probability</th>
+                                                <th>Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={kpiModalData} for:item="opp">
+                                                <tr key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleKpiRecordClick} class="table-row">
+                                                    <td class="subject-cell">{opp.name}</td>
+                                                    <td><span class="status-badge">{opp.stageName}</span></td>
+                                                    <td>{opp.closeDate}</td>
+                                                    <td>
+                                                        <template if:true={opp.amount}>
+                                                            <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                        </template>
+                                                    </td>
+                                                    <td>{opp.probability}%</td>
+                                                    <td>{opp.ownerName}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:false={hasKpiModalData}>
+                                <div class="kpi-modal-empty-state">
+                                    <lightning-icon icon-name="utility:info" size="large" class="empty-state-icon"></lightning-icon>
+                                    <p class="empty-state-message">{kpiModalEmptyMessage}</p>
+                                </div>
+                            </template>
+                        </template>
+
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="custom-btn custom-btn--secondary" onclick={handleCloseKpiModal}>
+                            Close
+                        </button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </lightning-card>
+</template>

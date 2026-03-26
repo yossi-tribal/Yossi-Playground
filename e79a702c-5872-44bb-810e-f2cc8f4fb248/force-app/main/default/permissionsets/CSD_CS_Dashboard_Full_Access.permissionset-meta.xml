@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>CSD_CS_Dashboard_Full_Access</fullName>
+            <label>CS Dashboard Full Access</label>
+            <description>Full access to Customer Success Dashboard fields and components with streamlined 2-field data model</description><!-- Field Permissions - Make custom fields visible and editable based on isEditable (required fields are excluded) -->
+            
+            <fieldPermissions>
+                
+                <editable>true</editable>
+                
+                <field>Account.CSD_Account_Health_Score__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            <fieldPermissions>
+                
+                <editable>true</editable>
+                
+                <field>Account.CSD_Primary_CSM__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            <!-- Apex Class Access - Grant access to Apex classes -->
+
+            <classAccesses>
+                <apexClass>CSD_AccountHealthScoreHandler</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+            <classAccesses>
+                <apexClass>CSD_CSDashboardController</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+            <classAccesses>
+                <apexClass>CSD_CaseHealthScoreHandler</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+            <classAccesses>
+                <apexClass>CSD_TaskHealthScoreHandler</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+            <classAccesses>
+                <apexClass>CSD_EventHealthScoreHandler</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+
+            <!-- Run Flow Permission - Required when project has screen flows -->
+            
+            
+            <hasActivationRequired>false</hasActivationRequired>
+        </PermissionSet>

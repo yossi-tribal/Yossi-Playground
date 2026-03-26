@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>CSD_Primary_CSM__c</fullName>
+            <label>Primary CSM</label>
+            <description>The assigned Customer Success Manager responsible for this account</description>
+            <type>Lookup</type>
+            <required>false</required>
+            <referenceTo>User</referenceTo>
+            <relationshipLabel>Accounts (Primary CSM)</relationshipLabel>
+            <relationshipName>CSD_Primary_CSM_Accounts</relationshipName>
+            <deleteConstraint>SetNull</deleteConstraint>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            <unique>false</unique>
+            <externalId>false</externalId>
+        </CustomField>

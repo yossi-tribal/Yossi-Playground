@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+            <apiVersion>66.0</apiVersion>
+            <description>Premium customer success dashboard with sophisticated UX inspired by Apple, Google, Netflix, Airbnb - elegant cards, refined typography, smooth interactions, thoughtful spacing, subtle shadows, polished hierarchy</description>
+            <isExposed>True</isExposed>
+            <masterLabel>Customer Success Dashboard</masterLabel>
+            <targets>
+                
+                <target>lightning__RecordPage</target>
+                
+            </targets>
+        </LightningComponentBundle>
