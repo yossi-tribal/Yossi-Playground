@@ -698,9 +698,8 @@
 }
 
 .quick-actions-inline {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: var(--csd-space-2);
     padding-top: var(--csd-space-3);
     margin-top: var(--csd-space-1);
@@ -721,6 +720,7 @@
     gap: var(--csd-space-1);
     cursor: pointer;
     transition: background-color 0.15s ease, border-color 0.15s ease;
+    width: 100%;
 }
 
 .quick-action-text {
@@ -747,18 +747,45 @@
     color: var(--csd-text-primary);
 }
 
+/* Tablet and below: 2x2 grid with icons only */
 @media (max-width: 767px) {
     .quick-actions-inline {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
     }
-}
 
-@media (min-width: 768px) {
-    .quick-actions-inline {
-        justify-content: flex-start;
+    .quick-action-btn {
+        flex-direction: column;
+        padding: var(--csd-space-3);
     }
 
+    .quick-action-text {
+        display: none;
+    }
+}
+
+/* Small mobile screens: Keep 2x2 grid, icons only, tighter spacing */
+@media (max-width: 480px) {
+    .quick-actions-inline {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--csd-space-1);
+    }
+
+    .quick-action-btn {
+        min-width: 40px;
+        min-height: 40px;
+        padding: var(--csd-space-2);
+        flex-direction: column;
+    }
+
+    .quick-action-text {
+        display: none;
+    }
+}
+
+/* Desktop: Show text labels horizontally */
+@media (min-width: 768px) {
     .quick-action-btn {
         flex-direction: row;
         align-items: center;
