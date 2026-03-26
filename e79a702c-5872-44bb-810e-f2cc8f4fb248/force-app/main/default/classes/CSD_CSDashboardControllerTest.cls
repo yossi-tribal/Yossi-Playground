@@ -723,6 +723,84 @@ private class CSD_CSDashboardControllerTest {
     }
 
     /**
+     * @description Test getContacts returns contacts with last activity dates
+     */
+    @isTest
+    static void testGetContacts_WithLastActivity() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        Contact testContact = [SELECT Id FROM Contact WHERE AccountId = :testAccount.Id LIMIT 1];
+
+        Task contactTask = new Task(
+            WhoId = testContact.Id,
+            WhatId = testAccount.Id,
+            Subject = 'Contact Follow-up',
+            Status = 'Completed',
+            Priority = 'Normal',
+            ActivityDate = Date.today().addDays(-3)
+        );
+        insert contactTask;
+
+        Test.startTest();
+        List<CSD_CSDashboardController.ContactData> contacts =
+            CSD_CSDashboardController.getContacts(testAccount.Id, 10);
+        Test.stopTest();
+
+        System.assertEquals(3, contacts.size(), 'Should return 3 contacts');
+
+        Boolean foundWithActivity = false;
+        for (CSD_CSDashboardController.ContactData c : contacts) {
+            System.assertNotEquals(null, c.contactId, 'Contact ID should not be null');
+            System.assertNotEquals(null, c.name, 'Contact name should not be null');
+            if (c.contactId == testContact.Id) {
+                System.assertNotEquals(null, c.lastActivityDate, 'Contact with task should have lastActivityDate');
+                foundWithActivity = true;
+            }
+        }
+        System.assert(foundWithActivity, 'Should find the contact with activity');
+    }
+
+    /**
+     * @description Test getContacts with null account ID
+     */
+    @isTest
+    static void testGetContacts_NullAccountId() {
+        Test.startTest();
+        try {
+            CSD_CSDashboardController.getContacts(null, 10);
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage().contains('Account ID is required'),
+                'Exception message should indicate missing account ID');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Test getContacts with no activity returns null lastActivityDate
+     */
+    @isTest
+    static void testGetContacts_NoActivity() {
+        Account freshAccount = new Account(Name = 'Fresh Account');
+        insert freshAccount;
+
+        Contact freshContact = new Contact(
+            AccountId = freshAccount.Id,
+            FirstName = 'Fresh',
+            LastName = 'Contact',
+            Email = 'fresh@example.com'
+        );
+        insert freshContact;
+
+        Test.startTest();
+        List<CSD_CSDashboardController.ContactData> contacts =
+            CSD_CSDashboardController.getContacts(freshAccount.Id, 10);
+        Test.stopTest();
+
+        System.assertEquals(1, contacts.size(), 'Should return 1 contact');
+        System.assertEquals(null, contacts[0].lastActivityDate, 'Contact with no activity should have null lastActivityDate');
+    }
+
+    /**
      * @description Test next touchpoint with no upcoming activities
      */
     @isTest

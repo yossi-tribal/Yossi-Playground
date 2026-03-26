@@ -110,6 +110,7 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String email { get; set; }
         @AuraEnabled public String phone { get; set; }
         @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public String lastActivityDate { get; set; }
     }
 
     /**
@@ -812,6 +813,39 @@ public with sharing class CSD_CSDashboardController {
                 LIMIT :recordLimit
             ];
 
+            Set<Id> contactIds = new Set<Id>();
+            for (Contact c : contacts) {
+                contactIds.add(c.Id);
+            }
+
+            Map<Id, Date> lastActivityByContact = new Map<Id, Date>();
+
+            for (Task t : [
+                SELECT WhoId, ActivityDate
+                FROM Task
+                WHERE WhoId IN :contactIds
+                AND IsClosed = true
+                AND ActivityDate != null
+                ORDER BY ActivityDate DESC
+            ]) {
+                if (!lastActivityByContact.containsKey(t.WhoId)) {
+                    lastActivityByContact.put(t.WhoId, t.ActivityDate);
+                }
+            }
+
+            for (Event ev : [
+                SELECT WhoId, ActivityDate
+                FROM Event
+                WHERE WhoId IN :contactIds
+                AND ActivityDate != null
+                ORDER BY ActivityDate DESC
+            ]) {
+                if (!lastActivityByContact.containsKey(ev.WhoId) ||
+                    ev.ActivityDate > lastActivityByContact.get(ev.WhoId)) {
+                    lastActivityByContact.put(ev.WhoId, ev.ActivityDate);
+                }
+            }
+
             for (Contact c : contacts) {
                 ContactData contactData = new ContactData();
                 contactData.contactId = c.Id;
@@ -820,6 +854,10 @@ public with sharing class CSD_CSDashboardController {
                 contactData.email = c.Email;
                 contactData.phone = c.Phone;
                 contactData.ownerName = c.Owner.Name;
+
+                Date lastDate = lastActivityByContact.get(c.Id);
+                contactData.lastActivityDate = lastDate != null ? lastDate.format() : null;
+
                 contactList.add(contactData);
             }
 

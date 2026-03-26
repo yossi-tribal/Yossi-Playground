@@ -822,6 +822,32 @@
     padding: 2px var(--csd-space-2);
     border-radius: 999px;
     margin-left: var(--csd-space-1);
+    cursor: help;
+    border: 1px solid transparent;
+}
+
+.relationship-pill--weak {
+    color: var(--csd-amber-900);
+    background: var(--csd-amber-50);
+    border-color: var(--csd-amber-200);
+}
+
+.relationship-pill--moderate {
+    color: var(--csd-blue-text);
+    background: var(--csd-blue-light);
+    border-color: var(--csd-blue-muted);
+}
+
+.relationship-pill--strong {
+    color: #065F46;
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+}
+
+.relationship-pill--none {
+    color: var(--csd-text-tertiary);
+    background: var(--csd-gray-100);
+    border-color: var(--csd-gray-200);
 }
 
 .section-accordion-chevron {
@@ -1024,6 +1050,20 @@
 .escalated-icon {
     color: var(--csd-red-dark);
     margin-left: 6px;
+}
+
+.last-activity-cell {
+    white-space: nowrap;
+}
+
+.last-activity-text {
+    font-size: var(--csd-text-sm);
+    color: var(--csd-gray-700);
+}
+
+.last-activity-text--none {
+    color: var(--csd-text-tertiary);
+    font-style: italic;
 }
 
 /* Activity List */

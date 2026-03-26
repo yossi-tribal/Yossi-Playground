@@ -1001,8 +1001,21 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     get relationshipDepthLabel() {
-        if (!this.summary) return 'None';
-        return this.summary.relationshipDepth || 'None';
+        if (!this.summary) return 'Relationship: None';
+        const depth = this.summary.relationshipDepth || 'None';
+        return `Relationship: ${depth}`;
+    }
+
+    get relationshipDepthTooltip() {
+        if (!this.summary) return '';
+        const count = this.summary.contactCount || 0;
+        return `Relationship depth is based on contact coverage at this account (${count} contact${count !== 1 ? 's' : ''}). 1–4: Weak, 5–9: Moderate, 10+: Strong`;
+    }
+
+    get relationshipPillClass() {
+        if (!this.summary) return 'relationship-pill';
+        const depth = (this.summary.relationshipDepth || 'None').toLowerCase();
+        return `relationship-pill relationship-pill--${depth}`;
     }
 
     get contactCountText() {

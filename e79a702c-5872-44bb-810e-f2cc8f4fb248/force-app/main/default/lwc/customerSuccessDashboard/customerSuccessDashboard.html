@@ -399,7 +399,7 @@
                             <lightning-icon icon-name="standard:contact" size="small" class="section-accordion-icon"></lightning-icon>
                             <span class="section-accordion-title">Contacts</span>
                             <span class="section-accordion-count">({summary.contactCount})</span>
-                            <span class="relationship-pill">{relationshipDepthLabel}</span>
+                            <span class={relationshipPillClass} title={relationshipDepthTooltip}>{relationshipDepthLabel}</span>
                             <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
                         </button>
                         <template if:true={secContacts}>
@@ -416,6 +416,7 @@
                                                     <th>Title</th>
                                                     <th>Email</th>
                                                     <th class="data-table-col-phone">Phone</th>
+                                                    <th>Last Activity</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -425,6 +426,14 @@
                                                         <td>{contact.title}</td>
                                                         <td>{contact.email}</td>
                                                         <td class="data-table-col-phone">{contact.phone}</td>
+                                                        <td class="last-activity-cell">
+                                                            <template if:true={contact.lastActivityDate}>
+                                                                <span class="last-activity-text">{contact.lastActivityDate}</span>
+                                                            </template>
+                                                            <template if:false={contact.lastActivityDate}>
+                                                                <span class="last-activity-text last-activity-text--none">No activity</span>
+                                                            </template>
+                                                        </td>
                                                     </tr>
                                                 </template>
                                             </tbody>
@@ -434,7 +443,13 @@
                                         <template for:each={contacts} for:item="contact">
                                             <div key={contact.contactId} data-id={contact.contactId} onclick={handleContactClick} class="mobile-record-card">
                                                 <div class="mobile-record-card-title">{contact.name}</div>
-                                                <div class="mobile-record-card-meta">{contact.title} · {contact.email}</div>
+                                                <div class="mobile-record-card-meta">
+                                                    <span>{contact.title} · {contact.email}</span>
+                                                    <template if:true={contact.lastActivityDate}>
+                                                        <span class="meta-separator">·</span>
+                                                        <span>Last: {contact.lastActivityDate}</span>
+                                                    </template>
+                                                </div>
                                             </div>
                                         </template>
                                     </div>
