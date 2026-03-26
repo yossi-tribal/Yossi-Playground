@@ -623,10 +623,6 @@
 
 /* Suggested Action — flat, left accent */
 .suggested-action {
-    appearance: none;
-    -webkit-appearance: none;
-    font: inherit;
-    font-family: inherit;
     background: var(--csd-surface);
     border: 1px solid var(--csd-border);
     border-radius: var(--csd-radius-sm);
@@ -637,16 +633,87 @@
     overflow: hidden;
     max-width: 100%;
     width: 100%;
-    text-align: left;
-}
-
-.suggested-action:focus-visible {
-    outline: 2px solid var(--csd-blue);
-    outline-offset: 2px;
 }
 
 .suggested-action:hover {
     background: var(--csd-gray-50);
+}
+
+.suggested-action-slot {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Native button rows (keyboard-accessible); match former div.suggested-action look */
+.suggested-action-btn {
+    font: inherit;
+    text-align: left;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    display: block;
+    box-sizing: border-box;
+}
+
+.suggested-action-btn:hover {
+    background: var(--csd-gray-50);
+}
+
+.suggested-action-main--menu {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--csd-space-2);
+}
+
+.suggested-action-menu-trigger {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.suggested-action-hint {
+    font-size: var(--csd-text-xs);
+    color: var(--csd-text-secondary);
+    margin: var(--csd-space-2) 0 0 0;
+    line-height: 1.35;
+}
+
+.kpi-modal-hint {
+    font-size: var(--csd-text-sm);
+    color: var(--csd-text-secondary);
+    margin-bottom: var(--csd-space-3);
+    line-height: 1.4;
+}
+
+/* Inline activity create modal (Task / Event) */
+.csd-activity-modal .slds-modal__container {
+    max-width: 36rem;
+}
+
+.activity-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--csd-space-2);
+}
+
+.csd-confetti-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 100000;
+}
+
+.csd-confetti-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 .suggested-action--danger {
@@ -669,40 +736,9 @@
 
 .suggested-action-main {
     display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--csd-space-2);
-    width: 100%;
-}
-
-.suggested-action-text-block {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--csd-space-1);
-    flex: 1;
-    min-width: 0;
-}
-
-.suggested-action-title-row {
-    display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--csd-space-2);
-    width: 100%;
-}
-
-.suggested-action-subline {
-    font-size: var(--csd-text-xs);
-    font-weight: 400;
-    color: var(--csd-text-secondary);
-    line-height: 1.3;
-}
-
-.suggested-action-chevron {
-    flex-shrink: 0;
-    color: var(--csd-text-tertiary);
 }
 
 .suggested-action-dot {
@@ -839,25 +875,6 @@
     .quick-action-text {
         display: inline;
     }
-}
-
-/* Plan touchpoint chooser modal */
-.touchpoint-modal-desc {
-    margin: 0 0 var(--csd-space-4);
-    font-size: var(--csd-text-sm);
-    color: var(--csd-text-secondary);
-    line-height: 1.45;
-}
-
-.touchpoint-modal-actions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--csd-space-2);
-}
-
-.touchpoint-modal-btn {
-    width: 100%;
-    justify-content: center;
 }
 
 

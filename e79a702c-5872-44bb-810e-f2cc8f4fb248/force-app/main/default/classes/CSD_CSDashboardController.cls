@@ -28,6 +28,7 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public Integer contactCount { get; set; }
         @AuraEnabled public String relationshipDepth { get; set; }
         @AuraEnabled public Integer relationshipDepthStars { get; set; }
+        /** Earliest upcoming activity subject/type/time; consumed by Customer Success Dashboard suggested-action hints. */
         @AuraEnabled public String nextTouchpointSubject { get; set; }
         @AuraEnabled public String nextTouchpointType { get; set; }
         @AuraEnabled public String nextTouchpointTime { get; set; }
