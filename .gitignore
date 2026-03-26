@@ -1,0 +1,5 @@
+# Salesforce CLI local project state (do not commit)
+.sfdx/
+
+# Node (Jest in package subdirectory)
+node_modules/

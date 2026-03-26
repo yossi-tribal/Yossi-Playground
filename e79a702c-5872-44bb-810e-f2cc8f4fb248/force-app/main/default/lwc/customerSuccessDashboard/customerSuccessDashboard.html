@@ -58,76 +58,152 @@
                             <div class="action-section-label">Suggested actions</div>
 
                             <template if:true={hasSuggestedAction1}>
-                                <div class={suggestedAction1Class} onclick={handleSuggestedAction} data-action={suggestedAction1.handler}>
+                                <button
+                                    type="button"
+                                    class={suggestedAction1Class}
+                                    onclick={handleSuggestedAction}
+                                    data-action={suggestedAction1.handler}
+                                    aria-label={suggestedAction1.ariaLabel}>
                                     <div class="suggested-action-content">
                                         <div class="suggested-action-main">
-                                            <template if:true={suggestedAction1.showBadge}>
-                                                <span class={suggestedAction1DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction1.badge}</span>
+                                            <div class="suggested-action-text-block">
+                                                <div class="suggested-action-title-row">
+                                                    <template if:true={suggestedAction1.showBadge}>
+                                                        <span class={suggestedAction1DotClass}></span>
+                                                        <span class="suggested-action-urgency-label">{suggestedAction1.badge}</span>
+                                                    </template>
+                                                    <span class="suggested-action-text">{suggestedAction1.text}</span>
+                                                </div>
+                                                <template if:true={suggestedAction1.subline}>
+                                                    <span class="suggested-action-subline">{suggestedAction1.subline}</span>
+                                                </template>
+                                            </div>
+                                            <template if:true={suggestedAction1.touchpointChooser}>
+                                                <lightning-icon
+                                                    icon-name="utility:chevronright"
+                                                    size="x-small"
+                                                    class="suggested-action-chevron"
+                                                    alternative-text=""></lightning-icon>
                                             </template>
-                                            <span class="suggested-action-text">{suggestedAction1.text}</span>
                                         </div>
                                     </div>
-                                </div>
+                                </button>
                             </template>
 
                             <template if:true={hasSuggestedAction2}>
-                                <div class={suggestedAction2Class} onclick={handleSuggestedAction} data-action={suggestedAction2.handler}>
+                                <button
+                                    type="button"
+                                    class={suggestedAction2Class}
+                                    onclick={handleSuggestedAction}
+                                    data-action={suggestedAction2.handler}
+                                    aria-label={suggestedAction2.ariaLabel}>
                                     <div class="suggested-action-content">
                                         <div class="suggested-action-main">
-                                            <template if:true={suggestedAction2.showBadge}>
-                                                <span class={suggestedAction2DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction2.badge}</span>
+                                            <div class="suggested-action-text-block">
+                                                <div class="suggested-action-title-row">
+                                                    <template if:true={suggestedAction2.showBadge}>
+                                                        <span class={suggestedAction2DotClass}></span>
+                                                        <span class="suggested-action-urgency-label">{suggestedAction2.badge}</span>
+                                                    </template>
+                                                    <span class="suggested-action-text">{suggestedAction2.text}</span>
+                                                </div>
+                                                <template if:true={suggestedAction2.subline}>
+                                                    <span class="suggested-action-subline">{suggestedAction2.subline}</span>
+                                                </template>
+                                            </div>
+                                            <template if:true={suggestedAction2.touchpointChooser}>
+                                                <lightning-icon
+                                                    icon-name="utility:chevronright"
+                                                    size="x-small"
+                                                    class="suggested-action-chevron"
+                                                    alternative-text=""></lightning-icon>
                                             </template>
-                                            <span class="suggested-action-text">{suggestedAction2.text}</span>
                                         </div>
                                     </div>
-                                </div>
+                                </button>
                             </template>
 
                             <template if:true={hasSuggestedAction3}>
-                                <div class={suggestedAction3Class} onclick={handleSuggestedAction} data-action={suggestedAction3.handler}>
+                                <button
+                                    type="button"
+                                    class={suggestedAction3Class}
+                                    onclick={handleSuggestedAction}
+                                    data-action={suggestedAction3.handler}
+                                    aria-label={suggestedAction3.ariaLabel}>
                                     <div class="suggested-action-content">
                                         <div class="suggested-action-main">
-                                            <template if:true={suggestedAction3.showBadge}>
-                                                <span class={suggestedAction3DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction3.badge}</span>
+                                            <div class="suggested-action-text-block">
+                                                <div class="suggested-action-title-row">
+                                                    <template if:true={suggestedAction3.showBadge}>
+                                                        <span class={suggestedAction3DotClass}></span>
+                                                        <span class="suggested-action-urgency-label">{suggestedAction3.badge}</span>
+                                                    </template>
+                                                    <span class="suggested-action-text">{suggestedAction3.text}</span>
+                                                </div>
+                                                <template if:true={suggestedAction3.subline}>
+                                                    <span class="suggested-action-subline">{suggestedAction3.subline}</span>
+                                                </template>
+                                            </div>
+                                            <template if:true={suggestedAction3.touchpointChooser}>
+                                                <lightning-icon
+                                                    icon-name="utility:chevronright"
+                                                    size="x-small"
+                                                    class="suggested-action-chevron"
+                                                    alternative-text=""></lightning-icon>
                                             </template>
-                                            <span class="suggested-action-text">{suggestedAction3.text}</span>
                                         </div>
                                     </div>
-                                </div>
+                                </button>
                             </template>
 
                             <template if:true={hasSuggestedAction4}>
-                                <div class={suggestedAction4Class} onclick={handleSuggestedAction} data-action={suggestedAction4.handler}>
+                                <button
+                                    type="button"
+                                    class={suggestedAction4Class}
+                                    onclick={handleSuggestedAction}
+                                    data-action={suggestedAction4.handler}
+                                    aria-label={suggestedAction4.ariaLabel}>
                                     <div class="suggested-action-content">
                                         <div class="suggested-action-main">
-                                            <template if:true={suggestedAction4.showBadge}>
-                                                <span class={suggestedAction4DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction4.badge}</span>
+                                            <div class="suggested-action-text-block">
+                                                <div class="suggested-action-title-row">
+                                                    <template if:true={suggestedAction4.showBadge}>
+                                                        <span class={suggestedAction4DotClass}></span>
+                                                        <span class="suggested-action-urgency-label">{suggestedAction4.badge}</span>
+                                                    </template>
+                                                    <span class="suggested-action-text">{suggestedAction4.text}</span>
+                                                </div>
+                                                <template if:true={suggestedAction4.subline}>
+                                                    <span class="suggested-action-subline">{suggestedAction4.subline}</span>
+                                                </template>
+                                            </div>
+                                            <template if:true={suggestedAction4.touchpointChooser}>
+                                                <lightning-icon
+                                                    icon-name="utility:chevronright"
+                                                    size="x-small"
+                                                    class="suggested-action-chevron"
+                                                    alternative-text=""></lightning-icon>
                                             </template>
-                                            <span class="suggested-action-text">{suggestedAction4.text}</span>
                                         </div>
                                     </div>
-                                </div>
+                                </button>
                             </template>
 
                             <div class="quick-actions-inline">
-                                <button type="button" class="quick-action-btn" onclick={handleLogCall} title="Log a Call">
-                                    <lightning-icon icon-name="utility:call" size="small"></lightning-icon>
+                                <button type="button" class="quick-action-btn" onclick={handleLogCall} title="Log a Call" aria-label="Log a call">
+                                    <lightning-icon icon-name="utility:call" size="small" alternative-text=""></lightning-icon>
                                     <span class="quick-action-text">Log call</span>
                                 </button>
-                                <button type="button" class="quick-action-btn" onclick={handleCreateTask} title="Create Task">
-                                    <lightning-icon icon-name="utility:task" size="small"></lightning-icon>
+                                <button type="button" class="quick-action-btn" onclick={handleCreateTask} title="Create Task" aria-label="New task">
+                                    <lightning-icon icon-name="utility:task" size="small" alternative-text=""></lightning-icon>
                                     <span class="quick-action-text">New task</span>
                                 </button>
-                                <button type="button" class="quick-action-btn" onclick={handleCreateEvent} title="Schedule Event">
-                                    <lightning-icon icon-name="utility:event" size="small"></lightning-icon>
+                                <button type="button" class="quick-action-btn" onclick={handleCreateEvent} title="Schedule Event" aria-label="Schedule event">
+                                    <lightning-icon icon-name="utility:event" size="small" alternative-text=""></lightning-icon>
                                     <span class="quick-action-text">Event</span>
                                 </button>
-                                <button type="button" class="quick-action-btn" onclick={handleCreateCase} title="Create Case">
-                                    <lightning-icon icon-name="utility:case" size="small"></lightning-icon>
+                                <button type="button" class="quick-action-btn" onclick={handleCreateCase} title="Create Case" aria-label="Create case">
+                                    <lightning-icon icon-name="utility:case" size="small" alternative-text=""></lightning-icon>
                                     <span class="quick-action-text">Case</span>
                                 </button>
                             </div>
@@ -829,6 +905,58 @@
                         <button class="custom-btn custom-btn--secondary" onclick={handleCloseKpiModal}>
                             Close
                         </button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Plan touchpoint: task / event / email -->
+        <template if:true={showTouchpointModal}>
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-modal="true"
+                aria-labelledby="touchpoint-modal-heading"
+                class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            title="Close"
+                            onclick={handleCloseTouchpointModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="Close" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 id="touchpoint-modal-heading" class="slds-modal__title slds-hyphenate">Plan touchpoint</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <p class="touchpoint-modal-desc">Choose how you want to follow up with this account.</p>
+                        <div class="touchpoint-modal-actions">
+                            <button type="button" class="custom-btn custom-btn--primary touchpoint-modal-btn" onclick={handleTouchpointModalTask}>
+                                New task
+                            </button>
+                            <button type="button" class="custom-btn custom-btn--primary touchpoint-modal-btn" onclick={handleTouchpointModalEvent}>
+                                Schedule event
+                            </button>
+                            <template if:true={hasPrimaryContactEmail}>
+                                <button type="button" class="custom-btn custom-btn--primary touchpoint-modal-btn" onclick={handleTouchpointModalEmail}>
+                                    Email contact
+                                </button>
+                            </template>
+                            <template if:false={hasPrimaryContactEmail}>
+                                <button
+                                    type="button"
+                                    class="custom-btn custom-btn--secondary touchpoint-modal-btn"
+                                    disabled
+                                    title="Add a contact with an email on this account">
+                                    Email contact (no email)
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="custom-btn custom-btn--secondary" onclick={handleCloseTouchpointModal}>Cancel</button>
                     </footer>
                 </div>
             </section>

@@ -12,6 +12,7 @@ import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts'
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
 import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
 import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
+import { buildSuggestedActionsList } from './suggestedActionsUtil';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
     @api recordId; // Account record ID from the page context
@@ -31,6 +32,9 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'closedWon', 'recentCases'
     @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
+
+    /** Plan touchpoint: task / event / email chooser */
+    @track showTouchpointModal = false;
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
@@ -562,7 +566,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         } else if (actionHandler === 'schedule-checkin') {
             this.handleCreateEvent();
         } else if (actionHandler === 'plan-touchpoint') {
-            this.handleCreateTask();
+            this.showTouchpointModal = true;
         } else if (actionHandler === 'log-call') {
             this.handleLogCall();
         } else {
@@ -573,12 +577,60 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 this.handleOpenCasesClick();
             } else if (this.summary && this.summary.daysSinceLastActivity > 30) {
                 this.handleCreateEvent();
-            } else if (this.summary && !this.summary.daysUntilNextActivity) {
-                this.handleCreateTask();
+            } else if (this.summary && this.summary.daysUntilNextActivity == null) {
+                this.showTouchpointModal = true;
             } else {
                 this.handleLogCall();
             }
         }
+    }
+
+    handleCloseTouchpointModal() {
+        this.showTouchpointModal = false;
+    }
+
+    handleTouchpointModalTask() {
+        this.showTouchpointModal = false;
+        this.handleCreateTask();
+    }
+
+    handleTouchpointModalEvent() {
+        this.showTouchpointModal = false;
+        this.handleCreateEvent();
+    }
+
+    /**
+     * Open default mail client for the first contact on this account that has an email.
+     */
+    handleTouchpointModalEmail() {
+        const email = this.firstContactEmailForTouchpoint;
+        this.showTouchpointModal = false;
+        if (!email) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'No email available',
+                    message: 'Add a contact with an email on this account to use this option.',
+                    variant: 'info'
+                })
+            );
+            return;
+        }
+        window.open(`mailto:${email}`, '_blank');
+    }
+
+    /**
+     * First non-empty contact email (same order as the contacts table).
+     */
+    get firstContactEmailForTouchpoint() {
+        if (!this.contacts || !this.contacts.length) {
+            return null;
+        }
+        const found = this.contacts.find((c) => c.email && String(c.email).trim());
+        return found ? String(found.email).trim() : null;
+    }
+
+    get hasPrimaryContactEmail() {
+        return Boolean(this.firstContactEmailForTouchpoint);
     }
 
     /**
@@ -806,7 +858,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get nextActivityValueClass() {
         if (!this.summary) return 'metric-value-text';
-        if (!this.summary.daysUntilNextActivity) {
+        if (this.summary.daysUntilNextActivity == null) {
             return 'metric-value-text metric-value-text--gray';
         } else if (this.summary.daysUntilNextActivity < 7) {
             return 'metric-value-text metric-value-text--success';
@@ -840,64 +892,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
      * Get all available suggested actions in priority order
      */
     getSuggestedActionsList() {
-        if (!this.summary) return [];
-
-        const actions = [];
-
-        // Priority 1: Overdue Tasks
-        if (this.summary.overdueTasks > 0) {
-            actions.push({
-                text: 'Complete overdue tasks',
-                badge: 'Urgent',
-                urgency: 'danger',
-                handler: 'overdue-tasks',
-                showBadge: true
-            });
-        }
-
-        // Priority 2: High Priority Cases
-        if (this.summary.highPriorityCasesCount > 0) {
-            actions.push({
-                text: 'Review priority cases',
-                badge: 'Urgent',
-                urgency: 'warning',
-                handler: 'high-priority-cases',
-                showBadge: true
-            });
-        }
-
-        // Priority 3: Long inactivity
-        if (this.summary.daysSinceLastActivity && this.summary.daysSinceLastActivity > 30) {
-            actions.push({
-                text: 'Schedule check-in',
-                badge: 'Important',
-                urgency: 'warning',
-                handler: 'schedule-checkin',
-                showBadge: true
-            });
-        }
-
-        // Priority 4: No upcoming activity
-        if (!this.summary.daysUntilNextActivity) {
-            actions.push({
-                text: 'Plan touchpoint',
-                badge: '',
-                urgency: 'info',
-                handler: 'plan-touchpoint',
-                showBadge: false
-            });
-        }
-
-        // Priority 5: Log activity (always available)
-        actions.push({
-            text: 'Log activity',
-            badge: '',
-            urgency: 'info',
-            handler: 'log-call',
-            showBadge: false
-        });
-
-        return actions;
+        return buildSuggestedActionsList(this.summary);
     }
 
     get suggestedAction1() {

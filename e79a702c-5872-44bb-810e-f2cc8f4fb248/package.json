@@ -1,0 +1,12 @@
+{
+  "name": "customer-success-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local Jest tests for Customer Success Dashboard LWC",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@salesforce/sfdx-lwc-jest": "^5.1.0"
+  }
+}
