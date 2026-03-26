@@ -13,15 +13,6 @@ import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.get
 import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
 import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
 
-/** Shown suggested-action rows (template slots). Contextual actions + optional Log activity; fifth item is never dropped. */
-const MAX_SUGGESTED_ACTION_ROWS = 4;
-
-/**
- * Account Send Email quick action — change if your org uses a different API name (Setup → Quick Actions).
- * If navigation fails, users can still use quick actions in the row below.
- */
-const ACCOUNT_EMAIL_QUICK_ACTION = 'Account.SendEmail';
-
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
     @api recordId; // Account record ID from the page context
 
@@ -40,14 +31,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'closedWon', 'recentCases'
     @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
-    @track kpiModalHint = '';
-
-    /** Inline create Task/Event — stay on dashboard after save */
-    @track showActivityModal = false;
-    /** 'task' | 'call' | 'event' */
-    @track activityModalKind = 'task';
-    @track activityFormKey = 0;
-    @track showConfettiLayer = false;
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
@@ -322,12 +305,10 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
      * Handle Open Cases KPI click
      */
     handleOpenCasesClick() {
-        this.kpiModalTitle = 'Open cases';
+        this.kpiModalTitle = 'Open Cases';
         this.kpiModalType = 'cases';
         this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'Great job! No open cases.';
-        this.kpiModalHint =
-            'All open cases for this account, including high-priority items, sorted with escalated and higher priority first.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -349,7 +330,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalType = 'tasks';
         this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'Great job! No overdue tasks.';
-        this.kpiModalHint = '';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -371,7 +351,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalType = 'opportunities';
         this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'No open opportunities.';
-        this.kpiModalHint = '';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -402,7 +381,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalType = 'closedWon';
         this.kpiModalScope = scope;
         this.kpiModalEmptyMessage = 'No closed-won opportunities in this period.';
-        this.kpiModalHint = '';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -425,7 +403,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalType = 'opportunities';
         this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'No open opportunities.';
-        this.kpiModalHint = '';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -444,7 +421,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalType = 'recentCases';
         this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'No cases opened in the last 90 days.';
-        this.kpiModalHint = '';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -466,7 +442,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalData = [];
         this.kpiModalType = '';
         this.kpiModalScope = '';
-        this.kpiModalHint = '';
     }
 
     /**
@@ -526,205 +501,83 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Create new task — modal on this page (no navigation)
+     * Create new task
      */
     handleCreateTask() {
-        this.openActivityModal('task');
-    }
-
-    /**
-     * Create new event — modal on this page
-     */
-    handleCreateEvent() {
-        this.openActivityModal('event');
-    }
-
-    /**
-     * Log a call — modal with Task defaults Type=Call, Status=Completed
-     */
-    handleLogCall() {
-        this.openActivityModal('call');
-    }
-
-    openActivityModal(kind) {
-        this.activityModalKind = kind;
-        this.activityFormKey += 1;
-        this.showActivityModal = true;
-    }
-
-    handleCloseActivityModal() {
-        this.showActivityModal = false;
-    }
-
-    handleActivityRecordSuccess() {
-        this.showActivityModal = false;
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: 'Activity created',
-                message: 'Your activity was saved. You are still on this dashboard.',
-                variant: 'success',
-                mode: 'dismissable'
-            })
-        );
-        this.refreshAfterActivityCreated();
-        this.runConfetti();
-    }
-
-    handleActivityRecordError(event) {
-        let msg = 'Could not save. Check required fields and try again.';
-        const d = event.detail;
-        if (d) {
-            if (d.message) {
-                msg = d.message;
-            } else if (d.detail && d.detail.message) {
-                msg = d.detail.message;
-            }
-        }
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: 'Could not save activity',
-                message: msg,
-                variant: 'error',
-                mode: 'sticky'
-            })
-        );
-    }
-
-    /**
-     * Reload summary and activity-related lists without full-page loading spinner
-     */
-    refreshAfterActivityCreated() {
-        this.loadSummary();
-        this.loadOverdueTasks();
-        this.loadUpcomingActivities();
-    }
-
-    /**
-     * Decorative confetti from the top of the viewport (canvas overlay)
-     */
-    runConfetti() {
-        this.showConfettiLayer = true;
-        Promise.resolve()
-            .then(() => Promise.resolve())
-            .then(() => {
-                const canvas = this.template.querySelector('.csd-confetti-canvas');
-                if (!canvas) {
-                    this.showConfettiLayer = false;
-                    return;
-                }
-                const ctx = canvas.getContext('2d');
-                const w = canvas.clientWidth;
-                const h = canvas.clientHeight;
-                if (w < 2 || h < 2) {
-                    this.showConfettiLayer = false;
-                    return;
-                }
-                canvas.width = w;
-                canvas.height = h;
-                const colors = ['#1589ee', '#4bca81', '#ffb75d', '#fe9339', '#8a2be2', '#ea001e'];
-                const particles = [];
-                const n = 110;
-                for (let i = 0; i < n; i++) {
-                    particles.push({
-                        x: Math.random() * w,
-                        y: -30 - Math.random() * (h * 0.35),
-                        w: 5 + Math.random() * 7,
-                        h: 6 + Math.random() * 9,
-                        vx: -2.2 + Math.random() * 4.4,
-                        vy: 1.8 + Math.random() * 4.5,
-                        rot: Math.random() * Math.PI * 2,
-                        vr: -0.18 + Math.random() * 0.36,
-                        color: colors[Math.floor(Math.random() * colors.length)]
-                    });
-                }
-                let frame = 0;
-                const maxFrames = 200;
-                const animate = () => {
-                    frame++;
-                    ctx.clearRect(0, 0, w, h);
-                    let anyAbove = false;
-                    particles.forEach((p) => {
-                        p.x += p.vx;
-                        p.y += p.vy;
-                        p.vy += 0.09;
-                        p.rot += p.vr;
-                        if (p.y < h + 60) {
-                            anyAbove = true;
-                        }
-                        ctx.save();
-                        ctx.translate(p.x, p.y);
-                        ctx.rotate(p.rot);
-                        ctx.fillStyle = p.color;
-                        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-                        ctx.restore();
-                    });
-                    if (frame < maxFrames && anyAbove) {
-                        requestAnimationFrame(animate);
-                    } else {
-                        this.showConfettiLayer = false;
-                    }
-                };
-                requestAnimationFrame(animate);
-            });
-    }
-
-    /**
-     * Open Account email composer (org quick action). Adjust ACCOUNT_EMAIL_QUICK_ACTION if needed.
-     */
-    handleComposeEmail() {
         this[NavigationMixin.Navigate]({
-            type: 'standard__quickAction',
+            type: 'standard__objectPage',
             attributes: {
-                apiName: ACCOUNT_EMAIL_QUICK_ACTION
+                objectApiName: 'Task',
+                actionName: 'new'
             },
             state: {
-                recordId: this.recordId
+                defaultFieldValues: `WhatId=${this.recordId}`
             }
         });
     }
 
     /**
-     * Suggested-action row menus (separate handlers so we do not rely on data-* on base components).
+     * Create new event
      */
-    handleScheduleCheckinMenuSelect(event) {
-        this.applyScheduleOrTouchpointMenuChoice(event.detail.value);
-    }
-
-    handlePlanTouchpointMenuSelect(event) {
-        this.applyScheduleOrTouchpointMenuChoice(event.detail.value);
-    }
-
-    handleLogActivityMenuSelect(event) {
-        const value = event.detail.value;
-        if (value === 'call') {
-            this.handleLogCall();
-        } else if (value === 'task') {
-            this.handleCreateTask();
-        } else if (value === 'event') {
-            this.handleCreateEvent();
-        }
-    }
-
-    applyScheduleOrTouchpointMenuChoice(value) {
-        if (value === 'event') {
-            this.handleCreateEvent();
-        } else if (value === 'task') {
-            this.handleCreateTask();
-        } else if (value === 'email') {
-            this.handleComposeEmail();
-        }
+    handleCreateEvent() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Event',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: `WhatId=${this.recordId}`
+            }
+        });
     }
 
     /**
-     * Handle suggested action click (single-action rows: overdue tasks, open cases list)
+     * Log a call (create completed task)
+     */
+    handleLogCall() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Task',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: `WhatId=${this.recordId},Status=Completed,Type=Call`
+            }
+        });
+    }
+
+    /**
+     * Handle suggested action click
      */
     handleSuggestedAction(event) {
         const actionHandler = event.currentTarget.dataset.action;
 
+        // Route to appropriate handler based on action type
         if (actionHandler === 'overdue-tasks') {
             this.handleOverdueTasksClick();
         } else if (actionHandler === 'high-priority-cases') {
             this.handleOpenCasesClick();
+        } else if (actionHandler === 'schedule-checkin') {
+            this.handleCreateEvent();
+        } else if (actionHandler === 'plan-touchpoint') {
+            this.handleCreateTask();
+        } else if (actionHandler === 'log-call') {
+            this.handleLogCall();
+        } else {
+            // Fallback: determine which action to take based on priority
+            if (this.summary && this.summary.overdueTasks > 0) {
+                this.handleOverdueTasksClick();
+            } else if (this.summary && this.summary.highPriorityCasesCount > 0) {
+                this.handleOpenCasesClick();
+            } else if (this.summary && this.summary.daysSinceLastActivity > 30) {
+                this.handleCreateEvent();
+            } else if (this.summary && !this.summary.daysUntilNextActivity) {
+                this.handleCreateTask();
+            } else {
+                this.handleLogCall();
+            }
         }
     }
 
@@ -984,187 +837,171 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Contextual suggested actions (priority order), then "Log activity" when a slot remains.
-     * Capped at MAX_SUGGESTED_ACTION_ROWS so the last contextual row is never silently dropped.
+     * Get all available suggested actions in priority order
      */
     getSuggestedActionsList() {
         if (!this.summary) return [];
 
-        const s = this.summary;
-        const contextual = [];
+        const actions = [];
 
-        if (s.overdueTasks > 0) {
-            contextual.push({
+        // Priority 1: Overdue Tasks
+        if (this.summary.overdueTasks > 0) {
+            actions.push({
                 text: 'Complete overdue tasks',
                 badge: 'Urgent',
                 urgency: 'danger',
                 handler: 'overdue-tasks',
-                showBadge: true,
-                isMenu: false,
-                menuKind: '',
-                menuSchedule: false,
-                menuTouchpoint: false,
-                menuLog: false,
-                ariaLabel: 'Complete overdue tasks. Opens a list of overdue tasks for this account.',
-                subtext: ''
+                showBadge: true
             });
         }
 
-        if (s.highPriorityCasesCount > 0) {
-            contextual.push({
-                text: 'Review open cases',
+        // Priority 2: High Priority Cases
+        if (this.summary.highPriorityCasesCount > 0) {
+            actions.push({
+                text: 'Review priority cases',
                 badge: 'Urgent',
                 urgency: 'warning',
                 handler: 'high-priority-cases',
-                showBadge: true,
-                isMenu: false,
-                menuKind: '',
-                menuSchedule: false,
-                menuTouchpoint: false,
-                menuLog: false,
-                ariaLabel:
-                    'Review open cases. Opens all open cases for this account, including high-priority items.',
-                subtext: ''
+                showBadge: true
             });
         }
 
-        if (s.daysSinceLastActivity && s.daysSinceLastActivity > 30) {
-            const inactiveHint = `No activity in ${s.daysSinceLastActivity} days.`;
-            let sub = inactiveHint;
-            if (
-                s.nextTouchpointSubject &&
-                s.nextTouchpointSubject !== 'No upcoming touchpoint' &&
-                s.daysUntilNextActivity !== null
-            ) {
-                sub = `${inactiveHint} Next scheduled: ${s.nextTouchpointSubject}.`;
-            }
-            contextual.push({
+        // Priority 3: Long inactivity
+        if (this.summary.daysSinceLastActivity && this.summary.daysSinceLastActivity > 30) {
+            actions.push({
                 text: 'Schedule check-in',
                 badge: 'Important',
                 urgency: 'warning',
-                handler: 'menu-schedule-checkin',
-                showBadge: true,
-                isMenu: true,
-                menuKind: 'schedule',
-                menuSchedule: true,
-                menuTouchpoint: false,
-                menuLog: false,
-                ariaLabel: 'Schedule check-in. Choose to create an event, task, or send an email.',
-                subtext: sub
+                handler: 'schedule-checkin',
+                showBadge: true
             });
         }
 
-        if (!s.daysUntilNextActivity) {
-            contextual.push({
+        // Priority 4: No upcoming activity
+        if (!this.summary.daysUntilNextActivity) {
+            actions.push({
                 text: 'Plan touchpoint',
                 badge: '',
                 urgency: 'info',
-                handler: 'menu-plan-touchpoint',
-                showBadge: false,
-                isMenu: true,
-                menuKind: 'touchpoint',
-                menuSchedule: false,
-                menuTouchpoint: true,
-                menuLog: false,
-                ariaLabel: 'Plan touchpoint. Choose a task, event, or email to engage this account.',
-                subtext: 'Nothing scheduled ahead on this account.'
+                handler: 'plan-touchpoint',
+                showBadge: false
             });
         }
 
-        const logActivityRow = {
+        // Priority 5: Log activity (always available)
+        actions.push({
             text: 'Log activity',
             badge: '',
             urgency: 'info',
-            handler: 'menu-log-activity',
-            showBadge: false,
-            isMenu: true,
-            menuKind: 'log',
-            menuSchedule: false,
-            menuTouchpoint: false,
-            menuLog: true,
-            ariaLabel: 'Log activity. Choose to log a call, create a task, or schedule an event.',
-            subtext: ''
-        };
+            handler: 'log-call',
+            showBadge: false
+        });
 
-        if (contextual.length >= MAX_SUGGESTED_ACTION_ROWS) {
-            return contextual.slice(0, MAX_SUGGESTED_ACTION_ROWS);
-        }
-        return [...contextual, logActivityRow].slice(0, MAX_SUGGESTED_ACTION_ROWS);
+        return actions;
     }
 
-    /**
-     * Suggested actions for template (stable keys for for:each)
-     */
-    get suggestedActionsDisplay() {
-        return this.getSuggestedActionsList().map((action, index) => ({
-            ...action,
-            key: `sa-${index}-${action.handler}-${action.menuKind || 'na'}`,
-            rowClass: `suggested-action suggested-action--${action.urgency}`,
-            buttonClass: `suggested-action suggested-action--${action.urgency} suggested-action-btn`,
-            dotClass: `suggested-action-dot suggested-action-dot--${action.urgency}`
-        }));
+    get suggestedAction1() {
+        const actions = this.getSuggestedActionsList();
+        return actions.length > 0 ? actions[0] : null;
     }
 
-    get activityModalTitle() {
-        if (this.activityModalKind === 'call') {
-            return 'Log a call';
-        }
-        if (this.activityModalKind === 'event') {
-            return 'New event';
-        }
-        return 'New task';
+    get suggestedAction2() {
+        const actions = this.getSuggestedActionsList();
+        return actions.length > 1 ? actions[1] : null;
     }
 
-    get showActivityTaskForm() {
-        return (
-            this.showActivityModal &&
-            (this.activityModalKind === 'task' || this.activityModalKind === 'call')
-        );
+    get suggestedAction3() {
+        const actions = this.getSuggestedActionsList();
+        return actions.length > 2 ? actions[2] : null;
     }
 
-    get showActivityEventForm() {
-        return this.showActivityModal && this.activityModalKind === 'event';
+    get suggestedAction4() {
+        const actions = this.getSuggestedActionsList();
+        return actions.length > 3 ? actions[3] : null;
     }
 
-    get isActivityModalCall() {
-        return this.activityModalKind === 'call';
+    get hasSuggestedAction1() {
+        return this.suggestedAction1 !== null;
     }
 
-    get activityTaskFormRows() {
-        if (!this.showActivityTaskForm) {
-            return [];
-        }
-        return [{ uid: `${this.activityFormKey}-task` }];
+    get hasSuggestedAction2() {
+        return this.suggestedAction2 !== null;
     }
 
-    get activityEventFormRows() {
-        if (!this.showActivityEventForm) {
-            return [];
-        }
-        return [{ uid: `${this.activityFormKey}-event` }];
+    get hasSuggestedAction3() {
+        return this.suggestedAction3 !== null;
     }
 
-    // Legacy computed properties for backwards compatibility
-    get suggestedActionClass() {
-        const list = this.getSuggestedActionsList();
-        const action = list.length > 0 ? list[0] : null;
+    get hasSuggestedAction4() {
+        return this.suggestedAction4 !== null;
+    }
+
+    get suggestedAction1Class() {
+        const action = this.suggestedAction1;
         if (!action) return 'suggested-action';
         return `suggested-action suggested-action--${action.urgency}`;
     }
 
+    get suggestedAction2Class() {
+        const action = this.suggestedAction2;
+        if (!action) return 'suggested-action';
+        return `suggested-action suggested-action--${action.urgency}`;
+    }
+
+    get suggestedAction3Class() {
+        const action = this.suggestedAction3;
+        if (!action) return 'suggested-action';
+        return `suggested-action suggested-action--${action.urgency}`;
+    }
+
+    get suggestedAction4Class() {
+        const action = this.suggestedAction4;
+        if (!action) return 'suggested-action';
+        return `suggested-action suggested-action--${action.urgency}`;
+    }
+
+    get suggestedAction1DotClass() {
+        const action = this.suggestedAction1;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
+    }
+
+    get suggestedAction2DotClass() {
+        const action = this.suggestedAction2;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
+    }
+
+    get suggestedAction3DotClass() {
+        const action = this.suggestedAction3;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
+    }
+
+    get suggestedAction4DotClass() {
+        const action = this.suggestedAction4;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
+    }
+
+    // Legacy computed properties for backwards compatibility
+    get suggestedActionClass() {
+        return this.suggestedAction1Class;
+    }
+
     get suggestedActionText() {
-        const list = this.getSuggestedActionsList();
-        return list.length > 0 ? list[0].text : '';
+        const action = this.suggestedAction1;
+        return action ? action.text : '';
     }
 
     get suggestedActionBadge() {
-        const list = this.getSuggestedActionsList();
-        return list.length > 0 ? list[0].badge : '';
+        const action = this.suggestedAction1;
+        return action ? action.badge : '';
     }
 
     getSuggestedActionUrgency() {
-        const list = this.getSuggestedActionsList();
-        return list.length > 0 ? list[0].urgency : 'info';
+        const action = this.suggestedAction1;
+        return action ? action.urgency : 'info';
     }
 
     // Health Breakdown Modal Properties
