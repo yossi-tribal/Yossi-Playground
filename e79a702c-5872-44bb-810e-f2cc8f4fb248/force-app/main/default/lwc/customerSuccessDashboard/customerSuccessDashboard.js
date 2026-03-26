@@ -41,6 +41,9 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         contacts: false
     };
 
+    /** Commercial snapshot KPI block expanded (default open) */
+    @track commercialSnapshotExpanded = true;
+
     // Loading states for different sections
     @track isSummaryLoaded = false;
     @track areCasesLoaded = false;
@@ -186,6 +189,10 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             ...this.sectionExpanded,
             [section]: !this.sectionExpanded[section]
         };
+    }
+
+    handleToggleCommercialSnapshot() {
+        this.commercialSnapshotExpanded = !this.commercialSnapshotExpanded;
     }
 
     /**
@@ -357,8 +364,8 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             });
     }
 
-    handleCommercialBookedClick() {
-        this.openClosedWonModal('ALL_TIME', 'Booked revenue (closed won)');
+    handleCommercialAllTimeClick() {
+        this.openClosedWonModal('ALL_TIME', 'All-time won revenue (closed won)');
     }
 
     handleCommercialYtdClick() {
@@ -627,6 +634,10 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get secContacts() {
         return this.sectionExpanded.contacts;
+    }
+
+    get commercialSnapshotClass() {
+        return `commercial-snapshot${this.commercialSnapshotExpanded ? ' commercial-snapshot--expanded' : ' commercial-snapshot--collapsed'}`;
     }
 
     /**
@@ -1046,27 +1057,26 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return 'USD';
     }
 
-    /** YoY bar segment width % (this year vs prior year won) */
-    get yoyThisYearPercent() {
+    /** YoY bar: dollar ratio (grid fr units) — clearer than % of total width when segments differ greatly */
+    get yoyTrackGridStyle() {
         const y = this.summary ? Number(this.summary.ytdWonRevenue || 0) : 0;
         const p = this.summary ? Number(this.summary.priorYearWonRevenue || 0) : 0;
         const t = y + p;
         if (t <= 0) {
-            return 50;
+            return 'grid-template-columns: 1fr 1fr;';
         }
-        return (y / t) * 100;
+        return `grid-template-columns: ${y}fr ${p}fr;`;
     }
 
-    get yoyPriorYearPercent() {
-        return 100 - this.yoyThisYearPercent;
-    }
-
-    get yoyThisYearBarStyle() {
-        return `width: ${this.yoyThisYearPercent}%;`;
-    }
-
-    get yoyPriorYearBarStyle() {
-        return `width: ${this.yoyPriorYearPercent}%;`;
+    get yoyComparisonAriaLabel() {
+        const y = this.summary ? Number(this.summary.ytdWonRevenue || 0) : 0;
+        const p = this.summary ? Number(this.summary.priorYearWonRevenue || 0) : 0;
+        const code = this.currencyCode;
+        const fmt = (n) =>
+            new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(n);
+        return `Won revenue comparison. This year year-to-date: ${fmt(y)}. Prior calendar year full year: ${fmt(
+            p
+        )}. Bar length is proportional to these amounts.`;
     }
 
     /** Last 4 quarters mini bars: height % vs max in quarter set */

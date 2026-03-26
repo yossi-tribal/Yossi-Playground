@@ -114,17 +114,21 @@
                             </template>
 
                             <div class="quick-actions-inline">
-                                <button type="button" class="quick-action-btn quick-action-btn--icon-only" onclick={handleLogCall} title="Log a Call">
+                                <button type="button" class="quick-action-btn" onclick={handleLogCall} title="Log a Call">
                                     <lightning-icon icon-name="utility:call" size="small"></lightning-icon>
+                                    <span class="quick-action-text">Log call</span>
                                 </button>
-                                <button type="button" class="quick-action-btn quick-action-btn--icon-only" onclick={handleCreateTask} title="Create Task">
+                                <button type="button" class="quick-action-btn" onclick={handleCreateTask} title="Create Task">
                                     <lightning-icon icon-name="utility:task" size="small"></lightning-icon>
+                                    <span class="quick-action-text">New task</span>
                                 </button>
-                                <button type="button" class="quick-action-btn quick-action-btn--icon-only" onclick={handleCreateEvent} title="Schedule Event">
+                                <button type="button" class="quick-action-btn" onclick={handleCreateEvent} title="Schedule Event">
                                     <lightning-icon icon-name="utility:event" size="small"></lightning-icon>
+                                    <span class="quick-action-text">Event</span>
                                 </button>
-                                <button type="button" class="quick-action-btn quick-action-btn--icon-only" onclick={handleCreateCase} title="Create Case">
+                                <button type="button" class="quick-action-btn" onclick={handleCreateCase} title="Create Case">
                                     <lightning-icon icon-name="utility:case" size="small"></lightning-icon>
+                                    <span class="quick-action-text">Case</span>
                                 </button>
                             </div>
                         </div>
@@ -160,14 +164,26 @@
 
                 <!-- Commercial snapshot: value, YoY, quarterly trend, drilldowns -->
                 <template if:true={hasSummary}>
-                    <div class="commercial-snapshot">
-                        <div class="commercial-snapshot-head">
-                            <span class="commercial-snapshot-title">Commercial snapshot</span>
-                            <span class="commercial-snapshot-hint">Booked and pipeline from opportunities; cases opened in the last 90 days</span>
-                        </div>
+                    <div class={commercialSnapshotClass}>
+                        <button
+                            type="button"
+                            class="commercial-snapshot-head commercial-snapshot-head--toggle"
+                            onclick={handleToggleCommercialSnapshot}
+                            aria-expanded={commercialSnapshotExpanded}>
+                            <div class="commercial-snapshot-head-main">
+                                <span class="commercial-snapshot-title">Commercial snapshot</span>
+                                <span class="commercial-snapshot-hint">Closed-won and pipeline from opportunities; cases opened in the last 90 days</span>
+                            </div>
+                            <lightning-icon
+                                icon-name="utility:chevronright"
+                                size="small"
+                                class="commercial-snapshot-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={commercialSnapshotExpanded}>
+                        <div class="commercial-snapshot-body">
                         <div class="commercial-kpi-row">
-                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialBookedClick}>
-                                <span class="commercial-kpi-label">Booked (all time)</span>
+                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialAllTimeClick}>
+                                <span class="commercial-kpi-label">All-time won revenue</span>
                                 <span class="commercial-kpi-value">
                                     <lightning-formatted-number value={summary.totalWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
                                 </span>
@@ -211,9 +227,28 @@
                         <div class="commercial-visuals">
                             <div class="commercial-yoy">
                                 <span class="commercial-yoy-title">This year vs prior year (won revenue)</span>
-                                <div class="commercial-yoy-track" role="img" aria-label="Comparison of won revenue">
-                                    <div class="commercial-yoy-seg commercial-yoy-seg--this" style={yoyThisYearBarStyle}></div>
-                                    <div class="commercial-yoy-seg commercial-yoy-seg--prior" style={yoyPriorYearBarStyle}></div>
+                                <p class="commercial-yoy-hint">Prior year is the full calendar year; this year is year-to-date. Segment lengths match these amounts.</p>
+                                <div
+                                    class="commercial-yoy-track"
+                                    role="img"
+                                    style={yoyTrackGridStyle}
+                                    aria-label={yoyComparisonAriaLabel}>
+                                    <div class="commercial-yoy-seg commercial-yoy-seg--this"></div>
+                                    <div class="commercial-yoy-seg commercial-yoy-seg--prior"></div>
+                                </div>
+                                <div class="commercial-yoy-values">
+                                    <div class="commercial-yoy-value-block">
+                                        <span class="commercial-yoy-value-label">This year (YTD)</span>
+                                        <span class="commercial-yoy-value-num">
+                                            <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                        </span>
+                                    </div>
+                                    <div class="commercial-yoy-value-block">
+                                        <span class="commercial-yoy-value-label">Prior year (full)</span>
+                                        <span class="commercial-yoy-value-num">
+                                            <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                        </span>
+                                    </div>
                                 </div>
                                 <div class="commercial-yoy-legend">
                                     <span class="commercial-yoy-legend-item"><span class="commercial-yoy-dot commercial-yoy-dot--this"></span> This year (YTD)</span>
@@ -234,6 +269,8 @@
                                 </div>
                             </div>
                         </div>
+                        </div>
+                        </template>
                     </div>
                 </template>
 
