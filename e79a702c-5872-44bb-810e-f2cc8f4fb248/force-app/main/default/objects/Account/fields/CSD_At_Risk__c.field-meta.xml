@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>CSD_At_Risk__c</fullName>
-    <label>At Risk</label>
-    <description>Flag when this account requires immediate Customer Success attention.</description>
-    <type>Checkbox</type>
-    <defaultValue>false</defaultValue>
-    <securityClassification>Public</securityClassification>
-</CustomField>

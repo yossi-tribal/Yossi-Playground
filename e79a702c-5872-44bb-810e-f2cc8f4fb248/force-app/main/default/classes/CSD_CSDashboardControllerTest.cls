@@ -95,23 +95,51 @@ private class CSD_CSDashboardControllerTest {
             Name = 'Test Opportunity 1',
             StageName = 'Prospecting',
             CloseDate = Date.today().addDays(60),
-            Amount = 50000
+            Amount = 50000,
+            Probability = 40
         ));
         testOpps.add(new Opportunity(
             AccountId = testAccount.Id,
             Name = 'Test Opportunity 2',
             StageName = 'Qualification',
             CloseDate = Date.today().addDays(90),
-            Amount = 75000
+            Amount = 75000,
+            Probability = 50
         ));
         testOpps.add(new Opportunity(
             AccountId = testAccount.Id,
             Name = 'Test Opportunity 3',
             StageName = 'Proposal',
             CloseDate = Date.today().addDays(30),
-            Amount = 100000
+            Amount = 100000,
+            Probability = 60
         ));
         insert testOpps;
+
+        Integer py = Date.today().year() - 1;
+        List<Opportunity> closedWonOpps = new List<Opportunity>();
+        closedWonOpps.add(new Opportunity(
+            AccountId = testAccount.Id,
+            Name = 'Closed Won Historical',
+            StageName = 'Closed Won',
+            CloseDate = Date.newInstance(py, 11, 15),
+            Amount = 25000
+        ));
+        closedWonOpps.add(new Opportunity(
+            AccountId = testAccount.Id,
+            Name = 'Closed Won YTD',
+            StageName = 'Closed Won',
+            CloseDate = Date.today(),
+            Amount = 5000
+        ));
+        closedWonOpps.add(new Opportunity(
+            AccountId = testAccount.Id,
+            Name = 'Closed Won Prior Year',
+            StageName = 'Closed Won',
+            CloseDate = Date.newInstance(py, 8, 1),
+            Amount = 15000
+        ));
+        insert closedWonOpps;
 
         // Create test Contacts for relationship depth testing
         List<Contact> testContacts = new List<Contact>();
@@ -158,13 +186,15 @@ private class CSD_CSDashboardControllerTest {
         System.assertNotEquals('No recent activity', summary.lastActivityDate, 'Should have recent activity');
         System.assertNotEquals('No upcoming activity', summary.nextPlannedActivity, 'Should have upcoming activity');
         System.assertEquals(3, summary.opportunityCount, 'Should have 3 open opportunities');
-        System.assertEquals(225000, summary.openPipelineAmount, 'Open pipeline should sum opportunities');
-        System.assertEquals(2, summary.caseMixHigh, 'High mix: escalated + high priority');
-        System.assertEquals(1, summary.caseMixLow, 'One low priority case');
-        System.assertEquals(0, summary.caseMixMedium, 'No medium-only cases');
-        System.assertEquals(12, summary.weeklyEngagementCounts.size(), '12 weekly buckets');
-        System.assertEquals(true, summary.showEngagementChart, 'Engagement chart enabled');
-        System.assertEquals(true, summary.showCaseMixChart, 'Case mix when open cases exist');
+
+        System.assertEquals(45000, summary.totalWonRevenue, 'Total won revenue should sum closed-won amounts');
+        System.assertEquals(5000, summary.ytdWonRevenue, 'YTD won should include only current-calendar-year closes');
+        System.assertEquals(40000, summary.priorYearWonRevenue, 'Prior year won should sum full prior calendar year');
+        System.assertEquals(225000, summary.openPipelineAmount, 'Open pipeline should sum open opp amounts');
+        System.assertEquals(117500, summary.weightedPipelineAmount, 'Weighted pipeline = sum of Amount × probability');
+        System.assertEquals(3, summary.casesOpenedLast90Days, 'Should count cases opened in last 90 days');
+        System.assertNotEquals(null, summary.currencyCode, 'Currency code should be set');
+        System.assertNotEquals(null, summary.wonQuarter1Label, 'Quarter labels should be populated');
     }
 
     /**
@@ -203,6 +233,12 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals('No recent activity', summary.lastActivityDate, 'Should show no recent activity');
         System.assertEquals('No upcoming activity', summary.nextPlannedActivity, 'Should show no upcoming activity');
         System.assertEquals(0, summary.opportunityCount, 'Should have 0 opportunities');
+        System.assertEquals(0, summary.totalWonRevenue, 'Total won should be 0');
+        System.assertEquals(0, summary.ytdWonRevenue, 'YTD won should be 0');
+        System.assertEquals(0, summary.priorYearWonRevenue, 'Prior year won should be 0');
+        System.assertEquals(0, summary.openPipelineAmount, 'Pipeline should be 0');
+        System.assertEquals(0, summary.weightedPipelineAmount, 'Weighted pipeline should be 0');
+        System.assertEquals(0, summary.casesOpenedLast90Days, 'Recent cases should be 0');
     }
 
     /**
@@ -830,52 +866,81 @@ private class CSD_CSDashboardControllerTest {
     }
 
     /**
-     * @description Filtered open cases by priority bucket
+     * @description Closed-won opportunities drilldown (all time)
      */
     @isTest
-    static void testGetOpenCasesByPriorityBucket_High() {
+    static void testGetClosedWonOpportunities_AllTime() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
 
         Test.startTest();
-        List<CSD_CSDashboardController.CaseData> highCases =
-            CSD_CSDashboardController.getOpenCasesByPriorityBucket(testAccount.Id, 'HIGH');
+        List<CSD_CSDashboardController.OpportunityData> opps =
+            CSD_CSDashboardController.getClosedWonOpportunities(testAccount.Id, 'ALL_TIME');
         Test.stopTest();
 
-        System.assertEquals(2, highCases.size(), 'High bucket: High priority + escalated');
+        System.assertEquals(3, opps.size(), 'Should return 3 closed-won opportunities');
+        System.assertNotEquals(null, opps[0].opportunityId, 'Opportunity ID should be set');
     }
 
     /**
-     * @description Recent completed touches for engagement drilldown
+     * @description Closed-won opportunities drilldown (YTD)
      */
     @isTest
-    static void testGetRecentCompletedTouches() {
+    static void testGetClosedWonOpportunities_Ytd() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
 
         Test.startTest();
-        List<CSD_CSDashboardController.ActivityData> touches =
-            CSD_CSDashboardController.getRecentCompletedTouches(testAccount.Id, 90);
+        List<CSD_CSDashboardController.OpportunityData> opps =
+            CSD_CSDashboardController.getClosedWonOpportunities(testAccount.Id, 'YTD');
         Test.stopTest();
 
-        System.assert(touches.size() >= 1, 'Should include completed task and/or past event');
+        System.assertEquals(1, opps.size(), 'YTD filter should return one closed-won opp');
     }
 
     /**
-     * @description Renewal date and at-risk flag on summary
+     * @description Closed-won opportunities — null account
      */
     @isTest
-    static void testRenewalAndAtRisk_OnSummary() {
+    static void testGetClosedWonOpportunities_NullAccount() {
+        Test.startTest();
+        try {
+            CSD_CSDashboardController.getClosedWonOpportunities(null, 'ALL_TIME');
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage().contains('Account ID is required'),
+                'Exception message should indicate missing account ID');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Cases opened in last N days
+     */
+    @isTest
+    static void testGetCasesOpenedInLastDays_Success() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
-        testAccount.CSD_Renewal_Date__c = Date.today().addDays(45);
-        testAccount.CSD_At_Risk__c = true;
-        update testAccount;
 
         Test.startTest();
-        CSD_CSDashboardController.DashboardSummary summary =
-            CSD_CSDashboardController.getDashboardSummary(testAccount.Id);
+        List<CSD_CSDashboardController.CaseData> cases =
+            CSD_CSDashboardController.getCasesOpenedInLastDays(testAccount.Id, 90);
         Test.stopTest();
 
-        System.assertEquals(true, summary.accountAtRisk, 'At risk flag');
-        System.assertEquals('soon', summary.renewalUrgency, '45 days is soon window');
-        System.assertEquals(45, summary.daysUntilRenewal, 'Days until renewal');
+        System.assertEquals(3, cases.size(), 'Should return 3 cases created in setup');
+        System.assertNotEquals(null, cases[0].caseId, 'Case ID should be set');
+    }
+
+    /**
+     * @description Cases opened — null account
+     */
+    @isTest
+    static void testGetCasesOpenedInLastDays_NullAccount() {
+        Test.startTest();
+        try {
+            CSD_CSDashboardController.getCasesOpenedInLastDays(null, 90);
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage().contains('Account ID is required'),
+                'Exception message should indicate missing account ID');
+        }
+        Test.stopTest();
     }
 }

@@ -5,12 +5,13 @@ import getDashboardSummary from '@salesforce/apex/CSD_CSDashboardController.getD
 import getOpenCases from '@salesforce/apex/CSD_CSDashboardController.getOpenCases';
 import getOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getOverdueTasks';
 import getUpcomingActivities from '@salesforce/apex/CSD_CSDashboardController.getUpcomingActivities';
-import getOpenCasesByPriorityBucket from '@salesforce/apex/CSD_CSDashboardController.getOpenCasesByPriorityBucket';
+import getAllOpenCases from '@salesforce/apex/CSD_CSDashboardController.getAllOpenCases';
 import getAllOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getAllOverdueTasks';
 import getAllOpportunities from '@salesforce/apex/CSD_CSDashboardController.getAllOpportunities';
-import getRecentCompletedTouches from '@salesforce/apex/CSD_CSDashboardController.getRecentCompletedTouches';
 import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts';
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
+import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
+import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
     @api recordId; // Account record ID from the page context
@@ -27,14 +28,12 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track showKpiModal = false;
     @track kpiModalTitle = '';
     @track kpiModalData = [];
-    @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'completedTouches'
+    @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'closedWon', 'recentCases'
+    @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
-    /** ALL, HIGH, MEDIUM, LOW, OTHER — for case drilldown titles */
-    @track kpiModalCaseBucket = 'ALL';
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
-        insights: false,
         overdueTasks: false,
         cases: false,
         opportunities: false,
@@ -169,7 +168,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             (this.overdueTasks && this.overdueTasks.length > 0);
         const upcoming = this.upcomingActivities && this.upcomingActivities.length > 0;
         this.sectionExpanded = {
-            insights: false,
             overdueTasks: overdue,
             cases: false,
             opportunities: false,
@@ -300,62 +298,21 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
      * Handle Open Cases KPI click
      */
     handleOpenCasesClick() {
-        this.openCasesModal('ALL', 'Open cases');
-    }
-
-    /**
-     * @param {string} bucket ALL | HIGH | MEDIUM | LOW | OTHER
-     * @param {string} title Modal title
-     */
-    openCasesModal(bucket, title) {
-        this.kpiModalCaseBucket = bucket || 'ALL';
-        this.kpiModalTitle = title || 'Open cases';
+        this.kpiModalTitle = 'Open Cases';
         this.kpiModalType = 'cases';
+        this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'Great job! No open cases.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
-        getOpenCasesByPriorityBucket({ accountId: this.recordId, bucket: this.kpiModalCaseBucket })
-            .then((result) => {
+        getAllOpenCases({ accountId: this.recordId })
+            .then(result => {
                 this.kpiModalData = result || [];
             })
-            .catch((error) => {
+            .catch(error => {
                 this.handleError('Failed to load cases', error);
                 this.showKpiModal = false;
             });
-    }
-
-    handleCaseMixSegmentClick(event) {
-        const bucket = event.currentTarget.dataset.bucket;
-        if (!bucket) return;
-        const titles = {
-            HIGH: 'Open cases · High / escalated',
-            MEDIUM: 'Open cases · Medium',
-            LOW: 'Open cases · Low',
-            OTHER: 'Open cases · Other'
-        };
-        this.openCasesModal(bucket, titles[bucket] || 'Open cases');
-    }
-
-    handleEngagementChartDrilldown() {
-        this.kpiModalTitle = 'Completed touches (last 90 days)';
-        this.kpiModalType = 'completedTouches';
-        this.kpiModalEmptyMessage = 'No completed tasks or events in this window.';
-        this.kpiModalData = [];
-        this.showKpiModal = true;
-
-        getRecentCompletedTouches({ accountId: this.recordId, daysBack: 90 })
-            .then((result) => {
-                this.kpiModalData = result || [];
-            })
-            .catch((error) => {
-                this.handleError('Failed to load activity history', error);
-                this.showKpiModal = false;
-            });
-    }
-
-    handlePipelineRowClick() {
-        this.handleOpportunitiesClick();
     }
 
     /**
@@ -364,6 +321,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     handleOverdueTasksClick() {
         this.kpiModalTitle = 'Overdue Tasks';
         this.kpiModalType = 'tasks';
+        this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'Great job! No overdue tasks.';
         this.kpiModalData = [];
         this.showKpiModal = true;
@@ -382,8 +340,9 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
      * Handle Opportunities KPI click
      */
     handleOpportunitiesClick() {
-        this.kpiModalTitle = 'Opportunities';
+        this.kpiModalTitle = 'Open opportunities';
         this.kpiModalType = 'opportunities';
+        this.kpiModalScope = '';
         this.kpiModalEmptyMessage = 'No open opportunities.';
         this.kpiModalData = [];
         this.showKpiModal = true;
@@ -398,6 +357,76 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             });
     }
 
+    handleCommercialBookedClick() {
+        this.openClosedWonModal('ALL_TIME', 'Booked revenue (closed won)');
+    }
+
+    handleCommercialYtdClick() {
+        this.openClosedWonModal('YTD', 'Won revenue (this year)');
+    }
+
+    handleCommercialPriorYearClick() {
+        this.openClosedWonModal('PRIOR_YEAR', 'Won revenue (prior calendar year)');
+    }
+
+    openClosedWonModal(scope, title) {
+        this.kpiModalTitle = title;
+        this.kpiModalType = 'closedWon';
+        this.kpiModalScope = scope;
+        this.kpiModalEmptyMessage = 'No closed-won opportunities in this period.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getClosedWonOpportunities({ accountId: this.recordId, scopeFilter: scope })
+            .then(result => {
+                this.kpiModalData = result || [];
+            })
+            .catch(error => {
+                this.handleError('Failed to load closed-won opportunities', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleCommercialPipelineClick() {
+        this.handleOpportunitiesClick();
+    }
+
+    handleCommercialWeightedClick() {
+        this.kpiModalTitle = 'Open pipeline (weighted breakdown)';
+        this.kpiModalType = 'opportunities';
+        this.kpiModalScope = '';
+        this.kpiModalEmptyMessage = 'No open opportunities.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getAllOpportunities({ accountId: this.recordId })
+            .then(result => {
+                this.kpiModalData = result || [];
+            })
+            .catch(error => {
+                this.handleError('Failed to load opportunities', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleCommercialRecentCasesClick() {
+        this.kpiModalTitle = 'Cases opened (last 90 days)';
+        this.kpiModalType = 'recentCases';
+        this.kpiModalScope = '';
+        this.kpiModalEmptyMessage = 'No cases opened in the last 90 days.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getCasesOpenedInLastDays({ accountId: this.recordId, days: 90 })
+            .then(result => {
+                this.kpiModalData = result || [];
+            })
+            .catch(error => {
+                this.handleError('Failed to load recent cases', error);
+                this.showKpiModal = false;
+            });
+    }
+
     /**
      * Handle close KPI modal
      */
@@ -405,7 +434,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.showKpiModal = false;
         this.kpiModalData = [];
         this.kpiModalType = '';
-        this.kpiModalCaseBucket = 'ALL';
+        this.kpiModalScope = '';
     }
 
     /**
@@ -998,7 +1027,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     get showCasesModal() {
-        return this.showKpiModal && this.kpiModalType === 'cases';
+        return this.showKpiModal && (this.kpiModalType === 'cases' || this.kpiModalType === 'recentCases');
     }
 
     get showTasksModal() {
@@ -1006,160 +1035,62 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     get showOpportunitiesModal() {
-        return this.showKpiModal && this.kpiModalType === 'opportunities';
+        return this.showKpiModal && (this.kpiModalType === 'opportunities' || this.kpiModalType === 'closedWon');
     }
 
-    get showCompletedTouchesModal() {
-        return this.showKpiModal && this.kpiModalType === 'completedTouches';
+    /** ISO currency for formatted-number (org default from Apex) */
+    get currencyCode() {
+        if (this.summary && this.summary.currencyCode) {
+            return this.summary.currencyCode;
+        }
+        return 'USD';
     }
 
-    /** Single plain-language line to reduce number scanning */
-    get insightSummaryLine() {
+    /** YoY bar segment width % (this year vs prior year won) */
+    get yoyThisYearPercent() {
+        const y = this.summary ? Number(this.summary.ytdWonRevenue || 0) : 0;
+        const p = this.summary ? Number(this.summary.priorYearWonRevenue || 0) : 0;
+        const t = y + p;
+        if (t <= 0) {
+            return 50;
+        }
+        return (y / t) * 100;
+    }
+
+    get yoyPriorYearPercent() {
+        return 100 - this.yoyThisYearPercent;
+    }
+
+    get yoyThisYearBarStyle() {
+        return `width: ${this.yoyThisYearPercent}%;`;
+    }
+
+    get yoyPriorYearBarStyle() {
+        return `width: ${this.yoyPriorYearPercent}%;`;
+    }
+
+    /** Last 4 quarters mini bars: height % vs max in quarter set */
+    get commercialQuarterBars() {
         if (!this.summary) {
-            return '';
-        }
-        const parts = [];
-        if (this.summary.accountAtRisk) {
-            parts.push('Account flagged at risk.');
-        }
-        const d = this.summary.daysSinceLastActivity;
-        if (d != null && d > 14) {
-            parts.push(`No completed touch in ${d} days.`);
-        }
-        if (this.summary.overdueTasks > 0) {
-            parts.push(
-                `${this.summary.overdueTasks} overdue task${this.summary.overdueTasks === 1 ? '' : 's'}.`
-            );
-        }
-        const ru = this.summary.renewalUrgency;
-        const daysR = this.summary.daysUntilRenewal;
-        if (ru === 'overdue' || ru === 'critical') {
-            if (daysR != null) {
-                parts.push(daysR < 0 ? 'Renewal date has passed.' : `Renewal in ${daysR} days.`);
-            }
-        }
-        if (
-            this.summary.openRenewalOpportunityCount === 0 &&
-            daysR != null &&
-            daysR >= 0 &&
-            daysR <= 90 &&
-            ru !== 'missing'
-        ) {
-            parts.push('No open renewal opportunity on record.');
-        }
-        if (parts.length === 0) {
-            return 'On track — expand Insights for engagement rhythm and support mix.';
-        }
-        return parts.join(' ');
-    }
-
-    get weeklyEngagementBars() {
-        const counts = this.summary?.weeklyEngagementCounts;
-        if (!counts || !counts.length) {
             return [];
         }
-        const maxRaw = this.summary.engagementSeriesMax || 0;
-        const max = Math.max(maxRaw, ...counts, 1);
-        return counts.map((count, i) => {
-            const heightPct = Math.round((count / max) * 100);
+        const raw = [
+            { label: this.summary.wonQuarter1Label, value: Number(this.summary.wonQuarter1 || 0) },
+            { label: this.summary.wonQuarter2Label, value: Number(this.summary.wonQuarter2 || 0) },
+            { label: this.summary.wonQuarter3Label, value: Number(this.summary.wonQuarter3 || 0) },
+            { label: this.summary.wonQuarter4Label, value: Number(this.summary.wonQuarter4 || 0) }
+        ];
+        const max = Math.max(...raw.map((r) => r.value), 1);
+        return raw.map((r, index) => {
+            const pct = Math.max(6, Math.round((r.value / max) * 100));
             return {
-                key: `wk-${i}`,
-                count,
-                heightPct,
-                barStyle: `height: ${heightPct}%`
+                key: `wq-${index}`,
+                label: r.label || '—',
+                value: r.value,
+                heightPct: pct,
+                barStyle: `height: ${pct}%;`
             };
         });
-    }
-
-    get caseMixSegments() {
-        if (!this.summary) {
-            return [];
-        }
-        const h = this.summary.caseMixHigh || 0;
-        const m = this.summary.caseMixMedium || 0;
-        const l = this.summary.caseMixLow || 0;
-        const o = this.summary.caseMixOther || 0;
-        const t = h + m + l + o;
-        if (t === 0) {
-            return [];
-        }
-        const seg = (bucket, label, count, cls) => {
-            const widthPct = Math.round((count / t) * 100);
-            return {
-                key: bucket,
-                legendKey: `leg-${bucket}`,
-                bucket,
-                label,
-                count,
-                widthPct,
-                segStyle: `width: ${widthPct}%`,
-                className: `case-mix-seg ${cls}`
-            };
-        };
-        const out = [];
-        if (h > 0) {
-            out.push(seg('HIGH', 'High / esc.', h, 'case-mix-seg__high'));
-        }
-        if (m > 0) {
-            out.push(seg('MEDIUM', 'Medium', m, 'case-mix-seg__medium'));
-        }
-        if (l > 0) {
-            out.push(seg('LOW', 'Low', l, 'case-mix-seg__low'));
-        }
-        if (o > 0) {
-            out.push(seg('OTHER', 'Other', o, 'case-mix-seg__other'));
-        }
-        return out;
-    }
-
-    get renewalSummaryClass() {
-        const u = this.summary?.renewalUrgency || 'missing';
-        return `insights-renewal insights-renewal--${u}`;
-    }
-
-    get renewalHeadline() {
-        if (!this.summary) {
-            return '';
-        }
-        const u = this.summary.renewalUrgency;
-        const daysR = this.summary.daysUntilRenewal;
-        if (u === 'missing') {
-            return 'Renewal date not set';
-        }
-        if (daysR == null) {
-            return 'Renewal';
-        }
-        if (daysR < 0) {
-            return `${Math.abs(daysR)} day${Math.abs(daysR) === 1 ? '' : 's'} past renewal`;
-        }
-        return `${daysR} day${daysR === 1 ? '' : 's'} to renewal`;
-    }
-
-    get renewalSubtext() {
-        if (!this.summary || this.summary.renewalUrgency === 'missing') {
-            return 'Add a date on the account for renewal planning.';
-        }
-        return this.summary.renewalDateFormatted || '';
-    }
-
-    get insightsAccordionClass() {
-        return `section-accordion${this.sectionExpanded.insights ? ' section-accordion--expanded' : ''}`;
-    }
-
-    get secInsights() {
-        return this.sectionExpanded.insights;
-    }
-
-    get showRenewalOppLine() {
-        return (this.summary?.openRenewalOpportunityCount || 0) > 0;
-    }
-
-    get openRenewalOpportunityLabel() {
-        const n = this.summary?.openRenewalOpportunityCount || 0;
-        if (n === 0) {
-            return '';
-        }
-        return `${n} open renewal ${n === 1 ? 'opportunity' : 'opportunities'}`;
     }
 
     get openCasesFactorClass() {

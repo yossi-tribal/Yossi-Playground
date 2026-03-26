@@ -158,115 +158,82 @@
                     </div>
                 </template>
 
-                <!-- Plain-language insight (reduces scanning of raw numbers) -->
+                <!-- Commercial snapshot: value, YoY, quarterly trend, drilldowns -->
                 <template if:true={hasSummary}>
-                    <p class="insight-summary-line">{insightSummaryLine}</p>
-                </template>
+                    <div class="commercial-snapshot">
+                        <div class="commercial-snapshot-head">
+                            <span class="commercial-snapshot-title">Commercial snapshot</span>
+                            <span class="commercial-snapshot-hint">Booked and pipeline from opportunities; cases opened in the last 90 days</span>
+                        </div>
+                        <div class="commercial-kpi-row">
+                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialBookedClick}>
+                                <span class="commercial-kpi-label">Booked (all time)</span>
+                                <span class="commercial-kpi-value">
+                                    <lightning-formatted-number value={summary.totalWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                </span>
+                                <span class="commercial-kpi-sub">Closed-won opportunities</span>
+                            </button>
+                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
+                                <span class="commercial-kpi-label">Won (this year)</span>
+                                <span class="commercial-kpi-value">
+                                    <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                </span>
+                                <span class="commercial-kpi-sub">Calendar year to date</span>
+                            </button>
+                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialPriorYearClick}>
+                                <span class="commercial-kpi-label">Won (prior year)</span>
+                                <span class="commercial-kpi-value">
+                                    <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                </span>
+                                <span class="commercial-kpi-sub">Full prior calendar year</span>
+                            </button>
+                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialPipelineClick}>
+                                <span class="commercial-kpi-label">Open pipeline</span>
+                                <span class="commercial-kpi-value">
+                                    <lightning-formatted-number value={summary.openPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                </span>
+                                <span class="commercial-kpi-sub">Open opportunities</span>
+                            </button>
+                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialWeightedClick}>
+                                <span class="commercial-kpi-label">Weighted pipeline</span>
+                                <span class="commercial-kpi-value">
+                                    <lightning-formatted-number value={summary.weightedPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                </span>
+                                <span class="commercial-kpi-sub">Amount × probability</span>
+                            </button>
+                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialRecentCasesClick}>
+                                <span class="commercial-kpi-label">Cases (90 days)</span>
+                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
+                                <span class="commercial-kpi-sub">Opened on this account</span>
+                            </button>
+                        </div>
 
-                <!-- Insights: renewal, pipeline, engagement & case-mix charts (collapsed by default) -->
-                <template if:true={hasSummary}>
-                    <div class={insightsAccordionClass}>
-                        <button
-                            type="button"
-                            class="section-accordion-header"
-                            data-section="insights"
-                            onclick={handleToggleSection}
-                        >
-                            <lightning-icon icon-name="utility:chart" size="small" class="section-accordion-icon"></lightning-icon>
-                            <span class="section-accordion-title">Insights</span>
-                            <span class="section-accordion-hint">Renewal, pipeline, engagement, case mix</span>
-                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
-                        </button>
-                        <template if:true={secInsights}>
-                            <div class="section-accordion-body insights-panel">
-                                <div class="insights-grid">
-                                    <div class={renewalSummaryClass}>
-                                        <div class="insights-card-label">Renewal</div>
-                                        <div class="insights-card-value">{renewalHeadline}</div>
-                                        <div class="insights-card-meta">{renewalSubtext}</div>
-                                        <template if:true={showRenewalOppLine}>
-                                            <div class="insights-card-foot">{openRenewalOpportunityLabel}</div>
-                                        </template>
-                                        <button
-                                            type="button"
-                                            class="custom-btn custom-btn--link insights-link"
-                                            onclick={handleOpportunitiesClick}
-                                        >
-                                            View pipeline
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        class="insights-pipeline insights-pipeline--clickable"
-                                        onclick={handlePipelineRowClick}
-                                    >
-                                        <div class="insights-card-label">Open pipeline</div>
-                                        <div class="insights-pipeline-amount">
-                                            <lightning-formatted-number
-                                                value={summary.openPipelineAmount}
-                                                format-style="currency"
-                                                currency-code="USD"
-                                            ></lightning-formatted-number>
-                                        </div>
-                                        <div class="insights-card-meta">Next close {summary.nextOpportunityCloseDate}</div>
-                                    </button>
+                        <div class="commercial-visuals">
+                            <div class="commercial-yoy">
+                                <span class="commercial-yoy-title">This year vs prior year (won revenue)</span>
+                                <div class="commercial-yoy-track" role="img" aria-label="Comparison of won revenue">
+                                    <div class="commercial-yoy-seg commercial-yoy-seg--this" style={yoyThisYearBarStyle}></div>
+                                    <div class="commercial-yoy-seg commercial-yoy-seg--prior" style={yoyPriorYearBarStyle}></div>
                                 </div>
-
-                                <div class="insights-chart-block">
-                                    <div class="insights-chart-head">
-                                        <span class="insights-chart-title">Engagement (12 wks)</span>
-                                        <span class="insights-chart-sub">
-                                            {summary.completedTouchesLast30} touches · 30d · {summary.completedTouchesLast90} · 90d
-                                        </span>
-                                        <button
-                                            type="button"
-                                            class="custom-btn custom-btn--link insights-chart-action"
-                                            onclick={handleEngagementChartDrilldown}
-                                        >
-                                            View touches
-                                        </button>
-                                    </div>
-                                    <div class="engagement-bars" role="img" aria-label="Weekly engagement counts">
-                                        <template for:each={weeklyEngagementBars} for:item="bar">
-                                            <div key={bar.key} class="engagement-bar-wrap" title={bar.count}>
-                                                <div class="engagement-bar-fill" style={bar.barStyle}></div>
-                                            </div>
-                                        </template>
-                                    </div>
+                                <div class="commercial-yoy-legend">
+                                    <span class="commercial-yoy-legend-item"><span class="commercial-yoy-dot commercial-yoy-dot--this"></span> This year (YTD)</span>
+                                    <span class="commercial-yoy-legend-item"><span class="commercial-yoy-dot commercial-yoy-dot--prior"></span> Prior year (full)</span>
                                 </div>
-
-                                <template if:true={summary.showCaseMixChart}>
-                                    <div class="insights-chart-block">
-                                        <div class="insights-chart-head">
-                                            <span class="insights-chart-title">Open cases by priority</span>
-                                            <span class="insights-chart-sub">Tap a segment to drill down</span>
-                                        </div>
-                                        <div class="case-mix-bar" role="group" aria-label="Case mix">
-                                            <template for:each={caseMixSegments} for:item="seg">
-                                                <button
-                                                    key={seg.key}
-                                                    type="button"
-                                                    class={seg.className}
-                                                    style={seg.segStyle}
-                                                    data-bucket={seg.bucket}
-                                                    onclick={handleCaseMixSegmentClick}
-                                                    title={seg.label}
-                                                >
-                                                    <span class="case-mix-seg-label">{seg.count}</span>
-                                                </button>
-                                            </template>
-                                        </div>
-                                        <div class="case-mix-legend">
-                                            <template for:each={caseMixSegments} for:item="seg">
-                                                <span key={seg.legendKey} class="case-mix-legend-item">
-                                                    {seg.label}: {seg.count}
-                                                </span>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </template>
                             </div>
-                        </template>
+                            <div class="commercial-quarters-wrap">
+                                <span class="commercial-quarters-title">Won revenue by quarter</span>
+                                <div class="commercial-quarters">
+                                    <template for:each={commercialQuarterBars} for:item="qb">
+                                        <div key={qb.key} class="commercial-quarter-col">
+                                            <div class="commercial-quarter-bar-track">
+                                                <div class="commercial-quarter-bar-fill" style={qb.barStyle}></div>
+                                            </div>
+                                            <span class="commercial-quarter-label">{qb.label}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </template>
 
@@ -423,7 +390,7 @@
                                                         <td>{opp.closeDate}</td>
                                                         <td>
                                                             <template if:true={opp.amount}>
-                                                                <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                                <lightning-formatted-number value={opp.amount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
                                                             </template>
                                                         </td>
                                                     </tr>
@@ -801,51 +768,11 @@
                                                     <td>{opp.closeDate}</td>
                                                     <td>
                                                         <template if:true={opp.amount}>
-                                                            <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                            <lightning-formatted-number value={opp.amount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
                                                         </template>
                                                     </td>
                                                     <td>{opp.probability}%</td>
                                                     <td>{opp.ownerName}</td>
-                                                </tr>
-                                            </template>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </template>
-                            <template if:false={hasKpiModalData}>
-                                <div class="kpi-modal-empty-state">
-                                    <lightning-icon icon-name="utility:info" size="large" class="empty-state-icon"></lightning-icon>
-                                    <p class="empty-state-message">{kpiModalEmptyMessage}</p>
-                                </div>
-                            </template>
-                        </template>
-
-                        <!-- Completed touches (engagement drilldown) -->
-                        <template if:true={showCompletedTouchesModal}>
-                            <template if:true={hasKpiModalData}>
-                                <div class="kpi-modal-table-container">
-                                    <table class="data-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Subject</th>
-                                                <th>Type</th>
-                                                <th>Date</th>
-                                                <th>Owner</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <template for:each={kpiModalData} for:item="touch">
-                                                <tr key={touch.activityId} data-id={touch.activityId} onclick={handleKpiRecordClick} class="table-row">
-                                                    <td class="subject-cell">{touch.subject}</td>
-                                                    <td>{touch.activityType}</td>
-                                                    <td>{touch.activityDate}</td>
-                                                    <td>{touch.ownerName}</td>
-                                                    <td>
-                                                        <template if:true={touch.status}>
-                                                            <span class="status-badge">{touch.status}</span>
-                                                        </template>
-                                                    </td>
                                                 </tr>
                                             </template>
                                         </tbody>

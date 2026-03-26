@@ -7,8 +7,6 @@
  */
 public with sharing class CSD_CSDashboardController {
 
-    private static final Integer ENGAGEMENT_WEEKS = 12;
-
     /**
      * @description Wrapper class for dashboard summary metrics
      */
@@ -33,28 +31,30 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String nextTouchpointSubject { get; set; }
         @AuraEnabled public String nextTouchpointType { get; set; }
         @AuraEnabled public String nextTouchpointTime { get; set; }
-        /** Open Opportunity Amount roll-up (IsClosed = false) */
+        /** Sum of Amount on closed-won opportunities (booked revenue) */
+        @AuraEnabled public Decimal totalWonRevenue { get; set; }
+        /** Won revenue with CloseDate in the current calendar year */
+        @AuraEnabled public Decimal ytdWonRevenue { get; set; }
+        /** Won revenue with CloseDate in the prior calendar year (full year) */
+        @AuraEnabled public Decimal priorYearWonRevenue { get; set; }
+        /** Sum of Amount on open opportunities */
         @AuraEnabled public Decimal openPipelineAmount { get; set; }
-        /** Completed Tasks + Events (WhatId) in last 30 days */
-        @AuraEnabled public Integer completedTouchesLast30 { get; set; }
-        /** Completed Tasks + Events (WhatId) in last 90 days */
-        @AuraEnabled public Integer completedTouchesLast90 { get; set; }
-        /** One count per week, oldest week first (12 weeks) */
-        @AuraEnabled public List<Integer> weeklyEngagementCounts { get; set; }
-        @AuraEnabled public Integer engagementSeriesMax { get; set; }
-        @AuraEnabled public Boolean showEngagementChart { get; set; }
-        @AuraEnabled public Integer caseMixHigh { get; set; }
-        @AuraEnabled public Integer caseMixMedium { get; set; }
-        @AuraEnabled public Integer caseMixLow { get; set; }
-        @AuraEnabled public Integer caseMixOther { get; set; }
-        @AuraEnabled public Boolean showCaseMixChart { get; set; }
-        @AuraEnabled public String renewalDateFormatted { get; set; }
-        /** Days until CSD_Renewal_Date__c; negative if past */
-        @AuraEnabled public Integer daysUntilRenewal { get; set; }
-        /** missing, ok, soon, critical, overdue */
-        @AuraEnabled public String renewalUrgency { get; set; }
-        @AuraEnabled public Boolean accountAtRisk { get; set; }
-        @AuraEnabled public Integer openRenewalOpportunityCount { get; set; }
+        /** Sum of Amount * Probability/100 on open opportunities */
+        @AuraEnabled public Decimal weightedPipelineAmount { get; set; }
+        /** Cases created in the last 90 days */
+        @AuraEnabled public Integer casesOpenedLast90Days { get; set; }
+        /** ISO currency code for formatting (account or org default) */
+        @AuraEnabled public String currencyCode { get; set; }
+        /** Won revenue for the 4 most recent calendar quarters (oldest first) for mini-bar chart */
+        @AuraEnabled public Decimal wonQuarter1 { get; set; }
+        @AuraEnabled public Decimal wonQuarter2 { get; set; }
+        @AuraEnabled public Decimal wonQuarter3 { get; set; }
+        @AuraEnabled public Decimal wonQuarter4 { get; set; }
+        /** Labels for the four quarters (e.g. Q1 2024) matching wonQuarter1..4 */
+        @AuraEnabled public String wonQuarter1Label { get; set; }
+        @AuraEnabled public String wonQuarter2Label { get; set; }
+        @AuraEnabled public String wonQuarter3Label { get; set; }
+        @AuraEnabled public String wonQuarter4Label { get; set; }
     }
 
     /**
@@ -153,8 +153,7 @@ public with sharing class CSD_CSDashboardController {
 
             // Get Account details
             List<Account> accounts = [
-                SELECT Id, CSD_Account_Health_Score__c, CSD_Primary_CSM__c, CSD_Primary_CSM__r.Name,
-                       CSD_Renewal_Date__c, CSD_At_Risk__c
+                SELECT Id, CSD_Account_Health_Score__c, CSD_Primary_CSM__c, CSD_Primary_CSM__r.Name
                 FROM Account
                 WHERE Id = :accountId
                 LIMIT 1
@@ -165,6 +164,8 @@ public with sharing class CSD_CSDashboardController {
             }
 
             Account acc = accounts[0];
+
+            summary.currencyCode = UserInfo.getDefaultCurrency();
 
             // Set health score
             summary.accountHealthScore = acc.CSD_Account_Health_Score__c != null
@@ -371,9 +372,7 @@ public with sharing class CSD_CSDashboardController {
                 summary.nextTouchpointTime = '';
             }
 
-            populatePipelineAndRenewal(accountId, acc, summary);
-            populateEngagementTouches(accountId, summary);
-            populateCaseMixBuckets(accountId, summary);
+            populateCommercialKpis(accountId, summary);
 
             return summary;
 
@@ -383,191 +382,193 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
-     * @description Open pipeline amount, renewal horizon, at-risk flag, renewal opps
+     * @description Commercial KPIs: won revenue, pipeline, support volume, quarterly won
      */
-    private static void populatePipelineAndRenewal(Id accountId, Account acc, DashboardSummary summary) {
-        List<AggregateResult> oppAgg = [
+    private static void populateCommercialKpis(Id accountId, DashboardSummary summary) {
+        summary.totalWonRevenue = 0;
+        summary.ytdWonRevenue = 0;
+        summary.priorYearWonRevenue = 0;
+        summary.openPipelineAmount = 0;
+        summary.weightedPipelineAmount = 0;
+        summary.casesOpenedLast90Days = 0;
+        summary.wonQuarter1 = 0;
+        summary.wonQuarter2 = 0;
+        summary.wonQuarter3 = 0;
+        summary.wonQuarter4 = 0;
+        summary.wonQuarter1Label = '';
+        summary.wonQuarter2Label = '';
+        summary.wonQuarter3Label = '';
+        summary.wonQuarter4Label = '';
+
+        Integer y = Date.today().year();
+        Date ytdStart = Date.newInstance(y, 1, 1);
+        Date ytdEnd = Date.newInstance(y, 12, 31);
+        Integer py = y - 1;
+        Date priorYearStart = Date.newInstance(py, 1, 1);
+        Date priorYearEnd = Date.newInstance(py, 12, 31);
+
+        for (AggregateResult ar : [
+            SELECT SUM(Amount) amt
+            FROM Opportunity
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND IsWon = true
+        ]) {
+            summary.totalWonRevenue = (Decimal) ar.get('amt');
+        }
+        if (summary.totalWonRevenue == null) {
+            summary.totalWonRevenue = 0;
+        }
+
+        for (AggregateResult ar : [
+            SELECT SUM(Amount) amt
+            FROM Opportunity
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND IsWon = true
+            AND CloseDate >= :ytdStart
+            AND CloseDate <= :ytdEnd
+        ]) {
+            summary.ytdWonRevenue = (Decimal) ar.get('amt');
+        }
+        if (summary.ytdWonRevenue == null) {
+            summary.ytdWonRevenue = 0;
+        }
+
+        for (AggregateResult ar : [
+            SELECT SUM(Amount) amt
+            FROM Opportunity
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND IsWon = true
+            AND CloseDate >= :priorYearStart
+            AND CloseDate <= :priorYearEnd
+        ]) {
+            summary.priorYearWonRevenue = (Decimal) ar.get('amt');
+        }
+        if (summary.priorYearWonRevenue == null) {
+            summary.priorYearWonRevenue = 0;
+        }
+
+        for (AggregateResult ar : [
             SELECT SUM(Amount) amt
             FROM Opportunity
             WHERE AccountId = :accountId
             AND IsClosed = false
-        ];
-        Decimal pipe = oppAgg.isEmpty() ? null : (Decimal) oppAgg[0].get('amt');
-        summary.openPipelineAmount = pipe != null ? pipe : 0;
-
-        summary.accountAtRisk = acc.CSD_At_Risk__c == true;
-        summary.renewalDateFormatted = null;
-        summary.daysUntilRenewal = null;
-        summary.renewalUrgency = 'missing';
-
-        if (acc.CSD_Renewal_Date__c != null) {
-            summary.renewalDateFormatted = acc.CSD_Renewal_Date__c.format();
-            Integer daysUntil = Date.today().daysBetween(acc.CSD_Renewal_Date__c);
-            summary.daysUntilRenewal = daysUntil;
-            if (daysUntil < 0) {
-                summary.renewalUrgency = 'overdue';
-            } else if (daysUntil <= 30) {
-                summary.renewalUrgency = 'critical';
-            } else if (daysUntil <= 90) {
-                summary.renewalUrgency = 'soon';
-            } else {
-                summary.renewalUrgency = 'ok';
-            }
+        ]) {
+            summary.openPipelineAmount = (Decimal) ar.get('amt');
+        }
+        if (summary.openPipelineAmount == null) {
+            summary.openPipelineAmount = 0;
         }
 
-        summary.openRenewalOpportunityCount = [
-            SELECT COUNT()
+        for (Opportunity o : [
+            SELECT Amount, Probability
             FROM Opportunity
             WHERE AccountId = :accountId
             AND IsClosed = false
-            AND Type = 'Renewal'
-        ];
-    }
-
-    /**
-     * @description Weekly touch buckets and 30/90-day touch counts
-     */
-    private static void populateEngagementTouches(Id accountId, DashboardSummary summary) {
-        Date today = Date.today();
-        Date periodStart = today.addDays(-(ENGAGEMENT_WEEKS * 7) + 1);
-        List<Integer> buckets = new List<Integer>();
-        for (Integer i = 0; i < ENGAGEMENT_WEEKS; i++) {
-            buckets.add(0);
-        }
-
-        for (Task t : [
-            SELECT ActivityDate
-            FROM Task
-            WHERE WhatId = :accountId
-            AND IsClosed = true
-            AND ActivityDate != null
-            AND ActivityDate >= :periodStart
-            AND ActivityDate <= :today
         ]) {
-            addActivityToWeekBucket(buckets, periodStart, t.ActivityDate);
-        }
-        for (Event ev : [
-            SELECT ActivityDate
-            FROM Event
-            WHERE WhatId = :accountId
-            AND ActivityDate != null
-            AND ActivityDate >= :periodStart
-            AND ActivityDate <= :today
-        ]) {
-            addActivityToWeekBucket(buckets, periodStart, ev.ActivityDate);
-        }
-
-        Date d30 = today.addDays(-30);
-        Date d90 = today.addDays(-90);
-        Integer t30 = 0;
-        Integer t90 = 0;
-        for (Task t : [
-            SELECT ActivityDate
-            FROM Task
-            WHERE WhatId = :accountId
-            AND IsClosed = true
-            AND ActivityDate != null
-            AND ActivityDate >= :d90
-            AND ActivityDate <= :today
-        ]) {
-            t90++;
-            if (t.ActivityDate >= d30) {
-                t30++;
-            }
-        }
-        for (Event ev : [
-            SELECT ActivityDate
-            FROM Event
-            WHERE WhatId = :accountId
-            AND ActivityDate != null
-            AND ActivityDate >= :d90
-            AND ActivityDate <= :today
-        ]) {
-            t90++;
-            if (ev.ActivityDate >= d30) {
-                t30++;
+            if (o.Amount != null && o.Probability != null) {
+                summary.weightedPipelineAmount += o.Amount * o.Probability / 100;
             }
         }
 
-        summary.completedTouchesLast30 = t30;
-        summary.completedTouchesLast90 = t90;
-        summary.weeklyEngagementCounts = buckets;
-        Integer maxC = 0;
-        for (Integer c : buckets) {
-            if (c > maxC) {
-                maxC = c;
-            }
-        }
-        summary.engagementSeriesMax = maxC;
-        summary.showEngagementChart = true;
-    }
-
-    private static void addActivityToWeekBucket(List<Integer> buckets, Date periodStart, Date activityDate) {
-        if (activityDate == null) {
-            return;
-        }
-        Integer d = periodStart.daysBetween(activityDate);
-        if (d < 0) {
-            return;
-        }
-        Integer idx = d / 7;
-        if (idx >= buckets.size()) {
-            idx = buckets.size() - 1;
-        }
-        buckets.set(idx, buckets.get(idx) + 1);
-    }
-
-    /**
-     * @description Open case counts by priority bucket for stacked bar
-     */
-    private static void populateCaseMixBuckets(Id accountId, DashboardSummary summary) {
-        Integer hi = 0;
-        Integer med = 0;
-        Integer lo = 0;
-        Integer oth = 0;
-
-        for (Case c : [
-            SELECT Priority, IsEscalated
+        summary.casesOpenedLast90Days = [
+            SELECT COUNT()
             FROM Case
             WHERE AccountId = :accountId
-            AND IsClosed = false
-        ]) {
-            if (c.IsEscalated == true || isCaseHighPriority(c.Priority)) {
-                hi++;
-            } else if (isCaseMediumPriority(c.Priority)) {
-                med++;
-            } else if (isCaseLowPriority(c.Priority)) {
-                lo++;
-            } else {
-                oth++;
+            AND CreatedDate >= LAST_N_DAYS:90
+        ];
+
+        populateLastFourQuartersWon(accountId, summary);
+    }
+
+    /**
+     * @description Fill wonQuarter1..4 (oldest to newest) and labels for last 4 calendar quarters
+     */
+    private static void populateLastFourQuartersWon(Id accountId, DashboardSummary summary) {
+        Date today = Date.today();
+        Integer cq = getCalendarQuarter(today);
+        Integer cy = today.year();
+
+        // Oldest of the rolling 4 quarters ending at current quarter: step back 3 quarters
+        Integer q = cq;
+        Integer year = cy;
+        for (Integer i = 0; i < 3; i++) {
+            q--;
+            if (q < 1) {
+                q = 4;
+                year--;
             }
         }
 
-        summary.caseMixHigh = hi;
-        summary.caseMixMedium = med;
-        summary.caseMixLow = lo;
-        summary.caseMixOther = oth;
-        summary.showCaseMixChart = (hi + med + lo + oth) > 0;
-    }
-
-    private static Boolean isCaseHighPriority(String p) {
-        if (String.isBlank(p)) {
-            return false;
+        List<QuarterWindow> windows = new List<QuarterWindow>();
+        for (Integer i = 0; i < 4; i++) {
+            windows.add(getQuarterDateRange(year, q));
+            q++;
+            if (q > 4) {
+                q = 1;
+                year++;
+            }
         }
-        String u = p.toLowerCase();
-        return u.contains('high') || u.contains('urgent');
-    }
 
-    private static Boolean isCaseMediumPriority(String p) {
-        if (String.isBlank(p)) {
-            return false;
+        List<Decimal> amounts = new List<Decimal>();
+        for (QuarterWindow w : windows) {
+            Decimal amt = 0;
+            for (AggregateResult ar : [
+                SELECT SUM(Amount) a
+                FROM Opportunity
+                WHERE AccountId = :accountId
+                AND IsClosed = true
+                AND IsWon = true
+                AND CloseDate >= :w.startDate
+                AND CloseDate <= :w.endDate
+            ]) {
+                amt = (Decimal) ar.get('a');
+            }
+            amounts.add(amt != null ? amt : 0);
         }
-        String u = p.toLowerCase();
-        return u.contains('medium') || u.contains('normal');
+
+        summary.wonQuarter1 = amounts.size() > 0 ? amounts[0] : 0;
+        summary.wonQuarter2 = amounts.size() > 1 ? amounts[1] : 0;
+        summary.wonQuarter3 = amounts.size() > 2 ? amounts[2] : 0;
+        summary.wonQuarter4 = amounts.size() > 3 ? amounts[3] : 0;
+
+        summary.wonQuarter1Label = windows.size() > 0 ? windows[0].label : '';
+        summary.wonQuarter2Label = windows.size() > 1 ? windows[1].label : '';
+        summary.wonQuarter3Label = windows.size() > 2 ? windows[2].label : '';
+        summary.wonQuarter4Label = windows.size() > 3 ? windows[3].label : '';
     }
 
-    private static Boolean isCaseLowPriority(String p) {
-        return !String.isBlank(p) && p.toLowerCase().contains('low');
+    private class QuarterWindow {
+        Date startDate;
+        Date endDate;
+        String label;
+    }
+
+    private static Integer getCalendarQuarter(Date d) {
+        Integer m = d.month();
+        if (m <= 3) {
+            return 1;
+        }
+        if (m <= 6) {
+            return 2;
+        }
+        if (m <= 9) {
+            return 3;
+        }
+        return 4;
+    }
+
+    private static QuarterWindow getQuarterDateRange(Integer year, Integer quarter) {
+        QuarterWindow w = new QuarterWindow();
+        Integer startMonth = (quarter - 1) * 3 + 1;
+        w.startDate = Date.newInstance(year, startMonth, 1);
+        Integer endMonth = startMonth + 2;
+        Integer lastDay = Date.daysInMonth(year, endMonth);
+        w.endDate = Date.newInstance(year, endMonth, lastDay);
+        w.label = 'Q' + String.valueOf(quarter) + ' ' + String.valueOf(year);
+        return w;
     }
 
     /**
@@ -882,6 +883,8 @@ public with sharing class CSD_CSDashboardController {
                 throw new AuraHandledException('Account ID is required');
             }
 
+            List<CaseData> caseList = new List<CaseData>();
+
             List<Case> cases = [
                 SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name,
                        CreatedDate, IsEscalated
@@ -892,7 +895,20 @@ public with sharing class CSD_CSDashboardController {
                 LIMIT 100
             ];
 
-            return mapCasesToCaseDataList(cases);
+            for (Case c : cases) {
+                CaseData caseData = new CaseData();
+                caseData.caseId = c.Id;
+                caseData.caseNumber = c.CaseNumber;
+                caseData.subject = c.Subject;
+                caseData.status = c.Status;
+                caseData.priority = c.Priority;
+                caseData.ownerName = c.Owner.Name;
+                caseData.isEscalated = c.IsEscalated;
+                caseData.age = c.CreatedDate.date().daysBetween(Date.today());
+                caseList.add(caseData);
+            }
+
+            return caseList;
 
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving all cases: ' + e.getMessage());
@@ -1118,176 +1134,126 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
-     * @description Open cases filtered by dashboard case-mix bucket for chart drilldown
-     * @param bucket ALL, HIGH, MEDIUM, LOW, or OTHER
+     * @description Closed-won opportunities for commercial drilldown (all-time, calendar YTD, or prior calendar year)
+     * @param scopeFilter ALL_TIME, YTD, or PRIOR_YEAR
      */
     @AuraEnabled(cacheable=false)
-    public static List<CaseData> getOpenCasesByPriorityBucket(Id accountId, String bucket) {
+    public static List<OpportunityData> getClosedWonOpportunities(Id accountId, String scopeFilter) {
         try {
             if (accountId == null) {
                 throw new AuraHandledException('Account ID is required');
             }
 
-            String b = String.isBlank(bucket) ? 'ALL' : bucket.trim().toUpperCase();
-            List<Case> cases = new List<Case>();
+            String scope = String.isBlank(scopeFilter) ? 'ALL_TIME' : scopeFilter.trim().toUpperCase();
 
-            if (b == 'ALL') {
-                cases = [
-                    SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
-                    FROM Case
+            Integer y = Date.today().year();
+            Date ytdStart = Date.newInstance(y, 1, 1);
+            Date ytdEnd = Date.newInstance(y, 12, 31);
+            Integer py = y - 1;
+            Date priorYearStart = Date.newInstance(py, 1, 1);
+            Date priorYearEnd = Date.newInstance(py, 12, 31);
+
+            List<Opportunity> opportunities;
+
+            if (scope == 'YTD') {
+                opportunities = [
+                    SELECT Id, Name, StageName, CloseDate, Amount, Owner.Name, Probability
+                    FROM Opportunity
                     WHERE AccountId = :accountId
-                    AND IsClosed = false
-                    ORDER BY IsEscalated DESC, Priority DESC, CreatedDate ASC
+                    AND IsClosed = true
+                    AND IsWon = true
+                    AND CloseDate >= :ytdStart
+                    AND CloseDate <= :ytdEnd
+                    ORDER BY CloseDate DESC
                     LIMIT 100
                 ];
-            } else if (b == 'HIGH') {
-                cases = [
-                    SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
-                    FROM Case
+            } else if (scope == 'PRIOR_YEAR') {
+                opportunities = [
+                    SELECT Id, Name, StageName, CloseDate, Amount, Owner.Name, Probability
+                    FROM Opportunity
                     WHERE AccountId = :accountId
-                    AND IsClosed = false
-                    AND (IsEscalated = true OR Priority IN ('High', 'Urgent'))
-                    ORDER BY IsEscalated DESC, CreatedDate ASC
-                    LIMIT 100
-                ];
-            } else if (b == 'MEDIUM') {
-                cases = [
-                    SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
-                    FROM Case
-                    WHERE AccountId = :accountId
-                    AND IsClosed = false
-                    AND IsEscalated = false
-                    AND (Priority = 'Medium' OR Priority = 'Normal')
-                    ORDER BY CreatedDate ASC
-                    LIMIT 100
-                ];
-            } else if (b == 'LOW') {
-                cases = [
-                    SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
-                    FROM Case
-                    WHERE AccountId = :accountId
-                    AND IsClosed = false
-                    AND IsEscalated = false
-                    AND Priority = 'Low'
-                    ORDER BY CreatedDate ASC
-                    LIMIT 100
-                ];
-            } else if (b == 'OTHER') {
-                cases = [
-                    SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
-                    FROM Case
-                    WHERE AccountId = :accountId
-                    AND IsClosed = false
-                    AND IsEscalated = false
-                    AND (Priority = null OR (Priority NOT IN ('High', 'Urgent', 'Medium', 'Normal', 'Low')))
-                    ORDER BY CreatedDate ASC
+                    AND IsClosed = true
+                    AND IsWon = true
+                    AND CloseDate >= :priorYearStart
+                    AND CloseDate <= :priorYearEnd
+                    ORDER BY CloseDate DESC
                     LIMIT 100
                 ];
             } else {
-                cases = [
-                    SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
-                    FROM Case
+                opportunities = [
+                    SELECT Id, Name, StageName, CloseDate, Amount, Owner.Name, Probability
+                    FROM Opportunity
                     WHERE AccountId = :accountId
-                    AND IsClosed = false
-                    ORDER BY IsEscalated DESC, Priority DESC, CreatedDate ASC
+                    AND IsClosed = true
+                    AND IsWon = true
+                    ORDER BY CloseDate DESC
                     LIMIT 100
                 ];
             }
 
-            return mapCasesToCaseDataList(cases);
-        } catch (Exception e) {
-            throw new AuraHandledException('Error retrieving filtered cases: ' + e.getMessage());
-        }
-    }
+            List<OpportunityData> oppList = new List<OpportunityData>();
+            for (Opportunity opp : opportunities) {
+                OpportunityData oppData = new OpportunityData();
+                oppData.opportunityId = opp.Id;
+                oppData.name = opp.Name;
+                oppData.stageName = opp.StageName;
+                oppData.closeDate = opp.CloseDate != null ? opp.CloseDate.format() : '';
+                oppData.amount = opp.Amount;
+                oppData.ownerName = opp.Owner.Name;
+                oppData.probability = opp.Probability != null ? Integer.valueOf(opp.Probability) : null;
+                oppList.add(oppData);
+            }
 
-    private static List<CaseData> mapCasesToCaseDataList(List<Case> cases) {
-        List<CaseData> caseList = new List<CaseData>();
-        for (Case c : cases) {
-            CaseData caseData = new CaseData();
-            caseData.caseId = c.Id;
-            caseData.caseNumber = c.CaseNumber;
-            caseData.subject = c.Subject;
-            caseData.status = c.Status;
-            caseData.priority = c.Priority;
-            caseData.ownerName = c.Owner.Name;
-            caseData.isEscalated = c.IsEscalated;
-            caseData.age = c.CreatedDate.date().daysBetween(Date.today());
-            caseList.add(caseData);
+            return oppList;
+
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving closed-won opportunities: ' + e.getMessage());
         }
-        return caseList;
     }
 
     /**
-     * @description Completed tasks and past events on the account (for engagement drilldown)
+     * @description Cases created in the last N days (default 90) for support-volume drilldown
      */
     @AuraEnabled(cacheable=false)
-    public static List<ActivityData> getRecentCompletedTouches(Id accountId, Integer daysBack) {
+    public static List<CaseData> getCasesOpenedInLastDays(Id accountId, Integer days) {
         try {
             if (accountId == null) {
                 throw new AuraHandledException('Account ID is required');
             }
 
-            if (daysBack == null || daysBack <= 0) {
-                daysBack = 90;
+            if (days == null || days <= 0) {
+                days = 90;
             }
 
-            Date start = Date.today().addDays(-daysBack);
-            List<ActivityData> activityList = new List<ActivityData>();
+            DateTime cutoff = DateTime.now().addDays(-days);
+            List<CaseData> caseList = new List<CaseData>();
 
-            for (Task t : [
-                SELECT Id, Subject, ActivityDate, Owner.Name, Status
-                FROM Task
-                WHERE WhatId = :accountId
-                AND IsClosed = true
-                AND ActivityDate != null
-                AND ActivityDate >= :start
-                AND ActivityDate <= TODAY
-                ORDER BY ActivityDate DESC
-                LIMIT 200
-            ]) {
-                ActivityData activity = new ActivityData();
-                activity.activityId = t.Id;
-                activity.subject = t.Subject;
-                activity.activityType = 'Task';
-                activity.activityDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
-                activity.activityDateValue = t.ActivityDate;
-                activity.ownerName = t.Owner.Name;
-                activity.status = t.Status;
-                activityList.add(activity);
+            List<Case> cases = [
+                SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
+                FROM Case
+                WHERE AccountId = :accountId
+                AND CreatedDate >= :cutoff
+                ORDER BY CreatedDate DESC
+                LIMIT 100
+            ];
+
+            for (Case c : cases) {
+                CaseData caseData = new CaseData();
+                caseData.caseId = c.Id;
+                caseData.caseNumber = c.CaseNumber;
+                caseData.subject = c.Subject;
+                caseData.status = c.Status;
+                caseData.priority = c.Priority;
+                caseData.ownerName = c.Owner.Name;
+                caseData.isEscalated = c.IsEscalated;
+                caseData.age = c.CreatedDate.date().daysBetween(Date.today());
+                caseList.add(caseData);
             }
 
-            for (Event ev : [
-                SELECT Id, Subject, ActivityDate, Owner.Name
-                FROM Event
-                WHERE WhatId = :accountId
-                AND ActivityDate != null
-                AND ActivityDate >= :start
-                AND ActivityDate <= TODAY
-                ORDER BY ActivityDate DESC
-                LIMIT 200
-            ]) {
-                ActivityData activity = new ActivityData();
-                activity.activityId = ev.Id;
-                activity.subject = ev.Subject;
-                activity.activityType = 'Event';
-                activity.activityDate = ev.ActivityDate != null ? ev.ActivityDate.format() : '';
-                activity.activityDateValue = ev.ActivityDate;
-                activity.ownerName = ev.Owner.Name;
-                activity.status = null;
-                activityList.add(activity);
-            }
-
-            activityList.sort();
-
-            List<ActivityData> limited = new List<ActivityData>();
-            Integer n = activityList.size();
-            for (Integer i = n - 1; i >= 0 && limited.size() < 200; i--) {
-                limited.add(activityList[i]);
-            }
-            return limited;
+            return caseList;
 
         } catch (Exception e) {
-            throw new AuraHandledException('Error retrieving completed touches: ' + e.getMessage());
+            throw new AuraHandledException('Error retrieving recent cases: ' + e.getMessage());
         }
     }
 }

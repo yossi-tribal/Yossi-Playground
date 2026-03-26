@@ -19,18 +19,6 @@
                 <field>Account.CSD_Primary_CSM__c</field>
                 <readable>true</readable>
             </fieldPermissions>
-
-            <fieldPermissions>
-                <editable>true</editable>
-                <field>Account.CSD_Renewal_Date__c</field>
-                <readable>true</readable>
-            </fieldPermissions>
-
-            <fieldPermissions>
-                <editable>true</editable>
-                <field>Account.CSD_At_Risk__c</field>
-                <readable>true</readable>
-            </fieldPermissions>
             <!-- Apex Class Access - Grant access to Apex classes -->
 
             <classAccesses>
