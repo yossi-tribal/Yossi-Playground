@@ -158,6 +158,13 @@ private class CSD_CSDashboardControllerTest {
         System.assertNotEquals('No recent activity', summary.lastActivityDate, 'Should have recent activity');
         System.assertNotEquals('No upcoming activity', summary.nextPlannedActivity, 'Should have upcoming activity');
         System.assertEquals(3, summary.opportunityCount, 'Should have 3 open opportunities');
+        System.assertEquals(225000, summary.openPipelineAmount, 'Open pipeline should sum opportunities');
+        System.assertEquals(2, summary.caseMixHigh, 'High mix: escalated + high priority');
+        System.assertEquals(1, summary.caseMixLow, 'One low priority case');
+        System.assertEquals(0, summary.caseMixMedium, 'No medium-only cases');
+        System.assertEquals(12, summary.weeklyEngagementCounts.size(), '12 weekly buckets');
+        System.assertEquals(true, summary.showEngagementChart, 'Engagement chart enabled');
+        System.assertEquals(true, summary.showCaseMixChart, 'Case mix when open cases exist');
     }
 
     /**
@@ -820,5 +827,55 @@ private class CSD_CSDashboardControllerTest {
             'Type should be empty');
         System.assertEquals('', summary.nextTouchpointTime,
             'Time should be empty');
+    }
+
+    /**
+     * @description Filtered open cases by priority bucket
+     */
+    @isTest
+    static void testGetOpenCasesByPriorityBucket_High() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        Test.startTest();
+        List<CSD_CSDashboardController.CaseData> highCases =
+            CSD_CSDashboardController.getOpenCasesByPriorityBucket(testAccount.Id, 'HIGH');
+        Test.stopTest();
+
+        System.assertEquals(2, highCases.size(), 'High bucket: High priority + escalated');
+    }
+
+    /**
+     * @description Recent completed touches for engagement drilldown
+     */
+    @isTest
+    static void testGetRecentCompletedTouches() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        Test.startTest();
+        List<CSD_CSDashboardController.ActivityData> touches =
+            CSD_CSDashboardController.getRecentCompletedTouches(testAccount.Id, 90);
+        Test.stopTest();
+
+        System.assert(touches.size() >= 1, 'Should include completed task and/or past event');
+    }
+
+    /**
+     * @description Renewal date and at-risk flag on summary
+     */
+    @isTest
+    static void testRenewalAndAtRisk_OnSummary() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        testAccount.CSD_Renewal_Date__c = Date.today().addDays(45);
+        testAccount.CSD_At_Risk__c = true;
+        update testAccount;
+
+        Test.startTest();
+        CSD_CSDashboardController.DashboardSummary summary =
+            CSD_CSDashboardController.getDashboardSummary(testAccount.Id);
+        Test.stopTest();
+
+        System.assertEquals(true, summary.accountAtRisk, 'At risk flag');
+        System.assertEquals('soon', summary.renewalUrgency, '45 days is soon window');
+        System.assertEquals(45, summary.daysUntilRenewal, 'Days until renewal');
     }
 }

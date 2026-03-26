@@ -5,9 +5,10 @@ import getDashboardSummary from '@salesforce/apex/CSD_CSDashboardController.getD
 import getOpenCases from '@salesforce/apex/CSD_CSDashboardController.getOpenCases';
 import getOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getOverdueTasks';
 import getUpcomingActivities from '@salesforce/apex/CSD_CSDashboardController.getUpcomingActivities';
-import getAllOpenCases from '@salesforce/apex/CSD_CSDashboardController.getAllOpenCases';
+import getOpenCasesByPriorityBucket from '@salesforce/apex/CSD_CSDashboardController.getOpenCasesByPriorityBucket';
 import getAllOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getAllOverdueTasks';
 import getAllOpportunities from '@salesforce/apex/CSD_CSDashboardController.getAllOpportunities';
+import getRecentCompletedTouches from '@salesforce/apex/CSD_CSDashboardController.getRecentCompletedTouches';
 import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts';
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
 
@@ -26,11 +27,14 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track showKpiModal = false;
     @track kpiModalTitle = '';
     @track kpiModalData = [];
-    @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities'
+    @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'completedTouches'
     @track kpiModalEmptyMessage = '';
+    /** ALL, HIGH, MEDIUM, LOW, OTHER — for case drilldown titles */
+    @track kpiModalCaseBucket = 'ALL';
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
+        insights: false,
         overdueTasks: false,
         cases: false,
         opportunities: false,
@@ -165,6 +169,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             (this.overdueTasks && this.overdueTasks.length > 0);
         const upcoming = this.upcomingActivities && this.upcomingActivities.length > 0;
         this.sectionExpanded = {
+            insights: false,
             overdueTasks: overdue,
             cases: false,
             opportunities: false,
@@ -295,20 +300,62 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
      * Handle Open Cases KPI click
      */
     handleOpenCasesClick() {
-        this.kpiModalTitle = 'Open Cases';
+        this.openCasesModal('ALL', 'Open cases');
+    }
+
+    /**
+     * @param {string} bucket ALL | HIGH | MEDIUM | LOW | OTHER
+     * @param {string} title Modal title
+     */
+    openCasesModal(bucket, title) {
+        this.kpiModalCaseBucket = bucket || 'ALL';
+        this.kpiModalTitle = title || 'Open cases';
         this.kpiModalType = 'cases';
         this.kpiModalEmptyMessage = 'Great job! No open cases.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
-        getAllOpenCases({ accountId: this.recordId })
-            .then(result => {
+        getOpenCasesByPriorityBucket({ accountId: this.recordId, bucket: this.kpiModalCaseBucket })
+            .then((result) => {
                 this.kpiModalData = result || [];
             })
-            .catch(error => {
+            .catch((error) => {
                 this.handleError('Failed to load cases', error);
                 this.showKpiModal = false;
             });
+    }
+
+    handleCaseMixSegmentClick(event) {
+        const bucket = event.currentTarget.dataset.bucket;
+        if (!bucket) return;
+        const titles = {
+            HIGH: 'Open cases · High / escalated',
+            MEDIUM: 'Open cases · Medium',
+            LOW: 'Open cases · Low',
+            OTHER: 'Open cases · Other'
+        };
+        this.openCasesModal(bucket, titles[bucket] || 'Open cases');
+    }
+
+    handleEngagementChartDrilldown() {
+        this.kpiModalTitle = 'Completed touches (last 90 days)';
+        this.kpiModalType = 'completedTouches';
+        this.kpiModalEmptyMessage = 'No completed tasks or events in this window.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getRecentCompletedTouches({ accountId: this.recordId, daysBack: 90 })
+            .then((result) => {
+                this.kpiModalData = result || [];
+            })
+            .catch((error) => {
+                this.handleError('Failed to load activity history', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handlePipelineRowClick() {
+        this.handleOpportunitiesClick();
     }
 
     /**
@@ -358,6 +405,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.showKpiModal = false;
         this.kpiModalData = [];
         this.kpiModalType = '';
+        this.kpiModalCaseBucket = 'ALL';
     }
 
     /**
@@ -959,6 +1007,159 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get showOpportunitiesModal() {
         return this.showKpiModal && this.kpiModalType === 'opportunities';
+    }
+
+    get showCompletedTouchesModal() {
+        return this.showKpiModal && this.kpiModalType === 'completedTouches';
+    }
+
+    /** Single plain-language line to reduce number scanning */
+    get insightSummaryLine() {
+        if (!this.summary) {
+            return '';
+        }
+        const parts = [];
+        if (this.summary.accountAtRisk) {
+            parts.push('Account flagged at risk.');
+        }
+        const d = this.summary.daysSinceLastActivity;
+        if (d != null && d > 14) {
+            parts.push(`No completed touch in ${d} days.`);
+        }
+        if (this.summary.overdueTasks > 0) {
+            parts.push(
+                `${this.summary.overdueTasks} overdue task${this.summary.overdueTasks === 1 ? '' : 's'}.`
+            );
+        }
+        const ru = this.summary.renewalUrgency;
+        const daysR = this.summary.daysUntilRenewal;
+        if (ru === 'overdue' || ru === 'critical') {
+            if (daysR != null) {
+                parts.push(daysR < 0 ? 'Renewal date has passed.' : `Renewal in ${daysR} days.`);
+            }
+        }
+        if (
+            this.summary.openRenewalOpportunityCount === 0 &&
+            daysR != null &&
+            daysR >= 0 &&
+            daysR <= 90 &&
+            ru !== 'missing'
+        ) {
+            parts.push('No open renewal opportunity on record.');
+        }
+        if (parts.length === 0) {
+            return 'On track — expand Insights for engagement rhythm and support mix.';
+        }
+        return parts.join(' ');
+    }
+
+    get weeklyEngagementBars() {
+        const counts = this.summary?.weeklyEngagementCounts;
+        if (!counts || !counts.length) {
+            return [];
+        }
+        const maxRaw = this.summary.engagementSeriesMax || 0;
+        const max = Math.max(maxRaw, ...counts, 1);
+        return counts.map((count, i) => {
+            const heightPct = Math.round((count / max) * 100);
+            return {
+                key: `wk-${i}`,
+                count,
+                heightPct,
+                barStyle: `height: ${heightPct}%`
+            };
+        });
+    }
+
+    get caseMixSegments() {
+        if (!this.summary) {
+            return [];
+        }
+        const h = this.summary.caseMixHigh || 0;
+        const m = this.summary.caseMixMedium || 0;
+        const l = this.summary.caseMixLow || 0;
+        const o = this.summary.caseMixOther || 0;
+        const t = h + m + l + o;
+        if (t === 0) {
+            return [];
+        }
+        const seg = (bucket, label, count, cls) => {
+            const widthPct = Math.round((count / t) * 100);
+            return {
+                key: bucket,
+                legendKey: `leg-${bucket}`,
+                bucket,
+                label,
+                count,
+                widthPct,
+                segStyle: `width: ${widthPct}%`,
+                className: `case-mix-seg ${cls}`
+            };
+        };
+        const out = [];
+        if (h > 0) {
+            out.push(seg('HIGH', 'High / esc.', h, 'case-mix-seg__high'));
+        }
+        if (m > 0) {
+            out.push(seg('MEDIUM', 'Medium', m, 'case-mix-seg__medium'));
+        }
+        if (l > 0) {
+            out.push(seg('LOW', 'Low', l, 'case-mix-seg__low'));
+        }
+        if (o > 0) {
+            out.push(seg('OTHER', 'Other', o, 'case-mix-seg__other'));
+        }
+        return out;
+    }
+
+    get renewalSummaryClass() {
+        const u = this.summary?.renewalUrgency || 'missing';
+        return `insights-renewal insights-renewal--${u}`;
+    }
+
+    get renewalHeadline() {
+        if (!this.summary) {
+            return '';
+        }
+        const u = this.summary.renewalUrgency;
+        const daysR = this.summary.daysUntilRenewal;
+        if (u === 'missing') {
+            return 'Renewal date not set';
+        }
+        if (daysR == null) {
+            return 'Renewal';
+        }
+        if (daysR < 0) {
+            return `${Math.abs(daysR)} day${Math.abs(daysR) === 1 ? '' : 's'} past renewal`;
+        }
+        return `${daysR} day${daysR === 1 ? '' : 's'} to renewal`;
+    }
+
+    get renewalSubtext() {
+        if (!this.summary || this.summary.renewalUrgency === 'missing') {
+            return 'Add a date on the account for renewal planning.';
+        }
+        return this.summary.renewalDateFormatted || '';
+    }
+
+    get insightsAccordionClass() {
+        return `section-accordion${this.sectionExpanded.insights ? ' section-accordion--expanded' : ''}`;
+    }
+
+    get secInsights() {
+        return this.sectionExpanded.insights;
+    }
+
+    get showRenewalOppLine() {
+        return (this.summary?.openRenewalOpportunityCount || 0) > 0;
+    }
+
+    get openRenewalOpportunityLabel() {
+        const n = this.summary?.openRenewalOpportunityCount || 0;
+        if (n === 0) {
+            return '';
+        }
+        return `${n} open renewal ${n === 1 ? 'opportunity' : 'opportunities'}`;
     }
 
     get openCasesFactorClass() {
