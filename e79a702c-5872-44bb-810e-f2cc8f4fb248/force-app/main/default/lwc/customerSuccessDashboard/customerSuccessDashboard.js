@@ -29,6 +29,15 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities'
     @track kpiModalEmptyMessage = '';
 
+    /** Accordion: which detail sections are expanded */
+    @track sectionExpanded = {
+        overdueTasks: false,
+        cases: false,
+        opportunities: false,
+        activities: false,
+        contacts: false
+    };
+
     // Loading states for different sections
     @track isSummaryLoaded = false;
     @track areCasesLoaded = false;
@@ -143,7 +152,37 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             this.areTasksLoaded && this.areActivitiesLoaded &&
             this.areContactsLoaded && this.areOpportunitiesLoaded) {
             this.isLoading = false;
+            this.applyDefaultSectionExpansion();
         }
+    }
+
+    /**
+     * Auto-expand: overdue tasks first, else upcoming activities.
+     */
+    applyDefaultSectionExpansion() {
+        const overdue =
+            (this.summary && this.summary.overdueTasks > 0) ||
+            (this.overdueTasks && this.overdueTasks.length > 0);
+        const upcoming = this.upcomingActivities && this.upcomingActivities.length > 0;
+        this.sectionExpanded = {
+            overdueTasks: overdue,
+            cases: false,
+            opportunities: false,
+            activities: !overdue && upcoming,
+            contacts: false
+        };
+    }
+
+    /**
+     * Toggle accordion section
+     */
+    handleToggleSection(event) {
+        const section = event.currentTarget.dataset.section;
+        if (!section) return;
+        this.sectionExpanded = {
+            ...this.sectionExpanded,
+            [section]: !this.sectionExpanded[section]
+        };
     }
 
     /**
@@ -486,6 +525,101 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return this.summary !== null;
     }
 
+    get csmDisplayName() {
+        if (!this.summary || !this.summary.csmName) {
+            return 'Not assigned';
+        }
+        return this.summary.csmName;
+    }
+
+    get secOverdueTasks() {
+        return this.sectionExpanded.overdueTasks;
+    }
+
+    get secCases() {
+        return this.sectionExpanded.cases;
+    }
+
+    get secOpportunities() {
+        return this.sectionExpanded.opportunities;
+    }
+
+    get secActivities() {
+        return this.sectionExpanded.activities;
+    }
+
+    get secContacts() {
+        return this.sectionExpanded.contacts;
+    }
+
+    /**
+     * Upcoming activities with row class for next-touchpoint highlight
+     */
+    get upcomingActivitiesDecorated() {
+        if (!this.upcomingActivities || !this.upcomingActivities.length) {
+            return [];
+        }
+        return this.upcomingActivities.map((activity, index) => ({
+            ...activity,
+            isNextTouchpoint: index === 0 && this.hasNextTouchpoint,
+            rowClass:
+                index === 0 && this.hasNextTouchpoint
+                    ? 'activity-item activity-item--next-touchpoint'
+                    : 'activity-item'
+        }));
+    }
+
+    get upcomingActivitiesCount() {
+        return this.upcomingActivities ? this.upcomingActivities.length : 0;
+    }
+
+    /**
+     * Cases with priority dot class for table
+     */
+    get casesDecorated() {
+        if (!this.cases || !this.cases.length) {
+            return [];
+        }
+        return this.cases.map((c) => ({
+            ...c,
+            priorityDotClass: this.computePriorityDotClass(c.priority)
+        }));
+    }
+
+    computePriorityDotClass(priority) {
+        const p = (priority || '').toString().toLowerCase();
+        if (p.includes('high')) {
+            return 'priority-dot priority-dot--high';
+        }
+        if (p.includes('medium')) {
+            return 'priority-dot priority-dot--medium';
+        }
+        if (p.includes('low')) {
+            return 'priority-dot priority-dot--low';
+        }
+        return 'priority-dot priority-dot--neutral';
+    }
+
+    get overdueAccordionClass() {
+        return `section-accordion${this.sectionExpanded.overdueTasks ? ' section-accordion--expanded' : ''}`;
+    }
+
+    get casesAccordionClass() {
+        return `section-accordion${this.sectionExpanded.cases ? ' section-accordion--expanded' : ''}`;
+    }
+
+    get opportunitiesAccordionClass() {
+        return `section-accordion${this.sectionExpanded.opportunities ? ' section-accordion--expanded' : ''}`;
+    }
+
+    get activitiesAccordionClass() {
+        return `section-accordion${this.sectionExpanded.activities ? ' section-accordion--expanded' : ''}`;
+    }
+
+    get contactsAccordionClass() {
+        return `section-accordion${this.sectionExpanded.contacts ? ' section-accordion--expanded' : ''}`;
+    }
+
     get hasCases() {
         return this.cases && this.cases.length > 0;
     }
@@ -527,21 +661,41 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return 'Stable';
     }
 
-    // Metric Card Properties
-    get openCasesValueClass() {
-        if (!this.summary) return 'metric-value';
+    // Stat bar value styles (compact)
+    get statCasesValueClass() {
+        if (!this.summary) return 'stat-value';
         if (this.summary.highPriorityCasesCount > 0) {
-            return 'metric-value metric-value--warning';
+            return 'stat-value stat-value--warning';
         }
-        return 'metric-value';
+        return 'stat-value';
     }
 
-    get overdueTasksValueClass() {
-        if (!this.summary) return 'metric-value';
+    get statTasksValueClass() {
+        if (!this.summary) return 'stat-value';
         if (this.summary.overdueTasks > 0) {
-            return 'metric-value metric-value--danger';
+            return 'stat-value stat-value--danger';
         }
-        return 'metric-value';
+        return 'stat-value';
+    }
+
+    get statOppsValueClass() {
+        return 'stat-value';
+    }
+
+    get statCasesSubtext() {
+        if (!this.summary) return '';
+        if (this.summary.highPriorityCasesCount > 0) {
+            return `${this.summary.highPriorityCasesCount} high priority`;
+        }
+        return 'All normal';
+    }
+
+    get statTasksSubtext() {
+        if (!this.summary) return '';
+        if (this.summary.overdueTasks > 0) {
+            return 'Action required';
+        }
+        return 'On track';
     }
 
     get lastActivityValueClass() {
@@ -605,49 +759,54 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         // Priority 1: Overdue Tasks
         if (this.summary.overdueTasks > 0) {
             actions.push({
-                text: 'Complete Overdue Tasks →',
-                badge: 'Urgent - Act Now',
+                text: 'Complete overdue tasks',
+                badge: 'Urgent',
                 urgency: 'danger',
-                handler: 'overdue-tasks'
+                handler: 'overdue-tasks',
+                showBadge: true
             });
         }
 
         // Priority 2: High Priority Cases
         if (this.summary.highPriorityCasesCount > 0) {
             actions.push({
-                text: 'Review Priority Cases →',
-                badge: 'Urgent - Act Now',
+                text: 'Review priority cases',
+                badge: 'Urgent',
                 urgency: 'warning',
-                handler: 'high-priority-cases'
+                handler: 'high-priority-cases',
+                showBadge: true
             });
         }
 
         // Priority 3: Long inactivity
         if (this.summary.daysSinceLastActivity && this.summary.daysSinceLastActivity > 30) {
             actions.push({
-                text: 'Schedule Check-in →',
+                text: 'Schedule check-in',
                 badge: 'Important',
                 urgency: 'warning',
-                handler: 'schedule-checkin'
+                handler: 'schedule-checkin',
+                showBadge: true
             });
         }
 
         // Priority 4: No upcoming activity
         if (!this.summary.daysUntilNextActivity) {
             actions.push({
-                text: 'Plan Touchpoint →',
-                badge: 'Suggested',
+                text: 'Plan touchpoint',
+                badge: '',
                 urgency: 'info',
-                handler: 'plan-touchpoint'
+                handler: 'plan-touchpoint',
+                showBadge: false
             });
         }
 
         // Priority 5: Log activity (always available)
         actions.push({
-            text: 'Log Activity →',
-            badge: 'Suggested',
+            text: 'Log activity',
+            badge: '',
             urgency: 'info',
-            handler: 'log-call'
+            handler: 'log-call',
+            showBadge: false
         });
 
         return actions;
@@ -711,6 +870,30 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         const action = this.suggestedAction4;
         if (!action) return 'suggested-action';
         return `suggested-action suggested-action--${action.urgency}`;
+    }
+
+    get suggestedAction1DotClass() {
+        const action = this.suggestedAction1;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
+    }
+
+    get suggestedAction2DotClass() {
+        const action = this.suggestedAction2;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
+    }
+
+    get suggestedAction3DotClass() {
+        const action = this.suggestedAction3;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
+    }
+
+    get suggestedAction4DotClass() {
+        const action = this.suggestedAction4;
+        if (!action) return 'suggested-action-dot';
+        return `suggested-action-dot suggested-action-dot--${action.urgency}`;
     }
 
     // Legacy computed properties for backwards compatibility
