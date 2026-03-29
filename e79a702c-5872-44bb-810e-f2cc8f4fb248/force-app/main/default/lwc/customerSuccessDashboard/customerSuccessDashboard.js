@@ -15,6 +15,7 @@ import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
+import currentUserId from '@salesforce/user/Id';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
     @api recordId; // Account record ID from the page context
@@ -44,7 +45,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track activityForm = {
         Subject: '', WhoId: null, WhatId: null,
         ActivityDate: null, Status: '', Priority: 'Normal', Type: '',
-        OwnerId: null, Description: '',
+        OwnerId: currentUserId, Description: '',
         StartDateTime: null, EndDateTime: null,
         IsAllDayEvent: false, Location: ''
     };
@@ -526,7 +527,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.activityForm = {
             Subject: '', WhoId: null, WhatId: this.recordId,
             ActivityDate: null, Status: defaults.Status || '', Priority: defaults.Priority || 'Normal',
-            Type: defaults.Type || '', OwnerId: null, Description: '',
+            Type: defaults.Type || '', OwnerId: currentUserId, Description: '',
             StartDateTime: null, EndDateTime: null,
             IsAllDayEvent: false, Location: ''
         };
