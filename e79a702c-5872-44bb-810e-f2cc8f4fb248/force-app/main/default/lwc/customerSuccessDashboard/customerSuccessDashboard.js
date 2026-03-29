@@ -12,9 +12,8 @@ import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts'
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
 import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
 import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
-import createTaskForAccount from '@salesforce/apex/CSD_CSDashboardController.createTaskForAccount';
-import createEventForAccount from '@salesforce/apex/CSD_CSDashboardController.createEventForAccount';
-import logCallForAccount from '@salesforce/apex/CSD_CSDashboardController.logCallForAccount';
+import createActivity from '@salesforce/apex/CSD_CSDashboardController.createActivity';
+import getActivityPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getActivityPicklistValues';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
     @api recordId; // Account record ID from the page context
@@ -35,22 +34,21 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
 
-    /** Quick action: create Task / Event / Log call in-modal (stay on dashboard; Apex — Task/Event not in UI API) */
-    @track activityModalOpen = false;
-    @track activityModalKind = ''; // 'task' | 'event' | 'logCall'
-    @track activitySaveInProgress = false;
-    @track taskSubject = '';
-    @track taskActivityDate = '';
-    @track taskStatus = 'Not Started';
-    @track taskPriority = 'Normal';
-    @track taskDescription = '';
-    @track eventSubject = '';
-    @track eventStartDateTime = '';
-    @track eventEndDateTime = '';
-    @track eventDescription = '';
-    @track logCallSubject = '';
-    @track logCallActivityDate = '';
-    @track logCallDescription = '';
+    /** Activity quick-action modal (Task / Event / Log call) */
+    @track showActivityModal = false;
+    /** 'task' | 'event' | 'logcall' */
+    @track activityModalType = '';
+    @track isActivitySaving = false;
+    @track activitySubject = '';
+    @track activityDate = '';
+    @track activityStartDateTime = '';
+    @track activityEndDateTime = '';
+    @track activityStatus = '';
+    @track activityPriority = '';
+    @track activityDescription = '';
+    @track activityLocation = '';
+    @track taskStatusOptions = [];
+    @track taskPriorityOptions = [];
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
@@ -73,7 +71,227 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track areOpportunitiesLoaded = false;
 
     connectedCallback() {
+        this.loadPicklistValues();
         this.loadDashboardData();
+    }
+
+    /**
+     * Load Task Status / Priority picklists for the activity modal
+     */
+    loadPicklistValues() {
+        getActivityPicklistValues()
+            .then((data) => {
+                this.taskStatusOptions = data && data.taskStatuses ? data.taskStatuses : [];
+                this.taskPriorityOptions = data && data.taskPriorities ? data.taskPriorities : [];
+            })
+            .catch(() => {
+                this.taskStatusOptions = [];
+                this.taskPriorityOptions = [];
+            });
+    }
+
+    /**
+     * @param {Array<{label:string,value:string}>} options
+     * @param {string[]} preferredValues picklist API values to try first
+     */
+    pickOptionValue(options, preferredValues) {
+        if (!options || !options.length) {
+            return '';
+        }
+        for (const pref of preferredValues) {
+            const found = options.find((o) => o.value === pref || o.label === pref);
+            if (found) {
+                return found.value;
+            }
+        }
+        return options[0].value;
+    }
+
+    formatTodayIso() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    /** Default start/end for new event (1h duration), as ISO strings for lightning-input type datetime */
+    defaultEventDateTimes() {
+        const start = new Date();
+        start.setMinutes(0, 0, 0);
+        const end = new Date(start.getTime() + 60 * 60 * 1000);
+        return {
+            start: start.toISOString(),
+            end: end.toISOString()
+        };
+    }
+
+    resetActivityFormFields() {
+        this.activitySubject = '';
+        this.activityDate = '';
+        this.activityStartDateTime = '';
+        this.activityEndDateTime = '';
+        this.activityStatus = '';
+        this.activityPriority = '';
+        this.activityDescription = '';
+        this.activityLocation = '';
+    }
+
+    openActivityModal(modalType) {
+        this.resetActivityFormFields();
+        this.activityModalType = modalType;
+        if (modalType === 'task') {
+            this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Not Started']);
+            this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
+        } else if (modalType === 'logcall') {
+            this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Completed']);
+            this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
+            this.activityDate = this.formatTodayIso();
+        } else if (modalType === 'event') {
+            const { start, end } = this.defaultEventDateTimes();
+            this.activityStartDateTime = start;
+            this.activityEndDateTime = end;
+        }
+        this.showActivityModal = true;
+    }
+
+    handleActivityFieldChange(event) {
+        const el = event.currentTarget;
+        const field = el && el.dataset ? el.dataset.field : null;
+        if (!field) {
+            return;
+        }
+        const value =
+            event.detail && event.detail.value !== undefined ? event.detail.value : el.value;
+        this[field] = value;
+    }
+
+    handleActivityModalClose() {
+        this.showActivityModal = false;
+        this.activityModalType = '';
+        this.resetActivityFormFields();
+    }
+
+    handleActivitySave() {
+        const subject = (this.activitySubject || '').trim();
+        if (!subject) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Missing subject',
+                    message: 'Please enter a subject.',
+                    variant: 'error'
+                })
+            );
+            return;
+        }
+        if (!this.recordId) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error',
+                    message: 'Account context is missing.',
+                    variant: 'error'
+                })
+            );
+            return;
+        }
+
+        const type = this.activityModalType;
+        let payload;
+
+        if (type === 'event') {
+            if (!this.activityStartDateTime) {
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Missing start time',
+                        message: 'Please select a start date and time for the event.',
+                        variant: 'error'
+                    })
+                );
+                return;
+            }
+            payload = {
+                objectType: 'EVENT',
+                subject,
+                whatId: this.recordId,
+                startDateTime: this.activityStartDateTime,
+                endDateTime: this.activityEndDateTime ? this.activityEndDateTime : null,
+                description: this.activityDescription ? this.activityDescription : null,
+                location: this.activityLocation ? this.activityLocation.trim() : null
+            };
+        } else if (type === 'task' || type === 'logcall') {
+            const due = this.activityDate || this.formatTodayIso();
+            payload = {
+                objectType: 'TASK',
+                subject,
+                whatId: this.recordId,
+                activityDate: due,
+                status: this.activityStatus ? this.activityStatus : null,
+                priority: this.activityPriority ? this.activityPriority : null,
+                description: this.activityDescription ? this.activityDescription : null,
+                taskType: type === 'logcall' ? 'Call' : null
+            };
+        } else {
+            return;
+        }
+
+        this.isActivitySaving = true;
+        createActivity({ req: payload })
+            .then(() => {
+                this.showActivityModal = false;
+                this.activityModalType = '';
+                this.resetActivityFormFields();
+                const label =
+                    type === 'event' ? 'Event' : type === 'logcall' ? 'Call logged' : 'Task';
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Success',
+                        message:
+                            type === 'logcall'
+                                ? 'Your call was logged successfully.'
+                                : `${label} created successfully.`,
+                        variant: 'success'
+                    })
+                );
+                this.loadDashboardData();
+            })
+            .catch((error) => {
+                const errorMessage = error.body && error.body.message ? error.body.message : error.message;
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Could not save activity',
+                        message: errorMessage,
+                        variant: 'error'
+                    })
+                );
+            })
+            .finally(() => {
+                this.isActivitySaving = false;
+            });
+    }
+
+    get isTaskModal() {
+        return this.activityModalType === 'task' || this.activityModalType === 'logcall';
+    }
+
+    get isEventModal() {
+        return this.activityModalType === 'event';
+    }
+
+    get isLogCallModal() {
+        return this.activityModalType === 'logcall';
+    }
+
+    get activityModalTitle() {
+        if (this.activityModalType === 'logcall') {
+            return 'Log a call';
+        }
+        if (this.activityModalType === 'event') {
+            return 'New event';
+        }
+        if (this.activityModalType === 'task') {
+            return 'New task';
+        }
+        return '';
     }
 
     /**
@@ -521,324 +739,24 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Create new task (modal; stays on Account page after save)
+     * Create new task (in-modal, Apex DML)
      */
     handleCreateTask() {
-        if (!this.recordId) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Cannot create task',
-                    message: 'No account is associated with this dashboard.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        this.resetTaskFormForOpen();
-        this.activityModalKind = 'task';
-        this.activityModalOpen = true;
+        this.openActivityModal('task');
     }
 
     /**
-     * Create new event (modal)
+     * Create new event (in-modal, Apex DML)
      */
     handleCreateEvent() {
-        if (!this.recordId) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Cannot schedule event',
-                    message: 'No account is associated with this dashboard.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        this.resetEventFormForOpen();
-        this.activityModalKind = 'event';
-        this.activityModalOpen = true;
+        this.openActivityModal('event');
     }
 
     /**
-     * Log a call (modal; completed call task)
+     * Log a call (completed Task with Type = Call, in-modal)
      */
     handleLogCall() {
-        if (!this.recordId) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Cannot log call',
-                    message: 'No account is associated with this dashboard.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        this.resetLogCallFormForOpen();
-        this.activityModalKind = 'logCall';
-        this.activityModalOpen = true;
-    }
-
-    getTodayYmd() {
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    }
-
-    resetTaskFormForOpen() {
-        this.taskSubject = '';
-        this.taskActivityDate = this.getTodayYmd();
-        this.taskStatus = 'Not Started';
-        this.taskPriority = 'Normal';
-        this.taskDescription = '';
-    }
-
-    resetEventFormForOpen() {
-        const start = new Date();
-        start.setMinutes(0, 0, 0);
-        start.setSeconds(0, 0);
-        const end = new Date(start.getTime() + 60 * 60 * 1000);
-        this.eventSubject = '';
-        this.eventStartDateTime = start.toISOString();
-        this.eventEndDateTime = end.toISOString();
-        this.eventDescription = '';
-    }
-
-    resetLogCallFormForOpen() {
-        this.logCallSubject = '';
-        this.logCallActivityDate = this.getTodayYmd();
-        this.logCallDescription = '';
-    }
-
-    get taskStatusOptions() {
-        return [
-            { label: 'Not Started', value: 'Not Started' },
-            { label: 'In Progress', value: 'In Progress' },
-            { label: 'Completed', value: 'Completed' },
-            { label: 'Waiting on someone else', value: 'Waiting on someone else' },
-            { label: 'Deferred', value: 'Deferred' }
-        ];
-    }
-
-    get taskPriorityOptions() {
-        return [
-            { label: 'High', value: 'High' },
-            { label: 'Normal', value: 'Normal' },
-            { label: 'Low', value: 'Low' }
-        ];
-    }
-
-    handleTaskSubjectChange(event) {
-        this.taskSubject = event.detail.value;
-    }
-
-    handleTaskActivityDateChange(event) {
-        this.taskActivityDate = event.detail.value;
-    }
-
-    handleTaskStatusChange(event) {
-        this.taskStatus = event.detail.value;
-    }
-
-    handleTaskPriorityChange(event) {
-        this.taskPriority = event.detail.value;
-    }
-
-    handleTaskDescriptionChange(event) {
-        this.taskDescription = event.detail.value;
-    }
-
-    handleEventSubjectChange(event) {
-        this.eventSubject = event.detail.value;
-    }
-
-    handleEventStartChange(event) {
-        this.eventStartDateTime = event.detail.value;
-    }
-
-    handleEventEndChange(event) {
-        this.eventEndDateTime = event.detail.value;
-    }
-
-    handleEventDescriptionChange(event) {
-        this.eventDescription = event.detail.value;
-    }
-
-    handleLogCallSubjectChange(event) {
-        this.logCallSubject = event.detail.value;
-    }
-
-    handleLogCallActivityDateChange(event) {
-        this.logCallActivityDate = event.detail.value;
-    }
-
-    handleLogCallDescriptionChange(event) {
-        this.logCallDescription = event.detail.value;
-    }
-
-    get activityModalTitle() {
-        switch (this.activityModalKind) {
-            case 'task':
-                return 'New Task';
-            case 'event':
-                return 'Schedule Event';
-            case 'logCall':
-                return 'Log a Call';
-            default:
-                return '';
-        }
-    }
-
-    get showActivityTaskForm() {
-        return this.activityModalOpen && this.activityModalKind === 'task';
-    }
-
-    get showActivityEventForm() {
-        return this.activityModalOpen && this.activityModalKind === 'event';
-    }
-
-    get showActivityLogCallForm() {
-        return this.activityModalOpen && this.activityModalKind === 'logCall';
-    }
-
-    handleCloseActivityModal() {
-        this.activityModalOpen = false;
-        this.activityModalKind = '';
-        this.activitySaveInProgress = false;
-    }
-
-    finishActivitySave(kind) {
-        this.activityModalOpen = false;
-        this.activityModalKind = '';
-
-        const byKind = {
-            task: { title: 'Task created', message: 'Your task was saved and related to this account.' },
-            event: { title: 'Event scheduled', message: 'Your event was saved and related to this account.' },
-            logCall: { title: 'Call logged', message: 'Your call was logged as a completed task.' }
-        };
-        const { title, message } = byKind[kind] || {
-            title: 'Saved',
-            message: 'The record was created.'
-        };
-
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title,
-                message,
-                variant: 'success'
-            })
-        );
-
-        this.loadOverdueTasks();
-        this.loadUpcomingActivities();
-        this.loadSummary();
-    }
-
-    handleActivitySaveError(error) {
-        let message = 'Could not save.';
-        if (error.body && error.body.message) {
-            message = error.body.message;
-        } else if (error.message) {
-            message = error.message;
-        }
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: 'Could not save',
-                message,
-                variant: 'error',
-                mode: 'sticky'
-            })
-        );
-    }
-
-    handleSaveActivityTask() {
-        if (!this.taskSubject || !this.taskSubject.trim()) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Subject required',
-                    message: 'Enter a subject for the task.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        this.activitySaveInProgress = true;
-        createTaskForAccount({
-            accountId: this.recordId,
-            subject: this.taskSubject.trim(),
-            activityDateStr: this.taskActivityDate || null,
-            status: this.taskStatus,
-            priority: this.taskPriority,
-            description: this.taskDescription || ''
-        })
-            .then(() => {
-                this.finishActivitySave('task');
-            })
-            .catch(err => {
-                this.handleActivitySaveError(err);
-            })
-            .finally(() => {
-                this.activitySaveInProgress = false;
-            });
-    }
-
-    handleSaveActivityEvent() {
-        if (!this.eventSubject || !this.eventSubject.trim()) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Subject required',
-                    message: 'Enter a subject for the event.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        if (!this.eventStartDateTime || !this.eventEndDateTime) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Date/time required',
-                    message: 'Enter both start and end date/time.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        this.activitySaveInProgress = true;
-        createEventForAccount({
-            accountId: this.recordId,
-            subject: this.eventSubject.trim(),
-            startDateTimeIso: this.eventStartDateTime,
-            endDateTimeIso: this.eventEndDateTime,
-            description: this.eventDescription || ''
-        })
-            .then(() => {
-                this.finishActivitySave('event');
-            })
-            .catch(err => {
-                this.handleActivitySaveError(err);
-            })
-            .finally(() => {
-                this.activitySaveInProgress = false;
-            });
-    }
-
-    handleSaveActivityLogCall() {
-        this.activitySaveInProgress = true;
-        logCallForAccount({
-            accountId: this.recordId,
-            subject: (this.logCallSubject && this.logCallSubject.trim()) || 'Call',
-            activityDateStr: this.logCallActivityDate || null,
-            description: this.logCallDescription || ''
-        })
-            .then(() => {
-                this.finishActivitySave('logCall');
-            })
-            .catch(err => {
-                this.handleActivitySaveError(err);
-            })
-            .finally(() => {
-                this.activitySaveInProgress = false;
-            });
+        this.openActivityModal('logcall');
     }
 
     /**

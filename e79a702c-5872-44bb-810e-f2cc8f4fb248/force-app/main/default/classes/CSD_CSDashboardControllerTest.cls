@@ -944,72 +944,169 @@ private class CSD_CSDashboardControllerTest {
         Test.stopTest();
     }
 
+    /**
+     * @description Task picklist values for activity modal
+     */
     @isTest
-    static void testCreateTaskForAccount_Success() {
-        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+    static void testGetActivityPicklistValues_Success() {
         Test.startTest();
-        Id taskId = CSD_CSDashboardController.createTaskForAccount(
-            testAccount.Id,
-            'Quick action task',
-            String.valueOf(Date.today()),
-            'Not Started',
-            'Normal',
-            'Notes'
-        );
+        CSD_CSDashboardController.ActivityPicklistValues pl =
+            CSD_CSDashboardController.getActivityPicklistValues();
         Test.stopTest();
-        System.assertNotEquals(null, taskId);
-        Task t = [SELECT Id, Subject, WhatId, Status, Priority FROM Task WHERE Id = :taskId];
-        System.assertEquals('Quick action task', t.Subject);
-        System.assertEquals(testAccount.Id, t.WhatId);
+
+        System.assertNotEquals(null, pl, 'Picklist wrapper should not be null');
+        System.assert(pl.taskStatuses != null && !pl.taskStatuses.isEmpty(),
+            'Task Status picklist should have values');
+        System.assert(pl.taskPriorities != null && !pl.taskPriorities.isEmpty(),
+            'Task Priority picklist should have values');
     }
 
+    /**
+     * @description createActivity — new Task
+     */
     @isTest
-    static void testCreateTaskForAccount_NullAccount() {
+    static void testCreateTask_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        CSD_CSDashboardController.ActivityCreateRequest req =
+            new CSD_CSDashboardController.ActivityCreateRequest();
+        req.objectType = 'TASK';
+        req.subject = 'Modal Task From Test';
+        req.whatId = testAccount.Id;
+        req.activityDate = Date.today().addDays(7);
+        req.status = 'Not Started';
+        req.priority = 'Normal';
+
+        Test.startTest();
+        Id taskId = CSD_CSDashboardController.createActivity(req);
+        Test.stopTest();
+
+        System.assertNotEquals(null, taskId, 'Task Id should be returned');
+        Task t = [SELECT Id, Subject, WhatId, Status, Priority FROM Task WHERE Id = :taskId];
+        System.assertEquals('Modal Task From Test', t.Subject);
+        System.assertEquals(testAccount.Id, t.WhatId);
+        System.assertEquals('Not Started', t.Status);
+        System.assertEquals('Normal', t.Priority);
+    }
+
+    /**
+     * @description createActivity — log call (completed Task, Type = Call)
+     */
+    @isTest
+    static void testCreateLogCall_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        CSD_CSDashboardController.ActivityCreateRequest req =
+            new CSD_CSDashboardController.ActivityCreateRequest();
+        req.objectType = 'TASK';
+        req.subject = 'Logged call test';
+        req.whatId = testAccount.Id;
+        req.activityDate = Date.today();
+        req.status = 'Completed';
+        req.priority = 'Normal';
+        req.taskType = 'Call';
+
+        Test.startTest();
+        Id taskId = CSD_CSDashboardController.createActivity(req);
+        Test.stopTest();
+
+        Task t = [SELECT Id, Status, Type FROM Task WHERE Id = :taskId];
+        System.assertEquals('Completed', t.Status);
+        System.assertEquals('Call', t.Type);
+    }
+
+    /**
+     * @description createActivity — new Event
+     */
+    @isTest
+    static void testCreateEvent_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        DateTime startDt = DateTime.now().addDays(2);
+        DateTime endDt = startDt.addHours(1);
+        CSD_CSDashboardController.ActivityCreateRequest req =
+            new CSD_CSDashboardController.ActivityCreateRequest();
+        req.objectType = 'EVENT';
+        req.subject = 'Modal Event From Test';
+        req.whatId = testAccount.Id;
+        req.startDateTime = startDt;
+        req.endDateTime = endDt;
+        req.location = 'Virtual';
+        req.description = 'Test event body';
+
+        Test.startTest();
+        Id eventId = CSD_CSDashboardController.createActivity(req);
+        Test.stopTest();
+
+        System.assertNotEquals(null, eventId);
+        Event ev = [SELECT Id, Subject, WhatId, Location, DurationInMinutes FROM Event WHERE Id = :eventId];
+        System.assertEquals('Modal Event From Test', ev.Subject);
+        System.assertEquals(testAccount.Id, ev.WhatId);
+        System.assertEquals('Virtual', ev.Location);
+        System.assertEquals(60, ev.DurationInMinutes);
+    }
+
+    /**
+     * @description createActivity — missing subject
+     */
+    @isTest
+    static void testCreateActivity_MissingSubject() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        CSD_CSDashboardController.ActivityCreateRequest req =
+            new CSD_CSDashboardController.ActivityCreateRequest();
+        req.objectType = 'TASK';
+        req.subject = '';
+        req.whatId = testAccount.Id;
+
         Test.startTest();
         try {
-            CSD_CSDashboardController.createTaskForAccount(null, 'X', null, 'Not Started', 'Normal', '');
+            CSD_CSDashboardController.createActivity(req);
             System.assert(false, 'Expected AuraHandledException');
         } catch (AuraHandledException e) {
-            System.assert(e.getMessage().contains('Account ID'), 'Should require account');
+            System.assert(e.getMessage().contains('Subject'), 'Should mention subject');
         }
         Test.stopTest();
     }
 
+    /**
+     * @description createActivity — invalid object type
+     */
     @isTest
-    static void testCreateEventForAccount_Success() {
+    static void testCreateActivity_InvalidObjectType() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
-        Datetime startDt = Datetime.now().addHours(1);
-        Datetime endDt = startDt.addHours(1);
-        String startIso = JSON.serialize(startDt).replace('"', '');
-        String endIso = JSON.serialize(endDt).replace('"', '');
+        CSD_CSDashboardController.ActivityCreateRequest req =
+            new CSD_CSDashboardController.ActivityCreateRequest();
+        req.objectType = 'NOT_A_REAL_TYPE';
+        req.subject = 'X';
+        req.whatId = testAccount.Id;
+
         Test.startTest();
-        Id evtId = CSD_CSDashboardController.createEventForAccount(
-            testAccount.Id,
-            'Meeting',
-            startIso,
-            endIso,
-            'Agenda'
-        );
+        try {
+            CSD_CSDashboardController.createActivity(req);
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage().contains('Invalid activity type'),
+                'Should indicate invalid type');
+        }
         Test.stopTest();
-        System.assertNotEquals(null, evtId);
-        Event evt = [SELECT Id, Subject, WhatId FROM Event WHERE Id = :evtId];
-        System.assertEquals('Meeting', evt.Subject);
-        System.assertEquals(testAccount.Id, evt.WhatId);
     }
 
+    /**
+     * @description createActivity — Event without start
+     */
     @isTest
-    static void testLogCallForAccount_Success() {
+    static void testCreateEvent_MissingStartDateTime() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        CSD_CSDashboardController.ActivityCreateRequest req =
+            new CSD_CSDashboardController.ActivityCreateRequest();
+        req.objectType = 'EVENT';
+        req.subject = 'No start';
+        req.whatId = testAccount.Id;
+
         Test.startTest();
-        Id taskId = CSD_CSDashboardController.logCallForAccount(
-            testAccount.Id,
-            'Dial-in',
-            String.valueOf(Date.today()),
-            'Discussed renewal'
-        );
+        try {
+            CSD_CSDashboardController.createActivity(req);
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage().contains('Start'), 'Should mention start');
+        }
         Test.stopTest();
-        Task t = [SELECT Type, Status FROM Task WHERE Id = :taskId];
-        System.assertEquals('Call', t.Type);
-        System.assertEquals('Completed', t.Status);
     }
 }

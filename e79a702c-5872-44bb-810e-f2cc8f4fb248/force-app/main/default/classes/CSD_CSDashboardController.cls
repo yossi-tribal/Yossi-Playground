@@ -1258,156 +1258,148 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
-     * @description Create a Task related to an Account (UI API does not support Task; use this from LWC modals).
+     * @description Request payload for creating a Task or Event from the dashboard quick-action modal
      */
-    @AuraEnabled(cacheable=false)
-    public static Id createTaskForAccount(
-        Id accountId,
-        String subject,
-        String activityDateStr,
-        String status,
-        String priority,
-        String description
-    ) {
-        try {
-            if (accountId == null) {
-                throw new AuraHandledException('Account ID is required');
-            }
-            if (String.isBlank(subject)) {
-                throw new AuraHandledException('Subject is required');
-            }
-            if (!Schema.sObjectType.Task.isCreateable()) {
-                throw new AuraHandledException('You do not have permission to create tasks');
-            }
-
-            Task t = new Task();
-            t.WhatId = accountId;
-            t.Subject = subject.trim();
-            if (String.isNotBlank(activityDateStr)) {
-                t.ActivityDate = Date.valueOf(activityDateStr.trim());
-            }
-            if (String.isNotBlank(status)) {
-                t.Status = status.trim();
-            }
-            if (String.isNotBlank(priority)) {
-                t.Priority = priority.trim();
-            }
-            t.Description = description;
-
-            insert t;
-            return t.Id;
-        } catch (AuraHandledException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
-        }
+    public class ActivityCreateRequest {
+        @AuraEnabled public String objectType;
+        @AuraEnabled public String subject;
+        @AuraEnabled public Date activityDate;
+        @AuraEnabled public DateTime startDateTime;
+        @AuraEnabled public DateTime endDateTime;
+        @AuraEnabled public String status;
+        @AuraEnabled public String priority;
+        @AuraEnabled public String taskType;
+        @AuraEnabled public String description;
+        @AuraEnabled public String location;
+        @AuraEnabled public Id whatId;
     }
 
     /**
-     * @description Create an Event related to an Account (UI API does not support Event in record edit form).
+     * @description Single picklist option for LWC lightning-combobox (label + value)
      */
-    @AuraEnabled(cacheable=false)
-    public static Id createEventForAccount(
-        Id accountId,
-        String subject,
-        String startDateTimeIso,
-        String endDateTimeIso,
-        String description
-    ) {
-        try {
-            if (accountId == null) {
-                throw new AuraHandledException('Account ID is required');
-            }
-            if (String.isBlank(subject)) {
-                throw new AuraHandledException('Subject is required');
-            }
-            if (!Schema.sObjectType.Event.isCreateable()) {
-                throw new AuraHandledException('You do not have permission to create events');
-            }
-
-            DateTime startDt = parseIsoDateTime(startDateTimeIso);
-            DateTime endDt = parseIsoDateTime(endDateTimeIso);
-            if (startDt == null || endDt == null) {
-                throw new AuraHandledException('Start and end date/time are required');
-            }
-            if (endDt <= startDt) {
-                throw new AuraHandledException('End time must be after start time');
-            }
-
-            Event evt = new Event();
-            evt.WhatId = accountId;
-            evt.Subject = subject.trim();
-            evt.StartDateTime = startDt;
-            evt.EndDateTime = endDt;
-            evt.Description = description;
-
-            insert evt;
-            return evt.Id;
-        } catch (AuraHandledException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
-        }
+    public class PicklistOption {
+        @AuraEnabled public String label;
+        @AuraEnabled public String value;
     }
 
     /**
-     * @description Log a completed call as a Task (Type = Call, Status = Completed).
+     * @description Task Status and Priority picklist values for the activity modal
+     */
+    public class ActivityPicklistValues {
+        @AuraEnabled public List<PicklistOption> taskStatuses;
+        @AuraEnabled public List<PicklistOption> taskPriorities;
+    }
+
+    /**
+     * @description Task Status and Priority picklist options (describe) for the activity creation modal
+     */
+    @AuraEnabled(cacheable=true)
+    public static ActivityPicklistValues getActivityPicklistValues() {
+        ActivityPicklistValues result = new ActivityPicklistValues();
+        result.taskStatuses = new List<PicklistOption>();
+        result.taskPriorities = new List<PicklistOption>();
+
+        for (Schema.PicklistEntry pe : Task.Status.getDescribe().getPicklistValues()) {
+            if (pe.isActive()) {
+                PicklistOption o = new PicklistOption();
+                o.label = pe.getLabel();
+                o.value = pe.getValue();
+                result.taskStatuses.add(o);
+            }
+        }
+
+        for (Schema.PicklistEntry pe : Task.Priority.getDescribe().getPicklistValues()) {
+            if (pe.isActive()) {
+                PicklistOption o = new PicklistOption();
+                o.label = pe.getLabel();
+                o.value = pe.getValue();
+                result.taskPriorities.add(o);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * @description Creates a Task or Event related to WhatId (Account) from the dashboard modal
+     * @param req Populated ActivityCreateRequest from LWC
+     * @return Id of the inserted record
      */
     @AuraEnabled(cacheable=false)
-    public static Id logCallForAccount(Id accountId, String subject, String activityDateStr, String description) {
+    public static Id createActivity(ActivityCreateRequest req) {
         try {
-            if (accountId == null) {
-                throw new AuraHandledException('Account ID is required');
+            if (req == null) {
+                throw new AuraHandledException('Request is required');
             }
-            if (!Schema.sObjectType.Task.isCreateable()) {
-                throw new AuraHandledException('You do not have permission to create tasks');
+            if (String.isBlank(req.subject)) {
+                throw new AuraHandledException('Subject is required');
+            }
+            if (req.whatId == null) {
+                throw new AuraHandledException('Account is required');
             }
 
-            Task t = new Task();
-            t.WhatId = accountId;
-            t.Subject = String.isNotBlank(subject) ? subject.trim() : 'Call';
-            t.Status = 'Completed';
-            t.Type = 'Call';
-            if (String.isNotBlank(activityDateStr)) {
-                t.ActivityDate = Date.valueOf(activityDateStr.trim());
+            String objType = String.isBlank(req.objectType) ? '' : req.objectType.trim().toUpperCase();
+
+            if (objType == 'TASK') {
+                Task t = new Task();
+                t.WhatId = req.whatId;
+                t.Subject = req.subject.trim();
+                if (req.activityDate != null) {
+                    t.ActivityDate = req.activityDate;
+                }
+                if (String.isNotBlank(req.status)) {
+                    t.Status = req.status.trim();
+                }
+                if (String.isNotBlank(req.priority)) {
+                    t.Priority = req.priority.trim();
+                }
+                if (String.isNotBlank(req.taskType)) {
+                    t.Type = req.taskType.trim();
+                }
+                if (String.isNotBlank(req.description)) {
+                    t.Description = req.description;
+                }
+                insert t;
+                return t.Id;
+            } else if (objType == 'EVENT') {
+                if (req.startDateTime == null) {
+                    throw new AuraHandledException('Start date and time is required for an event');
+                }
+                Event ev = new Event();
+                ev.WhatId = req.whatId;
+                ev.Subject = req.subject.trim();
+                ev.ActivityDateTime = req.startDateTime;
+                ev.ActivityDate = req.startDateTime.date();
+                Integer durationMinutes = 60;
+                if (req.endDateTime != null && req.endDateTime > req.startDateTime) {
+                    Long diffMs = req.endDateTime.getTime() - req.startDateTime.getTime();
+                    durationMinutes = Integer.valueOf(diffMs / 60000);
+                    if (durationMinutes < 1) {
+                        durationMinutes = 1;
+                    }
+                    if (durationMinutes > 24 * 60 * 14) {
+                        durationMinutes = 24 * 60 * 14;
+                    }
+                }
+                ev.DurationInMinutes = durationMinutes;
+                if (String.isNotBlank(req.description)) {
+                    ev.Description = req.description;
+                }
+                if (String.isNotBlank(req.location)) {
+                    ev.Location = req.location.trim();
+                }
+                insert ev;
+                return ev.Id;
             } else {
-                t.ActivityDate = Date.today();
+                throw new AuraHandledException('Invalid activity type');
             }
-            t.Description = description;
-
-            insert t;
-            return t.Id;
         } catch (AuraHandledException e) {
             throw e;
+        } catch (DmlException e) {
+            String msg = e.getNumDml() > 0 ? e.getDmlMessage(0) : e.getMessage();
+            throw new AuraHandledException(msg);
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
-        }
-    }
-
-    private static DateTime parseIsoDateTime(String iso) {
-        if (String.isBlank(iso)) {
-            return null;
-        }
-        String s = iso.trim();
-        try {
-            return (DateTime) JSON.deserialize('"' + s + '"', DateTime.class);
-        } catch (Exception e1) {
-            try {
-                String normalized = s.replace('T', ' ');
-                if (normalized.endsWithIgnoreCase('Z')) {
-                    normalized = normalized.substring(0, normalized.length() - 1).trim();
-                }
-                Integer dot = normalized.indexOf('.');
-                if (dot > 0) {
-                    normalized = normalized.substring(0, dot);
-                }
-                if (normalized.length() == 16) {
-                    normalized += ':00';
-                }
-                return Datetime.valueOfGmt(normalized);
-            } catch (Exception e2) {
-                throw new AuraHandledException('Invalid date/time format');
-            }
+            throw new AuraHandledException('Error creating activity: ' + e.getMessage());
         }
     }
 }
