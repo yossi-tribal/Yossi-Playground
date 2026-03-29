@@ -2006,3 +2006,9 @@ button:focus-visible,
     align-items: center;
     flex-wrap: wrap;
 }
+
+.activity-modal-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}

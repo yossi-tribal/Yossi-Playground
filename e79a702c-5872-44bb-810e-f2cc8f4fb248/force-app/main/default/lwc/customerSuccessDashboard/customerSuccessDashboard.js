@@ -83,11 +83,58 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             .then((data) => {
                 this.taskStatusOptions = data && data.taskStatuses ? data.taskStatuses : [];
                 this.taskPriorityOptions = data && data.taskPriorities ? data.taskPriorities : [];
+                if (this.showActivityModal) {
+                    this.reapplyActivityModalPicklistDefaults();
+                }
             })
             .catch(() => {
                 this.taskStatusOptions = [];
                 this.taskPriorityOptions = [];
             });
+    }
+
+    reapplyActivityModalPicklistDefaults() {
+        const t = this.activityModalType;
+        if (t === 'task') {
+            if (!this.activityStatus) {
+                this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Not Started']);
+            }
+            if (!this.activityPriority) {
+                this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
+            }
+        } else if (t === 'logcall') {
+            if (!this.activityStatus) {
+                this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Completed']);
+            }
+            if (!this.activityPriority) {
+                this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
+            }
+        }
+    }
+
+    /**
+     * Read current values directly from DOM inputs so we capture text
+     * the user typed even if the change event hasn't committed yet.
+     */
+    syncActivityFormFromDom() {
+        const fieldMap = {
+            subject: 'activitySubject',
+            dueDate: 'activityDate',
+            status: 'activityStatus',
+            priority: 'activityPriority',
+            description: 'activityDescription',
+            start: 'activityStartDateTime',
+            end: 'activityEndDateTime',
+            location: 'activityLocation'
+        };
+        const els = this.template.querySelectorAll('[data-activity-field]');
+        els.forEach((el) => {
+            const key = el.dataset.activityField;
+            const prop = fieldMap[key];
+            if (prop && el.value !== undefined) {
+                this[prop] = el.value;
+            }
+        });
     }
 
     /**
@@ -173,6 +220,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     handleActivitySave() {
+        this.syncActivityFormFromDom();
         const subject = (this.activitySubject || '').trim();
         if (!subject) {
             this.dispatchEvent(
@@ -279,6 +327,10 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get isLogCallModal() {
         return this.activityModalType === 'logcall';
+    }
+
+    get activitySaveLabel() {
+        return this.isActivitySaving ? 'Saving…' : 'Save';
     }
 
     get activityModalTitle() {
