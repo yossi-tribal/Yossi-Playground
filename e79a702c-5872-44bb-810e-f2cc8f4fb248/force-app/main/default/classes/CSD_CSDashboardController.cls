@@ -1272,6 +1272,7 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String description;
         @AuraEnabled public String location;
         @AuraEnabled public Id whatId;
+        @AuraEnabled public Id whoId;
     }
 
     /**
@@ -1359,6 +1360,9 @@ public with sharing class CSD_CSDashboardController {
                 if (String.isNotBlank(req.description)) {
                     t.Description = req.description;
                 }
+                if (req.whoId != null) {
+                    t.WhoId = req.whoId;
+                }
                 insert t;
                 return t.Id;
             } else if (objType == 'EVENT') {
@@ -1387,6 +1391,9 @@ public with sharing class CSD_CSDashboardController {
                 }
                 if (String.isNotBlank(req.location)) {
                     ev.Location = req.location.trim();
+                }
+                if (req.whoId != null) {
+                    ev.WhoId = req.whoId;
                 }
                 insert ev;
                 return ev.Id;

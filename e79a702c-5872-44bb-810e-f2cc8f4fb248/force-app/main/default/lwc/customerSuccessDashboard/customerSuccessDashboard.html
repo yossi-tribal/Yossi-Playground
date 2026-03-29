@@ -864,10 +864,17 @@
                                 label="Subject"
                                 value={activitySubject}
                                 data-field="activitySubject"
-                                data-activity-field="subject"
                                 onchange={handleActivityFieldChange}
                                 required>
                             </lightning-input>
+
+                            <lightning-record-picker
+                                label="Name"
+                                placeholder="Search Contacts..."
+                                object-api-name="Contact"
+                                filter={contactRecordPickerFilter}
+                                onchange={handleActivityWhoIdChange}>
+                            </lightning-record-picker>
 
                             <template if:true={isTaskModal}>
                                 <lightning-input
@@ -875,7 +882,6 @@
                                     label="Due date"
                                     value={activityDate}
                                     data-field="activityDate"
-                                    data-activity-field="dueDate"
                                     onchange={handleActivityFieldChange}>
                                 </lightning-input>
                                 <lightning-combobox
@@ -885,7 +891,6 @@
                                     placeholder="Select status"
                                     options={taskStatusOptions}
                                     data-field="activityStatus"
-                                    data-activity-field="status"
                                     onchange={handleActivityFieldChange}>
                                 </lightning-combobox>
                                 <lightning-combobox
@@ -895,7 +900,6 @@
                                     placeholder="Select priority"
                                     options={taskPriorityOptions}
                                     data-field="activityPriority"
-                                    data-activity-field="priority"
                                     onchange={handleActivityFieldChange}>
                                 </lightning-combobox>
                             </template>
@@ -906,7 +910,6 @@
                                     label="Start"
                                     value={activityStartDateTime}
                                     data-field="activityStartDateTime"
-                                    data-activity-field="start"
                                     onchange={handleActivityFieldChange}
                                     required>
                                 </lightning-input>
@@ -915,7 +918,6 @@
                                     label="End"
                                     value={activityEndDateTime}
                                     data-field="activityEndDateTime"
-                                    data-activity-field="end"
                                     onchange={handleActivityFieldChange}>
                                 </lightning-input>
                                 <lightning-input
@@ -923,7 +925,6 @@
                                     label="Location"
                                     value={activityLocation}
                                     data-field="activityLocation"
-                                    data-activity-field="location"
                                     onchange={handleActivityFieldChange}>
                                 </lightning-input>
                             </template>
@@ -932,7 +933,6 @@
                                 label="Description"
                                 value={activityDescription}
                                 data-field="activityDescription"
-                                data-activity-field="description"
                                 onchange={handleActivityFieldChange}>
                             </lightning-textarea>
                         </div>

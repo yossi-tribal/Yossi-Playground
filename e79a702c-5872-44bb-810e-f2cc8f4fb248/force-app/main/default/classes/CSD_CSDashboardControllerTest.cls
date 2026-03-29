@@ -19,6 +19,13 @@ private class CSD_CSDashboardControllerTest {
         );
         insert testAccount;
 
+        Contact testContact = new Contact(
+            FirstName = 'Test',
+            LastName = 'ContactForActivity',
+            AccountId = testAccount.Id
+        );
+        insert testContact;
+
         // Create test Cases
         List<Case> testCases = new List<Case>();
         testCases.add(new Case(
@@ -967,11 +974,13 @@ private class CSD_CSDashboardControllerTest {
     @isTest
     static void testCreateTask_Success() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        Contact testContact = [SELECT Id FROM Contact WHERE AccountId = :testAccount.Id LIMIT 1];
         CSD_CSDashboardController.ActivityCreateRequest req =
             new CSD_CSDashboardController.ActivityCreateRequest();
         req.objectType = 'TASK';
         req.subject = 'Modal Task From Test';
         req.whatId = testAccount.Id;
+        req.whoId = testContact.Id;
         req.activityDate = Date.today().addDays(7);
         req.status = 'Not Started';
         req.priority = 'Normal';
@@ -981,9 +990,10 @@ private class CSD_CSDashboardControllerTest {
         Test.stopTest();
 
         System.assertNotEquals(null, taskId, 'Task Id should be returned');
-        Task t = [SELECT Id, Subject, WhatId, Status, Priority FROM Task WHERE Id = :taskId];
+        Task t = [SELECT Id, Subject, WhatId, WhoId, Status, Priority FROM Task WHERE Id = :taskId];
         System.assertEquals('Modal Task From Test', t.Subject);
         System.assertEquals(testAccount.Id, t.WhatId);
+        System.assertEquals(testContact.Id, t.WhoId);
         System.assertEquals('Not Started', t.Status);
         System.assertEquals('Normal', t.Priority);
     }
@@ -1019,6 +1029,7 @@ private class CSD_CSDashboardControllerTest {
     @isTest
     static void testCreateEvent_Success() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        Contact testContact = [SELECT Id FROM Contact WHERE AccountId = :testAccount.Id LIMIT 1];
         DateTime startDt = DateTime.now().addDays(2);
         DateTime endDt = startDt.addHours(1);
         CSD_CSDashboardController.ActivityCreateRequest req =
@@ -1026,6 +1037,7 @@ private class CSD_CSDashboardControllerTest {
         req.objectType = 'EVENT';
         req.subject = 'Modal Event From Test';
         req.whatId = testAccount.Id;
+        req.whoId = testContact.Id;
         req.startDateTime = startDt;
         req.endDateTime = endDt;
         req.location = 'Virtual';
@@ -1036,9 +1048,10 @@ private class CSD_CSDashboardControllerTest {
         Test.stopTest();
 
         System.assertNotEquals(null, eventId);
-        Event ev = [SELECT Id, Subject, WhatId, Location, DurationInMinutes FROM Event WHERE Id = :eventId];
+        Event ev = [SELECT Id, Subject, WhatId, WhoId, Location, DurationInMinutes FROM Event WHERE Id = :eventId];
         System.assertEquals('Modal Event From Test', ev.Subject);
         System.assertEquals(testAccount.Id, ev.WhatId);
+        System.assertEquals(testContact.Id, ev.WhoId);
         System.assertEquals('Virtual', ev.Location);
         System.assertEquals(60, ev.DurationInMinutes);
     }

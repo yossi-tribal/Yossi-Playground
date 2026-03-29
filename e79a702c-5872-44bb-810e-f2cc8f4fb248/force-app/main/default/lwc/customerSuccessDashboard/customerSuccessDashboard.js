@@ -47,6 +47,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track activityPriority = '';
     @track activityDescription = '';
     @track activityLocation = '';
+    @track activityWhoId = null;
     @track taskStatusOptions = [];
     @track taskPriorityOptions = [];
 
@@ -113,31 +114,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Read current values directly from DOM inputs so we capture text
-     * the user typed even if the change event hasn't committed yet.
-     */
-    syncActivityFormFromDom() {
-        const fieldMap = {
-            subject: 'activitySubject',
-            dueDate: 'activityDate',
-            status: 'activityStatus',
-            priority: 'activityPriority',
-            description: 'activityDescription',
-            start: 'activityStartDateTime',
-            end: 'activityEndDateTime',
-            location: 'activityLocation'
-        };
-        const els = this.template.querySelectorAll('[data-activity-field]');
-        els.forEach((el) => {
-            const key = el.dataset.activityField;
-            const prop = fieldMap[key];
-            if (prop && el.value !== undefined) {
-                this[prop] = el.value;
-            }
-        });
-    }
-
-    /**
      * @param {Array<{label:string,value:string}>} options
      * @param {string[]} preferredValues picklist API values to try first
      */
@@ -182,6 +158,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.activityPriority = '';
         this.activityDescription = '';
         this.activityLocation = '';
+        this.activityWhoId = null;
     }
 
     openActivityModal(modalType) {
@@ -219,8 +196,30 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.resetActivityFormFields();
     }
 
+    handleActivityWhoIdChange(event) {
+        this.activityWhoId = event.detail.recordId;
+    }
+
+    get contactRecordPickerFilter() {
+        return {
+            criteria: [
+                { fieldPath: 'AccountId', operator: 'eq', value: this.recordId }
+            ]
+        };
+    }
+
     handleActivitySave() {
-        this.syncActivityFormFromDom();
+        const focused = this.template.activeElement;
+        if (focused && typeof focused.blur === 'function') {
+            focused.blur();
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            setTimeout(() => { this._executeActivitySave(); }, 0);
+        } else {
+            this._executeActivitySave();
+        }
+    }
+
+    _executeActivitySave() {
         const subject = (this.activitySubject || '').trim();
         if (!subject) {
             this.dispatchEvent(
@@ -261,6 +260,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 objectType: 'EVENT',
                 subject,
                 whatId: this.recordId,
+                whoId: this.activityWhoId || null,
                 startDateTime: this.activityStartDateTime,
                 endDateTime: this.activityEndDateTime ? this.activityEndDateTime : null,
                 description: this.activityDescription ? this.activityDescription : null,
@@ -272,6 +272,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 objectType: 'TASK',
                 subject,
                 whatId: this.recordId,
+                whoId: this.activityWhoId || null,
                 activityDate: due,
                 status: this.activityStatus ? this.activityStatus : null,
                 priority: this.activityPriority ? this.activityPriority : null,
