@@ -1,7 +1,6 @@
 import { LightningElement, api, track } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import CsdActivityModal from 'c/csdActivityModal';
 import getDashboardSummary from '@salesforce/apex/CSD_CSDashboardController.getDashboardSummary';
 import getOpenCases from '@salesforce/apex/CSD_CSDashboardController.getOpenCases';
 import getOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getOverdueTasks';
@@ -32,6 +31,11 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'closedWon', 'recentCases'
     @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
+
+    @track showActivityModal = false;
+    @track activityModalObjectApiName = '';
+    @track activityModalTitle = '';
+    @track activityModalIsLogCall = false;
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
@@ -501,59 +505,74 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         });
     }
 
-    async handleCreateTask() {
-        const result = await CsdActivityModal.open({
-            size: 'medium',
-            description: 'Create a new Task',
-            objectApiName: 'Task',
-            whatId: this.recordId,
-            defaultFieldValues: {},
-            modalTitle: 'New Task'
-        });
-        if (result && result.success) {
-            this.showSuccessToast('Task created successfully');
-            this.handleRefresh();
-        }
+    handleCreateTask() {
+        this.activityModalObjectApiName = 'Task';
+        this.activityModalTitle = 'New Task';
+        this.activityModalIsLogCall = false;
+        this.showActivityModal = true;
     }
 
-    async handleCreateEvent() {
-        const result = await CsdActivityModal.open({
-            size: 'medium',
-            description: 'Create a new Event',
-            objectApiName: 'Event',
-            whatId: this.recordId,
-            defaultFieldValues: {},
-            modalTitle: 'New Event'
-        });
-        if (result && result.success) {
-            this.showSuccessToast('Event created successfully');
-            this.handleRefresh();
-        }
+    handleCreateEvent() {
+        this.activityModalObjectApiName = 'Event';
+        this.activityModalTitle = 'New Event';
+        this.activityModalIsLogCall = false;
+        this.showActivityModal = true;
     }
 
-    async handleLogCall() {
-        const result = await CsdActivityModal.open({
-            size: 'medium',
-            description: 'Log a Call',
-            objectApiName: 'Task',
-            whatId: this.recordId,
-            defaultFieldValues: { Status: 'Completed', Type: 'Call' },
-            modalTitle: 'Log a Call'
-        });
-        if (result && result.success) {
-            this.showSuccessToast('Call logged successfully');
-            this.handleRefresh();
-        }
+    handleLogCall() {
+        this.activityModalObjectApiName = 'Task';
+        this.activityModalTitle = 'Log a Call';
+        this.activityModalIsLogCall = true;
+        this.showActivityModal = true;
     }
 
-    showSuccessToast(message) {
+    handleActivityModalSuccess() {
+        this.showActivityModal = false;
+        const objectLabel = this.activityModalIsLogCall
+            ? 'Call'
+            : this.activityModalObjectApiName === 'Event'
+                ? 'Event'
+                : 'Task';
         this.dispatchEvent(
             new ShowToastEvent({
                 title: 'Success',
-                message: message,
+                message: `${objectLabel} created successfully.`,
                 variant: 'success'
             })
         );
+        this.handleRefresh();
+    }
+
+    handleActivityModalError(event) {
+        const message = event.detail?.message || event.detail?.detail || 'An error occurred while saving.';
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title: 'Error',
+                message: message,
+                variant: 'error'
+            })
+        );
+    }
+
+    handleActivityModalCancel() {
+        this.showActivityModal = false;
+    }
+
+    handleActivityModalSubmit() {
+        this.template.querySelector('lightning-record-edit-form').submit();
+    }
+
+    handleActivityFormLoad() {
+        if (this.activityModalIsLogCall) {
+            const statusField = this.template.querySelector('lightning-input-field[data-field="Status"]');
+            const typeField = this.template.querySelector('lightning-input-field[data-field="Type"]');
+            if (statusField) {
+                statusField.value = 'Completed';
+            }
+            if (typeField) {
+                typeField.value = 'Call';
+            }
+        }
     }
 
     /**
@@ -1055,6 +1074,14 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get showOpportunitiesModal() {
         return this.showKpiModal && (this.kpiModalType === 'opportunities' || this.kpiModalType === 'closedWon');
+    }
+
+    get isTaskModal() {
+        return this.activityModalObjectApiName === 'Task';
+    }
+
+    get isEventModal() {
+        return this.activityModalObjectApiName === 'Event';
     }
 
     /** ISO currency for formatted-number (org default from Apex) */

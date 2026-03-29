@@ -1991,3 +1991,25 @@ button:focus-visible,
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ACTIVITY CREATION MODAL
+   ═══════════════════════════════════════════════════════════════ */
+
+.activity-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--csd-space-3);
+}
+
+.activity-modal-form lightning-input-field {
+    margin-bottom: var(--csd-space-2);
+}
+
+.slds-modal__footer .custom-btn + .custom-btn {
+    margin-left: var(--csd-space-3);
+}
+
+.activity-modal-save-btn {
+    min-width: 80px;
+}
