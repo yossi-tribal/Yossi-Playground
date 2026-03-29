@@ -856,6 +856,8 @@
                                         <lightning-input label="Subject" value={activityForm.Subject} data-field="Subject" onchange={handleActivityFieldChange} required></lightning-input>
                                     </div>
                                 </div>
+
+                                <div class="activity-section-header"><span>Additional Details</span></div>
                                 <div class="activity-form-row">
                                     <div class="activity-form-col">
                                         <lightning-input type="date" label="Due Date" value={activityForm.ActivityDate} data-field="ActivityDate" onchange={handleActivityFieldChange}></lightning-input>
@@ -872,6 +874,8 @@
                                         <lightning-combobox label="Type" value={activityForm.Type} options={taskTypeOptions} data-field="Type" onchange={handleActivityFieldChange}></lightning-combobox>
                                     </div>
                                 </div>
+
+                                <div class="activity-section-header"><span>Related Records</span></div>
                                 <div class="activity-form-row">
                                     <div class="activity-form-col">
                                         <label class="activity-field-label">Name</label>
@@ -923,7 +927,9 @@
                                         <lightning-record-picker label="Assigned To" object-api-name="User" value={activityForm.OwnerId} onchange={handleOwnerIdChange}></lightning-record-picker>
                                     </div>
                                 </div>
-                                <div class="activity-form-row">
+
+                                <div class="activity-section-header"><span>Notes</span></div>
+                                <div class="activity-form-row activity-notes-section">
                                     <div class="activity-form-col">
                                         <lightning-textarea label="Description" value={activityForm.Description} data-field="Description" onchange={handleActivityFieldChange}></lightning-textarea>
                                     </div>
@@ -937,6 +943,8 @@
                                         <lightning-input label="Subject" value={activityForm.Subject} data-field="Subject" onchange={handleActivityFieldChange} required></lightning-input>
                                     </div>
                                 </div>
+
+                                <div class="activity-section-header"><span>Schedule</span></div>
                                 <div class="activity-form-row">
                                     <div class="activity-form-col">
                                         <lightning-input type="checkbox" label="All-Day Event" checked={activityForm.IsAllDayEvent} data-field="IsAllDayEvent" onchange={handleActivityFieldChange}></lightning-input>
@@ -950,6 +958,8 @@
                                         <lightning-input type="datetime" label="End" value={activityForm.EndDateTime} data-field="EndDateTime" onchange={handleActivityFieldChange} required></lightning-input>
                                     </div>
                                 </div>
+
+                                <div class="activity-section-header"><span>Related Records</span></div>
                                 <div class="activity-form-row">
                                     <div class="activity-form-col">
                                         <label class="activity-field-label">Name</label>
@@ -1004,7 +1014,9 @@
                                         <lightning-record-picker label="Assigned To" object-api-name="User" value={activityForm.OwnerId} onchange={handleOwnerIdChange}></lightning-record-picker>
                                     </div>
                                 </div>
-                                <div class="activity-form-row">
+
+                                <div class="activity-section-header"><span>Notes</span></div>
+                                <div class="activity-form-row activity-notes-section">
                                     <div class="activity-form-col">
                                         <lightning-textarea label="Description" value={activityForm.Description} data-field="Description" onchange={handleActivityFieldChange}></lightning-textarea>
                                     </div>

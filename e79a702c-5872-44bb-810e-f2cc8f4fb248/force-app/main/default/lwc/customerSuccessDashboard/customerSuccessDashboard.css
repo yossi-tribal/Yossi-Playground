@@ -2013,6 +2013,29 @@ button:focus-visible,
     min-width: 0;
 }
 
+.activity-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.75rem 0 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    color: var(--csd-text-secondary, #706e6b);
+}
+
+.activity-section-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e5e5;
+}
+
+.activity-notes-section lightning-textarea {
+    --sds-c-textarea-sizing-min-height: 100px;
+}
+
 .activity-polymorphic-lookup {
     display: flex;
     align-items: stretch;
