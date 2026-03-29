@@ -1866,6 +1866,12 @@ button:focus-visible,
     line-height: 1.35;
 }
 
+.commercial-kpi-value-unit {
+    font-size: var(--csd-text-sm);
+    font-weight: 400;
+    color: var(--csd-text-secondary);
+}
+
 .commercial-visuals {
     display: flex;
     flex-direction: column;
@@ -1934,9 +1940,9 @@ button:focus-visible,
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: var(--csd-text-sm);
+    font-size: var(--csd-text-xs);
     font-weight: 600;
-    margin-left: var(--csd-space-2);
+    margin-left: 0;
 }
 
 .case-resolution-trend-arrow {
@@ -2090,11 +2096,11 @@ button:focus-visible,
 
 .snapshot-section-header {
     display: block;
-    font-size: var(--csd-text-xs);
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-size: var(--csd-text-base);
+    font-weight: 700;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: var(--csd-text-tertiary);
+    color: var(--csd-text-primary);
     margin-bottom: var(--csd-space-3);
 }
 

@@ -192,12 +192,13 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         const hasOpenTasks =
             (this.summary && this.summary.openTasksCount > 0) ||
             (this.openTasks && this.openTasks.length > 0);
-        const upcoming = this.upcomingActivities && this.upcomingActivities.length > 0;
+        const hasEvents = this.upcomingActivities &&
+            this.upcomingActivities.some(a => a.activityType === 'Event');
         this.sectionExpanded = {
             openTasks: hasOpenTasks,
             cases: false,
             opportunities: false,
-            activities: !hasOpenTasks && upcoming,
+            activities: !hasOpenTasks && hasEvents,
             contacts: false
         };
     }
@@ -388,11 +389,11 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     handleCommercialAllTimeClick() {
-        this.openClosedWonModal('ALL_TIME', 'All-time won revenue (closed won)');
+        this.openClosedWonModal('ALL_TIME', 'Lifetime value (all closed-won)');
     }
 
     handleCommercialYtdClick() {
-        this.openClosedWonModal('YTD', 'Won revenue (this year)');
+        this.openClosedWonModal('YTD', 'Won this year');
     }
 
     openClosedWonModal(scope, title) {
@@ -745,6 +746,34 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get upcomingActivitiesCount() {
         return this.upcomingActivities ? this.upcomingActivities.length : 0;
+    }
+
+    get upcomingEvents() {
+        if (!this.upcomingActivities || !this.upcomingActivities.length) {
+            return [];
+        }
+        return this.upcomingActivities.filter(a => a.activityType === 'Event');
+    }
+
+    get hasUpcomingEvents() {
+        return this.upcomingEvents.length > 0;
+    }
+
+    get upcomingEventsCount() {
+        return this.upcomingEvents.length;
+    }
+
+    get upcomingEventsDecorated() {
+        const events = this.upcomingEvents;
+        if (!events.length) return [];
+        return events.map((activity, index) => ({
+            ...activity,
+            isNextTouchpoint: index === 0 && this.hasNextTouchpoint,
+            rowClass:
+                index === 0 && this.hasNextTouchpoint
+                    ? 'activity-item activity-item--next-touchpoint'
+                    : 'activity-item'
+        }));
     }
 
     /**

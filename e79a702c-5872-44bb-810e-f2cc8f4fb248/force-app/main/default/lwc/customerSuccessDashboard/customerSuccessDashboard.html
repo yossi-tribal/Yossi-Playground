@@ -187,18 +187,11 @@
                             <span class="snapshot-section-header">Revenue</span>
                             <div class="commercial-kpi-row">
                                 <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialAllTimeClick}>
-                                    <span class="commercial-kpi-label">All-time won revenue</span>
+                                    <span class="commercial-kpi-label">Lifetime value</span>
                                     <span class="commercial-kpi-value">
                                         <lightning-formatted-number value={summary.totalWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
                                     </span>
-                                    <span class="commercial-kpi-sub">Closed-won opportunities</span>
-                                </button>
-                                <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
-                                    <span class="commercial-kpi-label">Won revenue (YTD)</span>
-                                    <span class="commercial-kpi-value">
-                                        <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                    </span>
-                                    <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
+                                    <span class="commercial-kpi-sub">Total closed-won</span>
                                 </button>
                                 <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialPipelineClick}>
                                     <span class="commercial-kpi-label">Open pipeline</span>
@@ -207,25 +200,32 @@
                                     </span>
                                     <span class="commercial-kpi-sub">Weighted: <lightning-formatted-number value={summary.weightedPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
                                 </button>
+                                <template if:true={hasUpcomingRenewal}>
+                                    <button type="button" class={renewalCardClass} onclick={handleCommercialRenewalClick}>
+                                        <span class="commercial-kpi-label">Next renewal</span>
+                                        <span class="commercial-kpi-value">
+                                            <lightning-formatted-number value={nearestRenewalAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                        </span>
+                                        <span class={renewalDaysClass}>{renewalSubtitle}</span>
+                                    </button>
+                                </template>
+                                <template if:false={hasUpcomingRenewal}>
+                                    <div class="commercial-kpi">
+                                        <span class="commercial-kpi-label">Next renewal</span>
+                                        <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
+                                        <span class="commercial-kpi-sub">{renewalSubtitle}</span>
+                                    </div>
+                                </template>
                             </div>
                             <div class="revenue-visuals">
                                 <div class="revenue-renewal-card">
-                                    <template if:true={hasUpcomingRenewal}>
-                                        <button type="button" class={renewalCardClass} onclick={handleCommercialRenewalClick}>
-                                            <span class="commercial-kpi-label">Next renewal</span>
-                                            <span class="commercial-kpi-value">
-                                                <lightning-formatted-number value={nearestRenewalAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                            </span>
-                                            <span class={renewalDaysClass}>{renewalSubtitle}</span>
-                                        </button>
-                                    </template>
-                                    <template if:false={hasUpcomingRenewal}>
-                                        <div class="commercial-kpi">
-                                            <span class="commercial-kpi-label">Next renewal</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
-                                            <span class="commercial-kpi-sub">{renewalSubtitle}</span>
-                                        </div>
-                                    </template>
+                                    <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
+                                        <span class="commercial-kpi-label">Won this year</span>
+                                        <span class="commercial-kpi-value">
+                                            <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                        </span>
+                                        <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
+                                    </button>
                                 </div>
                                 <div class="revenue-trend-wrap">
                                     <div class="revenue-trend-header">
@@ -279,28 +279,33 @@
                                     <span class="commercial-kpi-sub">Opened on this account</span>
                                 </button>
                             </div>
-                            <div class="commercial-visuals">
-                                <div class="case-resolution">
-                                    <span class="case-resolution-title">Case resolution (90 days)</span>
+                            <div class="revenue-visuals">
+                                <div class="revenue-renewal-card">
                                     <template if:true={hasCaseResolutionData}>
-                                        <p class="case-resolution-subtitle">{closedCasesSubtitle}</p>
-                                        <div class="case-resolution-hero">
-                                            <span class="case-resolution-hero-value">{caseResolutionMedianDays}</span>
-                                            <span class="case-resolution-hero-unit">days</span>
-                                            <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>
-                                                <span class="case-resolution-trend-arrow">{resolutionTrendIcon}</span>
-                                                {resolutionTrendText}
+                                        <div class="commercial-kpi">
+                                            <span class="commercial-kpi-label">Case resolution (90 days)</span>
+                                            <span class="commercial-kpi-value">
+                                                {caseResolutionMedianDays}
+                                                <span class="commercial-kpi-value-unit">days</span>
+                                            </span>
+                                            <span class="commercial-kpi-sub">{closedCasesSubtitle}</span>
+                                            <span class="commercial-kpi-sub">
+                                                <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>{resolutionTrendIcon} {resolutionTrendText}</span>
+                                                <template if:true={showCaseResolutionRange}>
+                                                     · {caseResolutionRangeText}
+                                                </template>
                                             </span>
                                         </div>
-                                        <template if:true={showCaseResolutionRange}>
-                                            <p class="case-resolution-range">{caseResolutionRangeText}</p>
-                                        </template>
                                     </template>
                                     <template if:false={hasCaseResolutionData}>
-                                        <div class="case-resolution-empty">No closed cases in the last 90 days</div>
+                                        <div class="commercial-kpi">
+                                            <span class="commercial-kpi-label">Case resolution (90 days)</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
+                                            <span class="commercial-kpi-sub">No closed cases in the last 90 days</span>
+                                        </div>
                                     </template>
                                 </div>
-                                <div class="case-trend-wrap">
+                                <div class="revenue-trend-wrap">
                                     <span class="case-trend-title">Cases opened (6 months)</span>
                                     <div class="case-trend">
                                         <template for:each={caseTrendBars} for:item="cb">
@@ -373,6 +378,53 @@
                                     <div class="empty-state empty-state--compact">
                                         <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
                                         <p class="empty-text">No open tasks</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Upcoming Events -->
+                    <div class={activitiesAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="activities" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:event" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Upcoming events</span>
+                            <span class="section-accordion-count">({upcomingEventsCount})</span>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secActivities}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasUpcomingEvents}>
+                                    <div class="section-accordion-actions">
+                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllActivities}>View all</button>
+                                    </div>
+                                    <div class="activity-list">
+                                        <template for:each={upcomingEventsDecorated} for:item="activity">
+                                            <div key={activity.activityId} data-id={activity.activityId} onclick={handleActivityClick} class={activity.rowClass}>
+                                                <template if:true={activity.isNextTouchpoint}>
+                                                    <div class="next-touchpoint-pill">Next touchpoint</div>
+                                                </template>
+                                                <div class="activity-row-inner">
+                                                    <div class="activity-icon-wrapper">
+                                                        <lightning-icon icon-name="standard:event" size="small"></lightning-icon>
+                                                    </div>
+                                                    <div class="activity-content">
+                                                        <div class="activity-subject">{activity.subject}</div>
+                                                        <div class="activity-meta">
+                                                            <span>{activity.activityDate}</span>
+                                                            <span class="meta-separator">•</span>
+                                                            <span>{activity.ownerName}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasUpcomingEvents}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No upcoming events scheduled</p>
                                     </div>
                                 </template>
                             </div>
@@ -514,57 +566,6 @@
                                     <div class="empty-state empty-state--compact">
                                         <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
                                         <p class="empty-text">No open opportunities</p>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Upcoming Activities -->
-                    <div class={activitiesAccordionClass}>
-                        <button type="button" class="section-accordion-header" data-section="activities" onclick={handleToggleSection}>
-                            <lightning-icon icon-name="utility:event" size="small" class="section-accordion-icon"></lightning-icon>
-                            <span class="section-accordion-title">Upcoming activities</span>
-                            <span class="section-accordion-count">({upcomingActivitiesCount})</span>
-                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
-                        </button>
-                        <template if:true={secActivities}>
-                            <div class="section-accordion-body">
-                                <template if:true={hasUpcomingActivities}>
-                                    <div class="section-accordion-actions">
-                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllActivities}>View all</button>
-                                    </div>
-                                    <div class="activity-list">
-                                        <template for:each={upcomingActivitiesDecorated} for:item="activity">
-                                            <div key={activity.activityId} data-id={activity.activityId} onclick={handleActivityClick} class={activity.rowClass}>
-                                                <template if:true={activity.isNextTouchpoint}>
-                                                    <div class="next-touchpoint-pill">Next touchpoint</div>
-                                                </template>
-                                                <div class="activity-row-inner">
-                                                    <div class="activity-icon-wrapper">
-                                                        <template if:true={activity.activityType}>
-                                                            <lightning-icon icon-name="standard:task" size="small"></lightning-icon>
-                                                        </template>
-                                                    </div>
-                                                    <div class="activity-content">
-                                                        <div class="activity-subject">{activity.subject}</div>
-                                                        <div class="activity-meta">
-                                                            <span class="activity-type-badge">{activity.activityType}</span>
-                                                            <span class="meta-separator">•</span>
-                                                            <span>{activity.activityDate}</span>
-                                                            <span class="meta-separator">•</span>
-                                                            <span>{activity.ownerName}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                                <template if:false={hasUpcomingActivities}>
-                                    <div class="empty-state empty-state--compact">
-                                        <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
-                                        <p class="empty-text">No upcoming activities scheduled</p>
                                     </div>
                                 </template>
                             </div>
