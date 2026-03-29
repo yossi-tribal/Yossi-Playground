@@ -12,8 +12,6 @@ import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts'
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
 import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
 import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
-import createActivity from '@salesforce/apex/CSD_CSDashboardController.createActivity';
-import getActivityPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getActivityPicklistValues';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
     @api recordId; // Account record ID from the page context
@@ -33,23 +31,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'closedWon', 'recentCases'
     @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
-
-    /** Activity quick-action modal (Task / Event / Log call) */
-    @track showActivityModal = false;
-    /** 'task' | 'event' | 'logcall' */
-    @track activityModalType = '';
-    @track isActivitySaving = false;
-    @track activitySubject = '';
-    @track activityDate = '';
-    @track activityStartDateTime = '';
-    @track activityEndDateTime = '';
-    @track activityStatus = '';
-    @track activityPriority = '';
-    @track activityDescription = '';
-    @track activityLocation = '';
-    @track activityWhoId = null;
-    @track taskStatusOptions = [];
-    @track taskPriorityOptions = [];
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
@@ -72,279 +53,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track areOpportunitiesLoaded = false;
 
     connectedCallback() {
-        this.loadPicklistValues();
         this.loadDashboardData();
-    }
-
-    /**
-     * Load Task Status / Priority picklists for the activity modal
-     */
-    loadPicklistValues() {
-        getActivityPicklistValues()
-            .then((data) => {
-                this.taskStatusOptions = data && data.taskStatuses ? data.taskStatuses : [];
-                this.taskPriorityOptions = data && data.taskPriorities ? data.taskPriorities : [];
-                if (this.showActivityModal) {
-                    this.reapplyActivityModalPicklistDefaults();
-                }
-            })
-            .catch(() => {
-                this.taskStatusOptions = [];
-                this.taskPriorityOptions = [];
-            });
-    }
-
-    reapplyActivityModalPicklistDefaults() {
-        const t = this.activityModalType;
-        if (t === 'task') {
-            if (!this.activityStatus) {
-                this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Not Started']);
-            }
-            if (!this.activityPriority) {
-                this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
-            }
-        } else if (t === 'logcall') {
-            if (!this.activityStatus) {
-                this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Completed']);
-            }
-            if (!this.activityPriority) {
-                this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
-            }
-        }
-    }
-
-    /**
-     * @param {Array<{label:string,value:string}>} options
-     * @param {string[]} preferredValues picklist API values to try first
-     */
-    pickOptionValue(options, preferredValues) {
-        if (!options || !options.length) {
-            return '';
-        }
-        for (const pref of preferredValues) {
-            const found = options.find((o) => o.value === pref || o.label === pref);
-            if (found) {
-                return found.value;
-            }
-        }
-        return options[0].value;
-    }
-
-    formatTodayIso() {
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    }
-
-    /** Default start/end for new event (1h duration), as ISO strings for lightning-input type datetime */
-    defaultEventDateTimes() {
-        const start = new Date();
-        start.setMinutes(0, 0, 0);
-        const end = new Date(start.getTime() + 60 * 60 * 1000);
-        return {
-            start: start.toISOString(),
-            end: end.toISOString()
-        };
-    }
-
-    resetActivityFormFields() {
-        this.activitySubject = '';
-        this.activityDate = '';
-        this.activityStartDateTime = '';
-        this.activityEndDateTime = '';
-        this.activityStatus = '';
-        this.activityPriority = '';
-        this.activityDescription = '';
-        this.activityLocation = '';
-        this.activityWhoId = null;
-    }
-
-    openActivityModal(modalType) {
-        this.resetActivityFormFields();
-        this.activityModalType = modalType;
-        if (modalType === 'task') {
-            this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Not Started']);
-            this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
-        } else if (modalType === 'logcall') {
-            this.activityStatus = this.pickOptionValue(this.taskStatusOptions, ['Completed']);
-            this.activityPriority = this.pickOptionValue(this.taskPriorityOptions, ['Normal']);
-            this.activityDate = this.formatTodayIso();
-        } else if (modalType === 'event') {
-            const { start, end } = this.defaultEventDateTimes();
-            this.activityStartDateTime = start;
-            this.activityEndDateTime = end;
-        }
-        this.showActivityModal = true;
-    }
-
-    handleActivityFieldChange(event) {
-        const el = event.currentTarget;
-        const field = el && el.dataset ? el.dataset.field : null;
-        if (!field) {
-            return;
-        }
-        const value =
-            event.detail && event.detail.value !== undefined ? event.detail.value : el.value;
-        this[field] = value;
-    }
-
-    handleActivityModalClose() {
-        this.showActivityModal = false;
-        this.activityModalType = '';
-        this.resetActivityFormFields();
-    }
-
-    handleActivityWhoIdChange(event) {
-        this.activityWhoId = event.detail.recordId;
-    }
-
-    get contactRecordPickerFilter() {
-        return {
-            criteria: [
-                { fieldPath: 'AccountId', operator: 'eq', value: this.recordId }
-            ]
-        };
-    }
-
-    handleActivitySave() {
-        const focused = this.template.activeElement;
-        if (focused && typeof focused.blur === 'function') {
-            focused.blur();
-            // eslint-disable-next-line @lwc/lwc/no-async-operation
-            setTimeout(() => { this._executeActivitySave(); }, 0);
-        } else {
-            this._executeActivitySave();
-        }
-    }
-
-    _executeActivitySave() {
-        const subject = (this.activitySubject || '').trim();
-        if (!subject) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Missing subject',
-                    message: 'Please enter a subject.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        if (!this.recordId) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Error',
-                    message: 'Account context is missing.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-
-        const type = this.activityModalType;
-        let payload;
-
-        if (type === 'event') {
-            if (!this.activityStartDateTime) {
-                this.dispatchEvent(
-                    new ShowToastEvent({
-                        title: 'Missing start time',
-                        message: 'Please select a start date and time for the event.',
-                        variant: 'error'
-                    })
-                );
-                return;
-            }
-            payload = {
-                objectType: 'EVENT',
-                subject,
-                whatId: this.recordId,
-                whoId: this.activityWhoId || null,
-                startDateTime: this.activityStartDateTime,
-                endDateTime: this.activityEndDateTime ? this.activityEndDateTime : null,
-                description: this.activityDescription ? this.activityDescription : null,
-                location: this.activityLocation ? this.activityLocation.trim() : null
-            };
-        } else if (type === 'task' || type === 'logcall') {
-            const due = this.activityDate || this.formatTodayIso();
-            payload = {
-                objectType: 'TASK',
-                subject,
-                whatId: this.recordId,
-                whoId: this.activityWhoId || null,
-                activityDate: due,
-                status: this.activityStatus ? this.activityStatus : null,
-                priority: this.activityPriority ? this.activityPriority : null,
-                description: this.activityDescription ? this.activityDescription : null,
-                taskType: type === 'logcall' ? 'Call' : null
-            };
-        } else {
-            return;
-        }
-
-        this.isActivitySaving = true;
-        createActivity({ req: payload })
-            .then(() => {
-                this.showActivityModal = false;
-                this.activityModalType = '';
-                this.resetActivityFormFields();
-                const label =
-                    type === 'event' ? 'Event' : type === 'logcall' ? 'Call logged' : 'Task';
-                this.dispatchEvent(
-                    new ShowToastEvent({
-                        title: 'Success',
-                        message:
-                            type === 'logcall'
-                                ? 'Your call was logged successfully.'
-                                : `${label} created successfully.`,
-                        variant: 'success'
-                    })
-                );
-                this.loadDashboardData();
-            })
-            .catch((error) => {
-                const errorMessage = error.body && error.body.message ? error.body.message : error.message;
-                this.dispatchEvent(
-                    new ShowToastEvent({
-                        title: 'Could not save activity',
-                        message: errorMessage,
-                        variant: 'error'
-                    })
-                );
-            })
-            .finally(() => {
-                this.isActivitySaving = false;
-            });
-    }
-
-    get isTaskModal() {
-        return this.activityModalType === 'task' || this.activityModalType === 'logcall';
-    }
-
-    get isEventModal() {
-        return this.activityModalType === 'event';
-    }
-
-    get isLogCallModal() {
-        return this.activityModalType === 'logcall';
-    }
-
-    get activitySaveLabel() {
-        return this.isActivitySaving ? 'Saving…' : 'Save';
-    }
-
-    get activityModalTitle() {
-        if (this.activityModalType === 'logcall') {
-            return 'Log a call';
-        }
-        if (this.activityModalType === 'event') {
-            return 'New event';
-        }
-        if (this.activityModalType === 'task') {
-            return 'New task';
-        }
-        return '';
     }
 
     /**
@@ -792,24 +501,51 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Create new task (in-modal, Apex DML)
+     * Create new task
      */
     handleCreateTask() {
-        this.openActivityModal('task');
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Task',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: `WhatId=${this.recordId}`
+            }
+        });
     }
 
     /**
-     * Create new event (in-modal, Apex DML)
+     * Create new event
      */
     handleCreateEvent() {
-        this.openActivityModal('event');
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Event',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: `WhatId=${this.recordId}`
+            }
+        });
     }
 
     /**
-     * Log a call (completed Task with Type = Call, in-modal)
+     * Log a call (create completed task)
      */
     handleLogCall() {
-        this.openActivityModal('logcall');
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Task',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: `WhatId=${this.recordId},Status=Completed,Type=Call`
+            }
+        });
     }
 
     /**

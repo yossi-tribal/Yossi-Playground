@@ -1991,24 +1991,3 @@ button:focus-visible,
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
-/* Activity quick-action modal */
-.activity-modal-fields {
-    display: flex;
-    flex-direction: column;
-    gap: var(--lwc-spacingMedium, 1rem);
-}
-
-.activity-modal-hint {
-    font-size: 0.8125rem;
-    color: var(--csd-text-secondary);
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.activity-modal-footer-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-}
