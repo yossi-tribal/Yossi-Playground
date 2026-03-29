@@ -1999,17 +1999,46 @@ button:focus-visible,
 .activity-modal-form {
     display: flex;
     flex-direction: column;
-    gap: var(--csd-space-3);
+    gap: var(--csd-space-2);
 }
 
-.activity-modal-form lightning-input-field {
-    margin-bottom: var(--csd-space-2);
+.activity-form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
 }
 
-.slds-modal__footer .custom-btn + .custom-btn {
-    margin-left: var(--csd-space-3);
+.activity-form-col {
+    flex: 1;
+    min-width: 0;
 }
 
-.activity-modal-save-btn {
-    min-width: 80px;
+.activity-polymorphic-lookup {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+.activity-entity-picker {
+    flex: 0 0 140px;
+}
+
+.activity-record-picker {
+    flex: 1;
+    min-width: 0;
+}
+
+.activity-field-label {
+    font-size: var(--csd-text-sm);
+    font-weight: 400;
+    color: var(--csd-text-secondary);
+    margin-bottom: var(--csd-space-1);
+    display: block;
+}
+
+@media (max-width: 767px) {
+    .activity-form-row {
+        flex-direction: column;
+        gap: 0;
+    }
 }

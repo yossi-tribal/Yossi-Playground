@@ -1256,4 +1256,99 @@ public with sharing class CSD_CSDashboardController {
             throw new AuraHandledException('Error retrieving recent cases: ' + e.getMessage());
         }
     }
+
+    public class TaskPicklistValues {
+        @AuraEnabled public List<PicklistOption> statusValues { get; set; }
+        @AuraEnabled public List<PicklistOption> priorityValues { get; set; }
+        @AuraEnabled public List<PicklistOption> typeValues { get; set; }
+    }
+
+    public class PicklistOption {
+        @AuraEnabled public String label { get; set; }
+        @AuraEnabled public String value { get; set; }
+        public PicklistOption(String label, String value) {
+            this.label = label;
+            this.value = value;
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static TaskPicklistValues getTaskPicklistValues() {
+        TaskPicklistValues result = new TaskPicklistValues();
+        result.statusValues = new List<PicklistOption>();
+        result.priorityValues = new List<PicklistOption>();
+        result.typeValues = new List<PicklistOption>();
+
+        for (Schema.PicklistEntry pe : Schema.SObjectType.Task.fields.Status.getDescribe().getPicklistValues()) {
+            if (pe.isActive()) {
+                result.statusValues.add(new PicklistOption(pe.getLabel(), pe.getValue()));
+            }
+        }
+        for (Schema.PicklistEntry pe : Schema.SObjectType.Task.fields.Priority.getDescribe().getPicklistValues()) {
+            if (pe.isActive()) {
+                result.priorityValues.add(new PicklistOption(pe.getLabel(), pe.getValue()));
+            }
+        }
+        for (Schema.PicklistEntry pe : Schema.SObjectType.Task.fields.Type.getDescribe().getPicklistValues()) {
+            if (pe.isActive()) {
+                result.typeValues.add(new PicklistOption(pe.getLabel(), pe.getValue()));
+            }
+        }
+        return result;
+    }
+
+    @AuraEnabled
+    public static Id createTask(String fieldsJson) {
+        try {
+            Map<String, Object> fields = (Map<String, Object>) JSON.deserializeUntyped(fieldsJson);
+            Task t = new Task();
+            if (fields.containsKey('Subject'))      t.Subject      = (String) fields.get('Subject');
+            if (fields.containsKey('WhoId'))         t.WhoId        = (Id) fields.get('WhoId');
+            if (fields.containsKey('WhatId'))        t.WhatId       = (Id) fields.get('WhatId');
+            if (fields.containsKey('Status'))        t.Status       = (String) fields.get('Status');
+            if (fields.containsKey('Priority'))      t.Priority     = (String) fields.get('Priority');
+            if (fields.containsKey('Type'))          t.put('Type', (String) fields.get('Type'));
+            if (fields.containsKey('OwnerId'))       t.OwnerId      = (Id) fields.get('OwnerId');
+            if (fields.containsKey('Description'))   t.Description  = (String) fields.get('Description');
+            if (fields.containsKey('ActivityDate') && fields.get('ActivityDate') != null) {
+                t.ActivityDate = Date.valueOf((String) fields.get('ActivityDate'));
+            }
+            insert t;
+            return t.Id;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating task: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static Id createEvent(String fieldsJson) {
+        try {
+            Map<String, Object> fields = (Map<String, Object>) JSON.deserializeUntyped(fieldsJson);
+            Event ev = new Event();
+            if (fields.containsKey('Subject'))       ev.Subject      = (String) fields.get('Subject');
+            if (fields.containsKey('WhoId'))          ev.WhoId       = (Id) fields.get('WhoId');
+            if (fields.containsKey('WhatId'))         ev.WhatId      = (Id) fields.get('WhatId');
+            if (fields.containsKey('Location'))       ev.Location    = (String) fields.get('Location');
+            if (fields.containsKey('OwnerId'))        ev.OwnerId     = (Id) fields.get('OwnerId');
+            if (fields.containsKey('Description'))    ev.Description = (String) fields.get('Description');
+            if (fields.containsKey('IsAllDayEvent'))  ev.IsAllDayEvent = (Boolean) fields.get('IsAllDayEvent');
+
+            if (ev.IsAllDayEvent == true) {
+                if (fields.containsKey('ActivityDate') && fields.get('ActivityDate') != null) {
+                    ev.ActivityDate = Date.valueOf((String) fields.get('ActivityDate'));
+                }
+            } else {
+                if (fields.containsKey('StartDateTime') && fields.get('StartDateTime') != null) {
+                    ev.StartDateTime = Datetime.valueOf(((String) fields.get('StartDateTime')).replace('T', ' '));
+                }
+                if (fields.containsKey('EndDateTime') && fields.get('EndDateTime') != null) {
+                    ev.EndDateTime = Datetime.valueOf(((String) fields.get('EndDateTime')).replace('T', ' '));
+                }
+            }
+            insert ev;
+            return ev.Id;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating event: ' + e.getMessage());
+        }
+    }
 }

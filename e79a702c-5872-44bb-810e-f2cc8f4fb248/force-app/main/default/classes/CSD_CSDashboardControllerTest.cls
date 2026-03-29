@@ -943,4 +943,101 @@ private class CSD_CSDashboardControllerTest {
         }
         Test.stopTest();
     }
+
+    @isTest
+    static void testGetTaskPicklistValues() {
+        Test.startTest();
+        CSD_CSDashboardController.TaskPicklistValues vals =
+            CSD_CSDashboardController.getTaskPicklistValues();
+        Test.stopTest();
+
+        System.assertNotEquals(null, vals, 'Picklist values wrapper should not be null');
+        System.assert(!vals.statusValues.isEmpty(), 'Task Status picklist should have values');
+        System.assert(!vals.priorityValues.isEmpty(), 'Task Priority picklist should have values');
+        System.assertNotEquals(null, vals.statusValues[0].label, 'Label should be populated');
+        System.assertNotEquals(null, vals.statusValues[0].value, 'Value should be populated');
+    }
+
+    @isTest
+    static void testCreateTask_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        Map<String, Object> fields = new Map<String, Object>{
+            'Subject' => 'Test Created Task',
+            'WhatId' => testAccount.Id,
+            'Status' => 'Not Started',
+            'Priority' => 'Normal',
+            'ActivityDate' => String.valueOf(Date.today().addDays(7))
+        };
+
+        Test.startTest();
+        Id taskId = CSD_CSDashboardController.createTask(JSON.serialize(fields));
+        Test.stopTest();
+
+        System.assertNotEquals(null, taskId, 'Returned Task Id should not be null');
+        Task created = [SELECT Subject, WhatId, Status, Priority, ActivityDate FROM Task WHERE Id = :taskId];
+        System.assertEquals('Test Created Task', created.Subject);
+        System.assertEquals(testAccount.Id, created.WhatId);
+        System.assertEquals('Not Started', created.Status);
+    }
+
+    @isTest
+    static void testCreateTask_InvalidJson() {
+        Test.startTest();
+        try {
+            CSD_CSDashboardController.createTask('not valid json');
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage().contains('Error creating task'), 'Should contain error message');
+        }
+        Test.stopTest();
+    }
+
+    @isTest
+    static void testCreateEvent_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        Datetime startDt = Datetime.now().addDays(3);
+        Datetime endDt = startDt.addHours(1);
+
+        Map<String, Object> fields = new Map<String, Object>{
+            'Subject' => 'Test Created Event',
+            'WhatId' => testAccount.Id,
+            'IsAllDayEvent' => false,
+            'StartDateTime' => startDt.format('yyyy-MM-dd\'T\'HH:mm:ss'),
+            'EndDateTime' => endDt.format('yyyy-MM-dd\'T\'HH:mm:ss'),
+            'Location' => 'Conference Room'
+        };
+
+        Test.startTest();
+        Id eventId = CSD_CSDashboardController.createEvent(JSON.serialize(fields));
+        Test.stopTest();
+
+        System.assertNotEquals(null, eventId, 'Returned Event Id should not be null');
+        Event created = [SELECT Subject, WhatId, Location, IsAllDayEvent FROM Event WHERE Id = :eventId];
+        System.assertEquals('Test Created Event', created.Subject);
+        System.assertEquals(testAccount.Id, created.WhatId);
+        System.assertEquals('Conference Room', created.Location);
+        System.assertEquals(false, created.IsAllDayEvent);
+    }
+
+    @isTest
+    static void testCreateEvent_AllDay() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        Map<String, Object> fields = new Map<String, Object>{
+            'Subject' => 'All Day Event',
+            'WhatId' => testAccount.Id,
+            'IsAllDayEvent' => true,
+            'ActivityDate' => String.valueOf(Date.today().addDays(5))
+        };
+
+        Test.startTest();
+        Id eventId = CSD_CSDashboardController.createEvent(JSON.serialize(fields));
+        Test.stopTest();
+
+        System.assertNotEquals(null, eventId, 'Returned Event Id should not be null');
+        Event created = [SELECT Subject, IsAllDayEvent, ActivityDate FROM Event WHERE Id = :eventId];
+        System.assertEquals(true, created.IsAllDayEvent);
+    }
 }

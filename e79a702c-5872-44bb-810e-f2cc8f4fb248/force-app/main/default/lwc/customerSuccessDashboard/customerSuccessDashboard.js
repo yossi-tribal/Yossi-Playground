@@ -12,6 +12,9 @@ import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts'
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
 import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
 import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
+import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
+import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
+import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
     @api recordId; // Account record ID from the page context
@@ -36,6 +39,18 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track activityModalObjectApiName = '';
     @track activityModalTitle = '';
     @track activityModalIsLogCall = false;
+    @track activityModalSaving = false;
+
+    @track activityForm = {
+        Subject: '', WhoId: null, WhatId: null,
+        ActivityDate: null, Status: '', Priority: 'Normal', Type: '',
+        OwnerId: null, Description: '',
+        StartDateTime: null, EndDateTime: null,
+        IsAllDayEvent: false, Location: ''
+    };
+    @track whoIdObjectType = 'Contact';
+    @track whatIdObjectType = 'Account';
+    @track taskPicklistValues = null;
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
@@ -505,10 +520,32 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         });
     }
 
+    resetActivityForm(defaults = {}) {
+        this.activityForm = {
+            Subject: '', WhoId: null, WhatId: this.recordId,
+            ActivityDate: null, Status: defaults.Status || '', Priority: defaults.Priority || 'Normal',
+            Type: defaults.Type || '', OwnerId: null, Description: '',
+            StartDateTime: null, EndDateTime: null,
+            IsAllDayEvent: false, Location: ''
+        };
+        this.whoIdObjectType = 'Contact';
+        this.whatIdObjectType = 'Account';
+        this.activityModalSaving = false;
+    }
+
+    loadPicklistValuesIfNeeded() {
+        if (this.taskPicklistValues) return;
+        getTaskPicklistValues()
+            .then(result => { this.taskPicklistValues = result; })
+            .catch(() => { this.taskPicklistValues = { statusValues: [], priorityValues: [], typeValues: [] }; });
+    }
+
     handleCreateTask() {
         this.activityModalObjectApiName = 'Task';
         this.activityModalTitle = 'New Task';
         this.activityModalIsLogCall = false;
+        this.resetActivityForm();
+        this.loadPicklistValuesIfNeeded();
         this.showActivityModal = true;
     }
 
@@ -516,6 +553,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.activityModalObjectApiName = 'Event';
         this.activityModalTitle = 'New Event';
         this.activityModalIsLogCall = false;
+        this.resetActivityForm();
         this.showActivityModal = true;
     }
 
@@ -523,35 +561,9 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.activityModalObjectApiName = 'Task';
         this.activityModalTitle = 'Log a Call';
         this.activityModalIsLogCall = true;
+        this.resetActivityForm({ Status: 'Completed', Type: 'Call' });
+        this.loadPicklistValuesIfNeeded();
         this.showActivityModal = true;
-    }
-
-    handleActivityModalSuccess() {
-        this.showActivityModal = false;
-        const objectLabel = this.activityModalIsLogCall
-            ? 'Call'
-            : this.activityModalObjectApiName === 'Event'
-                ? 'Event'
-                : 'Task';
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: 'Success',
-                message: `${objectLabel} created successfully.`,
-                variant: 'success'
-            })
-        );
-        this.handleRefresh();
-    }
-
-    handleActivityModalError(event) {
-        const message = event.detail?.message || event.detail?.detail || 'An error occurred while saving.';
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: 'Error',
-                message: message,
-                variant: 'error'
-            })
-        );
     }
 
     handleActivityModalCancel() {
@@ -559,20 +571,72 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     handleActivityModalSubmit() {
-        this.template.querySelector('lightning-record-edit-form').submit();
-    }
-
-    handleActivityFormLoad() {
-        if (this.activityModalIsLogCall) {
-            const statusField = this.template.querySelector('lightning-input-field[data-field="Status"]');
-            const typeField = this.template.querySelector('lightning-input-field[data-field="Type"]');
-            if (statusField) {
-                statusField.value = 'Completed';
-            }
-            if (typeField) {
-                typeField.value = 'Call';
+        if (!this.activityForm.Subject) {
+            this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: 'Subject is required.', variant: 'error' }));
+            return;
+        }
+        if (this.activityModalObjectApiName === 'Event' && !this.activityForm.IsAllDayEvent) {
+            if (!this.activityForm.StartDateTime || !this.activityForm.EndDateTime) {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: 'Start and End date/time are required.', variant: 'error' }));
+                return;
             }
         }
+
+        this.activityModalSaving = true;
+        const fields = { ...this.activityForm };
+
+        Object.keys(fields).forEach(k => {
+            if (fields[k] === null || fields[k] === '' || fields[k] === undefined) {
+                delete fields[k];
+            }
+        });
+
+        const apexCall = this.activityModalObjectApiName === 'Event'
+            ? createEvent({ fieldsJson: JSON.stringify(fields) })
+            : createTask({ fieldsJson: JSON.stringify(fields) });
+
+        const objectLabel = this.activityModalIsLogCall ? 'Call' : this.activityModalObjectApiName;
+
+        apexCall
+            .then(() => {
+                this.showActivityModal = false;
+                this.dispatchEvent(new ShowToastEvent({ title: 'Success', message: `${objectLabel} created successfully.`, variant: 'success' }));
+                this.handleRefresh();
+            })
+            .catch(error => {
+                const msg = error.body ? error.body.message : error.message;
+                this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: msg, variant: 'error' }));
+            })
+            .finally(() => { this.activityModalSaving = false; });
+    }
+
+    handleActivityFieldChange(event) {
+        const field = event.target.dataset.field;
+        if (!field) return;
+        const val = event.target.type === 'checkbox' ? event.target.checked : event.detail.value;
+        this.activityForm = { ...this.activityForm, [field]: val };
+    }
+
+    handleWhoIdChange(event) {
+        this.activityForm = { ...this.activityForm, WhoId: event.detail.recordId || null };
+    }
+
+    handleWhatIdChange(event) {
+        this.activityForm = { ...this.activityForm, WhatId: event.detail.recordId || null };
+    }
+
+    handleOwnerIdChange(event) {
+        this.activityForm = { ...this.activityForm, OwnerId: event.detail.recordId || null };
+    }
+
+    handleWhoIdObjectChange(event) {
+        this.whoIdObjectType = event.detail.value;
+        this.activityForm = { ...this.activityForm, WhoId: null };
+    }
+
+    handleWhatIdObjectChange(event) {
+        this.whatIdObjectType = event.detail.value;
+        this.activityForm = { ...this.activityForm, WhatId: null };
     }
 
     /**
@@ -1082,6 +1146,37 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get isEventModal() {
         return this.activityModalObjectApiName === 'Event';
+    }
+
+    get taskStatusOptions() {
+        return this.taskPicklistValues?.statusValues?.map(v => ({ label: v.label, value: v.value })) || [];
+    }
+
+    get taskPriorityOptions() {
+        return this.taskPicklistValues?.priorityValues?.map(v => ({ label: v.label, value: v.value })) || [];
+    }
+
+    get taskTypeOptions() {
+        return this.taskPicklistValues?.typeValues?.map(v => ({ label: v.label, value: v.value })) || [];
+    }
+
+    get whoIdObjectOptions() {
+        return [
+            { label: 'Contact', value: 'Contact' },
+            { label: 'Lead', value: 'Lead' }
+        ];
+    }
+
+    get whatIdObjectOptions() {
+        return [
+            { label: 'Account', value: 'Account' },
+            { label: 'Opportunity', value: 'Opportunity' },
+            { label: 'Case', value: 'Case' }
+        ];
+    }
+
+    get activitySaveDisabled() {
+        return this.activityModalSaving;
     }
 
     /** ISO currency for formatted-number (org default from Apex) */
