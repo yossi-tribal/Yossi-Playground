@@ -3,10 +3,10 @@ import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getDashboardSummary from '@salesforce/apex/CSD_CSDashboardController.getDashboardSummary';
 import getOpenCases from '@salesforce/apex/CSD_CSDashboardController.getOpenCases';
-import getOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getOverdueTasks';
+import getOpenTasks from '@salesforce/apex/CSD_CSDashboardController.getOpenTasks';
 import getUpcomingActivities from '@salesforce/apex/CSD_CSDashboardController.getUpcomingActivities';
 import getAllOpenCases from '@salesforce/apex/CSD_CSDashboardController.getAllOpenCases';
-import getAllOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getAllOverdueTasks';
+import getAllOpenTasks from '@salesforce/apex/CSD_CSDashboardController.getAllOpenTasks';
 import getAllOpportunities from '@salesforce/apex/CSD_CSDashboardController.getAllOpportunities';
 import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts';
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
@@ -22,7 +22,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     @track summary = null;
     @track cases = [];
-    @track overdueTasks = [];
+    @track openTasks = [];
     @track upcomingActivities = [];
     @track contacts = [];
     @track opportunities = [];
@@ -57,7 +57,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
-        overdueTasks: false,
+        openTasks: false,
         cases: false,
         opportunities: false,
         activities: false,
@@ -92,8 +92,8 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         // Load cases
         this.loadCases();
 
-        // Load overdue tasks
-        this.loadOverdueTasks();
+        // Load open tasks
+        this.loadOpenTasks();
 
         // Load upcoming activities
         this.loadUpcomingActivities();
@@ -140,17 +140,17 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Load overdue tasks
+     * Load open tasks
      */
-    loadOverdueTasks() {
-        getOverdueTasks({ accountId: this.recordId, recordLimit: 5 })
+    loadOpenTasks() {
+        getOpenTasks({ accountId: this.recordId, recordLimit: 10 })
             .then(result => {
-                this.overdueTasks = result;
+                this.openTasks = result;
                 this.areTasksLoaded = true;
                 this.checkAllLoaded();
             })
             .catch(error => {
-                this.handleError('Failed to load overdue tasks', error);
+                this.handleError('Failed to load open tasks', error);
                 this.areTasksLoaded = true;
                 this.checkAllLoaded();
             });
@@ -186,18 +186,18 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Auto-expand: overdue tasks first, else upcoming activities.
+     * Auto-expand: open tasks if any exist (especially overdue), else upcoming activities.
      */
     applyDefaultSectionExpansion() {
-        const overdue =
-            (this.summary && this.summary.overdueTasks > 0) ||
-            (this.overdueTasks && this.overdueTasks.length > 0);
+        const hasOpenTasks =
+            (this.summary && this.summary.openTasksCount > 0) ||
+            (this.openTasks && this.openTasks.length > 0);
         const upcoming = this.upcomingActivities && this.upcomingActivities.length > 0;
         this.sectionExpanded = {
-            overdueTasks: overdue,
+            openTasks: hasOpenTasks,
             cases: false,
             opportunities: false,
-            activities: !overdue && upcoming,
+            activities: !hasOpenTasks && upcoming,
             contacts: false
         };
     }
@@ -318,7 +318,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         if (metric === 'cases') {
             this.handleOpenCasesClick();
         } else if (metric === 'tasks') {
-            this.handleOverdueTasksClick();
+            this.handleOpenTasksClick();
         } else if (metric === 'opportunities') {
             this.handleOpportunitiesClick();
         }
@@ -346,22 +346,22 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Handle Overdue Tasks KPI click
+     * Handle Open Tasks KPI click
      */
-    handleOverdueTasksClick() {
-        this.kpiModalTitle = 'Overdue Tasks';
+    handleOpenTasksClick() {
+        this.kpiModalTitle = 'Open Tasks';
         this.kpiModalType = 'tasks';
         this.kpiModalScope = '';
-        this.kpiModalEmptyMessage = 'Great job! No overdue tasks.';
+        this.kpiModalEmptyMessage = 'No open tasks — great job!';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
-        getAllOverdueTasks({ accountId: this.recordId })
+        getAllOpenTasks({ accountId: this.recordId })
             .then(result => {
                 this.kpiModalData = result || [];
             })
             .catch(error => {
-                this.handleError('Failed to load overdue tasks', error);
+                this.handleError('Failed to load open tasks', error);
                 this.showKpiModal = false;
             });
     }
@@ -642,7 +642,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
         // Route to appropriate handler based on action type
         if (actionHandler === 'overdue-tasks') {
-            this.handleOverdueTasksClick();
+            this.handleOpenTasksClick();
         } else if (actionHandler === 'high-priority-cases') {
             this.handleOpenCasesClick();
         } else if (actionHandler === 'schedule-checkin') {
@@ -654,7 +654,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         } else {
             // Fallback: determine which action to take based on priority
             if (this.summary && this.summary.overdueTasks > 0) {
-                this.handleOverdueTasksClick();
+                this.handleOpenTasksClick();
             } else if (this.summary && this.summary.highPriorityCasesCount > 0) {
                 this.handleOpenCasesClick();
             } else if (this.summary && this.summary.daysSinceLastActivity > 30) {
@@ -702,8 +702,8 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return this.summary.csmName;
     }
 
-    get secOverdueTasks() {
-        return this.sectionExpanded.overdueTasks;
+    get secOpenTasks() {
+        return this.sectionExpanded.openTasks;
     }
 
     get secCases() {
@@ -774,8 +774,8 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return 'priority-dot priority-dot--neutral';
     }
 
-    get overdueAccordionClass() {
-        return `section-accordion${this.sectionExpanded.overdueTasks ? ' section-accordion--expanded' : ''}`;
+    get openTasksAccordionClass() {
+        return `section-accordion${this.sectionExpanded.openTasks ? ' section-accordion--expanded' : ''}`;
     }
 
     get casesAccordionClass() {
@@ -802,8 +802,38 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return this.summary && this.summary.overdueTasks > 0;
     }
 
-    get hasOverdueTasksList() {
-        return this.overdueTasks && this.overdueTasks.length > 0;
+    get hasOpenTasksList() {
+        return this.openTasks && this.openTasks.length > 0;
+    }
+
+    get openTasksDecorated() {
+        if (!this.openTasks || !this.openTasks.length) return [];
+        return this.openTasks.map(task => {
+            let rowClass = 'activity-item';
+            if (task.isOverdue) {
+                rowClass = 'activity-item activity-item--overdue';
+            } else if (task.isDueToday) {
+                rowClass = 'activity-item activity-item--due-today';
+            }
+            let dateMeta = task.activityDate || 'No due date';
+            if (task.isOverdue) {
+                dateMeta = `${task.daysOverdue} day${task.daysOverdue !== 1 ? 's' : ''} overdue`;
+            } else if (task.isDueToday) {
+                dateMeta = 'Due today';
+            }
+            return {
+                ...task,
+                rowClass,
+                dateMeta,
+                dateMetaClass: task.isOverdue ? 'overdue-text' : '',
+                showUrgencyIndicator: task.isOverdue || task.isDueToday,
+                urgencyLabel: task.isOverdue ? 'Overdue' : task.isDueToday ? 'Due today' : ''
+            };
+        });
+    }
+
+    get openTasksCount() {
+        return this.openTasks ? this.openTasks.length : 0;
     }
 
     get hasUpcomingActivities() {
@@ -849,6 +879,9 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         if (this.summary.overdueTasks > 0) {
             return 'stat-value stat-value--danger';
         }
+        if (this.summary.openTasksCount > 0) {
+            return 'stat-value stat-value--warning';
+        }
         return 'stat-value';
     }
 
@@ -867,7 +900,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     get statTasksSubtext() {
         if (!this.summary) return '';
         if (this.summary.overdueTasks > 0) {
-            return 'Action required';
+            return `${this.summary.overdueTasks} overdue`;
         }
         return 'On track';
     }
@@ -1274,6 +1307,51 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 ariaLabel: `${r.count} case${r.count !== 1 ? 's' : ''} opened in ${r.label || ''}`
             };
         });
+    }
+
+    /** Monthly closed-won revenue: 6-month paired bar array (this year vs last year) */
+    get revenueMonthBars() {
+        if (!this.summary) return [];
+        const raw = [
+            { label: this.summary.wonMonth1Label, current: Number(this.summary.wonMonth1 || 0), prev: Number(this.summary.wonMonth1Prev || 0) },
+            { label: this.summary.wonMonth2Label, current: Number(this.summary.wonMonth2 || 0), prev: Number(this.summary.wonMonth2Prev || 0) },
+            { label: this.summary.wonMonth3Label, current: Number(this.summary.wonMonth3 || 0), prev: Number(this.summary.wonMonth3Prev || 0) },
+            { label: this.summary.wonMonth4Label, current: Number(this.summary.wonMonth4 || 0), prev: Number(this.summary.wonMonth4Prev || 0) },
+            { label: this.summary.wonMonth5Label, current: Number(this.summary.wonMonth5 || 0), prev: Number(this.summary.wonMonth5Prev || 0) },
+            { label: this.summary.wonMonth6Label, current: Number(this.summary.wonMonth6 || 0), prev: Number(this.summary.wonMonth6Prev || 0) }
+        ];
+        const max = Math.max(...raw.flatMap((r) => [r.current, r.prev]), 1);
+        return raw.map((r, index) => {
+            const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
+            const prevPct = r.prev === 0 ? 0 : Math.max(6, Math.round((r.prev / max) * 100));
+            return {
+                key: `wm-${index}`,
+                label: r.label || '—',
+                currentAmount: r.current,
+                prevAmount: r.prev,
+                currentBarStyle: `height: ${curPct}%;`,
+                prevBarStyle: `height: ${prevPct}%;`,
+                hasCurrentBar: r.current > 0,
+                hasPrevBar: r.prev > 0,
+                ariaLabel: `${r.label || ''}: this year ${this.formatCompactCurrency(r.current)}, last year ${this.formatCompactCurrency(r.prev)}`
+            };
+        });
+    }
+
+    get hasRevenueMonthData() {
+        if (!this.summary) return false;
+        return [
+            this.summary.wonMonth1, this.summary.wonMonth2, this.summary.wonMonth3,
+            this.summary.wonMonth4, this.summary.wonMonth5, this.summary.wonMonth6,
+            this.summary.wonMonth1Prev, this.summary.wonMonth2Prev, this.summary.wonMonth3Prev,
+            this.summary.wonMonth4Prev, this.summary.wonMonth5Prev, this.summary.wonMonth6Prev
+        ].some((v) => Number(v || 0) > 0);
+    }
+
+    formatCompactCurrency(value) {
+        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+        return `$${value}`;
     }
 
     handleCaseTrendBarClick(event) {

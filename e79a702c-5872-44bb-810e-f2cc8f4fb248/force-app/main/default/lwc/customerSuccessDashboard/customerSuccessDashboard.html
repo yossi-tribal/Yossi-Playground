@@ -148,8 +148,8 @@
                         <div class="stat-divider" aria-hidden="true"></div>
                         <button type="button" class="stat-item stat-item--clickable" onclick={handleMetricClick} data-metric="tasks">
                             <span class="stat-dot stat-dot--tasks"></span>
-                            <span class={statTasksValueClass}>{summary.overdueTasks}</span>
-                            <span class="stat-label">Overdue tasks</span>
+                            <span class={statTasksValueClass}>{summary.openTasksCount}</span>
+                            <span class="stat-label">Open tasks</span>
                             <span class="stat-hint">{statTasksSubtext}</span>
                         </button>
                         <div class="stat-divider" aria-hidden="true"></div>
@@ -172,7 +172,7 @@
                             aria-expanded={commercialSnapshotExpanded}>
                             <div class="commercial-snapshot-head-main">
                                 <span class="commercial-snapshot-title">Customer Success Snapshot</span>
-                                <span class="commercial-snapshot-hint">Revenue, pipeline, case resolution, support trends, and renewals</span>
+                                <span class="commercial-snapshot-hint">Revenue, pipeline, renewals, case resolution, and support trends</span>
                             </div>
                             <lightning-icon
                                 icon-name="utility:chevronright"
@@ -181,94 +181,149 @@
                         </button>
                         <template if:true={commercialSnapshotExpanded}>
                         <div class="commercial-snapshot-body">
-                        <div class="commercial-kpi-row">
-                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialAllTimeClick}>
-                                <span class="commercial-kpi-label">All-time won revenue</span>
-                                <span class="commercial-kpi-value">
-                                    <lightning-formatted-number value={summary.totalWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                </span>
-                                <span class="commercial-kpi-sub">Closed-won opportunities</span>
-                            </button>
-                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
-                                <span class="commercial-kpi-label">Won revenue (YTD)</span>
-                                <span class="commercial-kpi-value">
-                                    <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                </span>
-                                <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
-                            </button>
-                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialPipelineClick}>
-                                <span class="commercial-kpi-label">Open pipeline</span>
-                                <span class="commercial-kpi-value">
-                                    <lightning-formatted-number value={summary.openPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                </span>
-                                <span class="commercial-kpi-sub">Weighted: <lightning-formatted-number value={summary.weightedPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
-                            </button>
-                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialRecentCasesClick}>
-                                <span class="commercial-kpi-label">Cases (90 days)</span>
-                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
-                                <span class="commercial-kpi-sub">Opened on this account</span>
-                            </button>
-                            <template if:true={hasUpcomingRenewal}>
-                                <button type="button" class={renewalCardClass} onclick={handleCommercialRenewalClick}>
-                                    <span class="commercial-kpi-label">Next renewal</span>
-                                    <span class="commercial-kpi-value">
-                                        <lightning-formatted-number value={nearestRenewalAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                    </span>
-                                    <span class={renewalDaysClass}>{renewalSubtitle}</span>
-                                </button>
-                            </template>
-                            <template if:false={hasUpcomingRenewal}>
-                                <div class="commercial-kpi">
-                                    <span class="commercial-kpi-label">Next renewal</span>
-                                    <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
-                                    <span class="commercial-kpi-sub">{renewalSubtitle}</span>
-                                </div>
-                            </template>
-                        </div>
 
-                        <div class="commercial-visuals">
-                            <div class="case-resolution">
-                                <span class="case-resolution-title">Case resolution (90 days)</span>
-                                <template if:true={hasCaseResolutionData}>
-                                    <p class="case-resolution-subtitle">{closedCasesSubtitle}</p>
-                                    <div class="case-resolution-hero">
-                                        <span class="case-resolution-hero-value">{caseResolutionMedianDays}</span>
-                                        <span class="case-resolution-hero-unit">days</span>
-                                        <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>
-                                            <span class="case-resolution-trend-arrow">{resolutionTrendIcon}</span>
-                                            {resolutionTrendText}
-                                        </span>
-                                    </div>
-                                    <template if:true={showCaseResolutionRange}>
-                                        <p class="case-resolution-range">{caseResolutionRangeText}</p>
-                                    </template>
-                                </template>
-                                <template if:false={hasCaseResolutionData}>
-                                    <div class="case-resolution-empty">No closed cases in the last 90 days</div>
-                                </template>
+                        <!-- REVENUE -->
+                        <div class="snapshot-section">
+                            <span class="snapshot-section-header">Revenue</span>
+                            <div class="commercial-kpi-row">
+                                <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialAllTimeClick}>
+                                    <span class="commercial-kpi-label">All-time won revenue</span>
+                                    <span class="commercial-kpi-value">
+                                        <lightning-formatted-number value={summary.totalWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                    </span>
+                                    <span class="commercial-kpi-sub">Closed-won opportunities</span>
+                                </button>
+                                <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
+                                    <span class="commercial-kpi-label">Won revenue (YTD)</span>
+                                    <span class="commercial-kpi-value">
+                                        <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                    </span>
+                                    <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
+                                </button>
+                                <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialPipelineClick}>
+                                    <span class="commercial-kpi-label">Open pipeline</span>
+                                    <span class="commercial-kpi-value">
+                                        <lightning-formatted-number value={summary.openPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                    </span>
+                                    <span class="commercial-kpi-sub">Weighted: <lightning-formatted-number value={summary.weightedPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
+                                </button>
                             </div>
-                            <div class="case-trend-wrap">
-                                <span class="case-trend-title">Cases opened (6 months)</span>
-                                <div class="case-trend">
-                                    <template for:each={caseTrendBars} for:item="cb">
-                                        <div key={cb.key} class="case-trend-col">
-                                            <button
-                                                type="button"
-                                                class="case-trend-bar-btn"
-                                                data-label={cb.label}
-                                                onclick={handleCaseTrendBarClick}
-                                                aria-label={cb.ariaLabel}>
-                                                <span class="case-trend-bar-count">{cb.count}</span>
-                                                <div class="case-trend-bar-track">
-                                                    <div class="case-trend-bar-fill" style={cb.barStyle}></div>
-                                                </div>
-                                            </button>
-                                            <span class="case-trend-label">{cb.label}</span>
+                            <div class="revenue-visuals">
+                                <div class="revenue-renewal-card">
+                                    <template if:true={hasUpcomingRenewal}>
+                                        <button type="button" class={renewalCardClass} onclick={handleCommercialRenewalClick}>
+                                            <span class="commercial-kpi-label">Next renewal</span>
+                                            <span class="commercial-kpi-value">
+                                                <lightning-formatted-number value={nearestRenewalAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                            </span>
+                                            <span class={renewalDaysClass}>{renewalSubtitle}</span>
+                                        </button>
+                                    </template>
+                                    <template if:false={hasUpcomingRenewal}>
+                                        <div class="commercial-kpi">
+                                            <span class="commercial-kpi-label">Next renewal</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
+                                            <span class="commercial-kpi-sub">{renewalSubtitle}</span>
                                         </div>
                                     </template>
                                 </div>
+                                <div class="revenue-trend-wrap">
+                                    <div class="revenue-trend-header">
+                                        <span class="revenue-trend-title">Closed won per month</span>
+                                        <div class="revenue-trend-legend">
+                                            <span class="revenue-trend-legend-item">
+                                                <span class="revenue-trend-legend-dot revenue-trend-legend-dot--current"></span>
+                                                This year
+                                            </span>
+                                            <span class="revenue-trend-legend-item">
+                                                <span class="revenue-trend-legend-dot revenue-trend-legend-dot--prev"></span>
+                                                Last year
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <template if:true={hasRevenueMonthData}>
+                                        <div class="revenue-trend">
+                                            <template for:each={revenueMonthBars} for:item="rb">
+                                                <div key={rb.key} class="revenue-trend-col" aria-label={rb.ariaLabel}>
+                                                    <div class="revenue-trend-pair">
+                                                        <div class="revenue-trend-bar-track">
+                                                            <template if:true={rb.hasPrevBar}>
+                                                                <div class="revenue-trend-bar-fill revenue-trend-bar-fill--prev" style={rb.prevBarStyle}></div>
+                                                            </template>
+                                                        </div>
+                                                        <div class="revenue-trend-bar-track">
+                                                            <template if:true={rb.hasCurrentBar}>
+                                                                <div class="revenue-trend-bar-fill revenue-trend-bar-fill--current" style={rb.currentBarStyle}></div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                    <span class="case-trend-label">{rb.label}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template if:false={hasRevenueMonthData}>
+                                        <div class="case-resolution-empty">No closed-won opportunities in the last 6 months</div>
+                                    </template>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- SUPPORT -->
+                        <div class="snapshot-section snapshot-section--border">
+                            <span class="snapshot-section-header">Support</span>
+                            <div class="commercial-kpi-row commercial-kpi-row--single">
+                                <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialRecentCasesClick}>
+                                    <span class="commercial-kpi-label">Cases (90 days)</span>
+                                    <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
+                                    <span class="commercial-kpi-sub">Opened on this account</span>
+                                </button>
+                            </div>
+                            <div class="commercial-visuals">
+                                <div class="case-resolution">
+                                    <span class="case-resolution-title">Case resolution (90 days)</span>
+                                    <template if:true={hasCaseResolutionData}>
+                                        <p class="case-resolution-subtitle">{closedCasesSubtitle}</p>
+                                        <div class="case-resolution-hero">
+                                            <span class="case-resolution-hero-value">{caseResolutionMedianDays}</span>
+                                            <span class="case-resolution-hero-unit">days</span>
+                                            <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>
+                                                <span class="case-resolution-trend-arrow">{resolutionTrendIcon}</span>
+                                                {resolutionTrendText}
+                                            </span>
+                                        </div>
+                                        <template if:true={showCaseResolutionRange}>
+                                            <p class="case-resolution-range">{caseResolutionRangeText}</p>
+                                        </template>
+                                    </template>
+                                    <template if:false={hasCaseResolutionData}>
+                                        <div class="case-resolution-empty">No closed cases in the last 90 days</div>
+                                    </template>
+                                </div>
+                                <div class="case-trend-wrap">
+                                    <span class="case-trend-title">Cases opened (6 months)</span>
+                                    <div class="case-trend">
+                                        <template for:each={caseTrendBars} for:item="cb">
+                                            <div key={cb.key} class="case-trend-col">
+                                                <button
+                                                    type="button"
+                                                    class="case-trend-bar-btn"
+                                                    data-label={cb.label}
+                                                    onclick={handleCaseTrendBarClick}
+                                                    aria-label={cb.ariaLabel}>
+                                                    <span class="case-trend-bar-count">{cb.count}</span>
+                                                    <div class="case-trend-bar-track">
+                                                        <div class="case-trend-bar-fill" style={cb.barStyle}></div>
+                                                    </div>
+                                                </button>
+                                                <span class="case-trend-label">{cb.label}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         </div>
                         </template>
                     </div>
@@ -278,20 +333,23 @@
                 <template if:true={hasSummary}>
                 <div class="detail-sections">
 
-                    <!-- Overdue Tasks -->
-                    <div class={overdueAccordionClass}>
-                        <button type="button" class="section-accordion-header" data-section="overdueTasks" onclick={handleToggleSection}>
+                    <!-- Open Tasks -->
+                    <div class={openTasksAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="openTasks" onclick={handleToggleSection}>
                             <lightning-icon icon-name="standard:task" size="small" class="section-accordion-icon"></lightning-icon>
-                            <span class="section-accordion-title">Overdue tasks</span>
-                            <span class="section-accordion-count">({summary.overdueTasks})</span>
+                            <span class="section-accordion-title">Open tasks</span>
+                            <span class="section-accordion-count">({summary.openTasksCount})</span>
+                            <template if:true={hasOverdueTasks}>
+                                <span class="section-accordion-badge section-accordion-badge--danger">{summary.overdueTasks} overdue</span>
+                            </template>
                             <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
                         </button>
-                        <template if:true={secOverdueTasks}>
+                        <template if:true={secOpenTasks}>
                             <div class="section-accordion-body">
-                                <template if:true={hasOverdueTasksList}>
+                                <template if:true={hasOpenTasksList}>
                                     <div class="activity-list">
-                                        <template for:each={overdueTasks} for:item="task">
-                                            <div key={task.activityId} data-id={task.activityId} onclick={handleActivityClick} class="activity-item activity-item--overdue">
+                                        <template for:each={openTasksDecorated} for:item="task">
+                                            <div key={task.activityId} data-id={task.activityId} onclick={handleActivityClick} class={task.rowClass}>
                                                 <div class="activity-icon-wrapper">
                                                     <lightning-icon icon-name="standard:task" size="small"></lightning-icon>
                                                 </div>
@@ -300,17 +358,21 @@
                                                     <div class="activity-meta">
                                                         <span>{task.ownerName}</span>
                                                         <span class="meta-separator">•</span>
-                                                        <span class="overdue-text">{task.daysOverdue} days overdue</span>
+                                                        <template if:true={task.showUrgencyIndicator}>
+                                                            <span class="task-urgency-label">{task.urgencyLabel}</span>
+                                                            <span class="meta-separator">•</span>
+                                                        </template>
+                                                        <span class={task.dateMetaClass}>{task.dateMeta}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </template>
                                     </div>
                                 </template>
-                                <template if:false={hasOverdueTasksList}>
+                                <template if:false={hasOpenTasksList}>
                                     <div class="empty-state empty-state--compact">
                                         <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
-                                        <p class="empty-text">No overdue tasks</p>
+                                        <p class="empty-text">No open tasks</p>
                                     </div>
                                 </template>
                             </div>
@@ -755,7 +817,7 @@
                                             <tr>
                                                 <th>Subject</th>
                                                 <th>Due Date</th>
-                                                <th>Days Overdue</th>
+                                                <th>Urgency</th>
                                                 <th>Owner</th>
                                                 <th>Status</th>
                                             </tr>
@@ -765,7 +827,14 @@
                                                 <tr key={task.activityId} data-id={task.activityId} onclick={handleKpiRecordClick} class="table-row">
                                                     <td class="subject-cell">{task.subject}</td>
                                                     <td>{task.activityDate}</td>
-                                                    <td><span class="overdue-badge">{task.daysOverdue} days</span></td>
+                                                    <td>
+                                                        <template if:true={task.isOverdue}>
+                                                            <span class="overdue-badge">{task.daysOverdue} days overdue</span>
+                                                        </template>
+                                                        <template if:true={task.isDueToday}>
+                                                            <span class="due-today-badge">Due today</span>
+                                                        </template>
+                                                    </td>
                                                     <td>{task.ownerName}</td>
                                                     <td><span class="status-badge">{task.status}</span></td>
                                                 </tr>

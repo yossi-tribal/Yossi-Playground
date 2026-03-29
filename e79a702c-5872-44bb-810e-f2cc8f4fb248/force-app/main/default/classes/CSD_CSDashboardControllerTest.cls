@@ -183,6 +183,7 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals(3, summary.openCasesCount, 'Should have 3 open cases');
         System.assertEquals(2, summary.highPriorityCasesCount, 'Should have 2 high priority cases');
         System.assertEquals(1, summary.overdueTasks, 'Should have 1 overdue task');
+        System.assertEquals(2, summary.openTasksCount, 'Should have 2 open tasks');
         System.assertNotEquals('No recent activity', summary.lastActivityDate, 'Should have recent activity');
         System.assertNotEquals('No upcoming activity', summary.nextPlannedActivity, 'Should have upcoming activity');
         System.assertEquals(3, summary.opportunityCount, 'Should have 3 open opportunities');
@@ -195,6 +196,11 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals(3, summary.casesOpenedLast90Days, 'Should count cases opened in last 90 days');
         System.assertNotEquals(null, summary.currencyCode, 'Currency code should be set');
         System.assertNotEquals(null, summary.wonQuarter1Label, 'Quarter labels should be populated');
+
+        System.assertNotEquals(null, summary.wonMonth6Label, 'Monthly won labels should be populated');
+        System.assert(summary.wonMonth6 >= 0, 'Current month won amount should be non-negative');
+        System.assert(summary.wonMonth6Prev >= 0, 'Prior year month won amount should be non-negative');
+        System.assert(summary.wonMonth6 == 5000, 'Current month should include the Closed Won YTD opp');
     }
 
     /**
@@ -230,6 +236,7 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals(0, summary.openCasesCount, 'Should have 0 open cases');
         System.assertEquals(0, summary.highPriorityCasesCount, 'Should have 0 high priority cases');
         System.assertEquals(0, summary.overdueTasks, 'Should have 0 overdue tasks');
+        System.assertEquals(0, summary.openTasksCount, 'Should have 0 open tasks');
         System.assertEquals('No recent activity', summary.lastActivityDate, 'Should show no recent activity');
         System.assertEquals('No upcoming activity', summary.nextPlannedActivity, 'Should show no upcoming activity');
         System.assertEquals(0, summary.opportunityCount, 'Should have 0 opportunities');
@@ -239,6 +246,9 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals(0, summary.openPipelineAmount, 'Pipeline should be 0');
         System.assertEquals(0, summary.weightedPipelineAmount, 'Weighted pipeline should be 0');
         System.assertEquals(0, summary.casesOpenedLast90Days, 'Recent cases should be 0');
+        System.assertEquals(0, summary.wonMonth1, 'Monthly won should be 0 for empty account');
+        System.assertEquals(0, summary.wonMonth1Prev, 'Prior year monthly won should be 0 for empty account');
+        System.assertNotEquals(null, summary.wonMonth1Label, 'Monthly won label should be set even for empty account');
     }
 
     /**
@@ -303,33 +313,35 @@ private class CSD_CSDashboardControllerTest {
     }
 
     /**
-     * @description Test getOverdueTasks method
+     * @description Test getOpenTasks method — returns all open tasks sorted overdue-first
      */
     @isTest
-    static void testGetOverdueTasks_Success() {
+    static void testGetOpenTasks_Success() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
 
         Test.startTest();
         List<CSD_CSDashboardController.ActivityData> tasks =
-            CSD_CSDashboardController.getOverdueTasks(testAccount.Id, 5);
+            CSD_CSDashboardController.getOpenTasks(testAccount.Id, 10);
         Test.stopTest();
 
-        // Assertions
-        System.assertEquals(1, tasks.size(), 'Should return 1 overdue task');
+        // Assertions — test data has 1 overdue + 1 upcoming open task
+        System.assertEquals(2, tasks.size(), 'Should return 2 open tasks');
         System.assertEquals('Task', tasks[0].activityType, 'Activity type should be Task');
-        System.assertEquals('Overdue Task 1', tasks[0].subject, 'Task subject should match');
+        // Overdue task should sort first (earliest date)
+        System.assertEquals(true, tasks[0].isOverdue, 'First task should be overdue');
         System.assert(tasks[0].daysOverdue > 0, 'Days overdue should be positive');
+        System.assertEquals(false, tasks[1].isOverdue, 'Second task should not be overdue');
         System.assertNotEquals(null, tasks[0].ownerName, 'Owner name should not be null');
     }
 
     /**
-     * @description Test getOverdueTasks with null account ID
+     * @description Test getOpenTasks with null account ID
      */
     @isTest
-    static void testGetOverdueTasks_NullAccountId() {
+    static void testGetOpenTasks_NullAccountId() {
         Test.startTest();
         try {
-            CSD_CSDashboardController.getOverdueTasks(null, 5);
+            CSD_CSDashboardController.getOpenTasks(null, 10);
             System.assert(false, 'Expected AuraHandledException');
         } catch (AuraHandledException e) {
             System.assert(e.getMessage().contains('Account ID is required'),
@@ -442,7 +454,7 @@ private class CSD_CSDashboardControllerTest {
         List<CSD_CSDashboardController.CaseData> cases =
             CSD_CSDashboardController.getOpenCases(testAccount.Id, null);
         List<CSD_CSDashboardController.ActivityData> tasks =
-            CSD_CSDashboardController.getOverdueTasks(testAccount.Id, null);
+            CSD_CSDashboardController.getOpenTasks(testAccount.Id, null);
         List<CSD_CSDashboardController.ActivityData> activities =
             CSD_CSDashboardController.getUpcomingActivities(testAccount.Id, null);
         Test.stopTest();
@@ -488,31 +500,32 @@ private class CSD_CSDashboardControllerTest {
     }
 
     /**
-     * @description Test getAllOverdueTasks method
+     * @description Test getAllOpenTasks method
      */
     @isTest
-    static void testGetAllOverdueTasks_Success() {
+    static void testGetAllOpenTasks_Success() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
 
         Test.startTest();
         List<CSD_CSDashboardController.ActivityData> tasks =
-            CSD_CSDashboardController.getAllOverdueTasks(testAccount.Id);
+            CSD_CSDashboardController.getAllOpenTasks(testAccount.Id);
         Test.stopTest();
 
-        // Assertions
-        System.assertEquals(1, tasks.size(), 'Should return 1 overdue task');
+        // Assertions — test data has 1 overdue + 1 upcoming open task
+        System.assertEquals(2, tasks.size(), 'Should return 2 open tasks');
         System.assertEquals('Task', tasks[0].activityType, 'Activity type should be Task');
+        System.assertEquals(true, tasks[0].isOverdue, 'First task should be overdue');
         System.assert(tasks[0].daysOverdue > 0, 'Days overdue should be positive');
     }
 
     /**
-     * @description Test getAllOverdueTasks with null account ID
+     * @description Test getAllOpenTasks with null account ID
      */
     @isTest
-    static void testGetAllOverdueTasks_NullAccountId() {
+    static void testGetAllOpenTasks_NullAccountId() {
         Test.startTest();
         try {
-            CSD_CSDashboardController.getAllOverdueTasks(null);
+            CSD_CSDashboardController.getAllOpenTasks(null);
             System.assert(false, 'Expected AuraHandledException');
         } catch (AuraHandledException e) {
             System.assert(e.getMessage().contains('Account ID is required'),

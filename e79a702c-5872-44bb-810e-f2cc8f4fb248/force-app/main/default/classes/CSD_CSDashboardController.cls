@@ -14,6 +14,7 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public Integer openCasesCount { get; set; }
         @AuraEnabled public Integer highPriorityCasesCount { get; set; }
         @AuraEnabled public Integer overdueTasks { get; set; }
+        @AuraEnabled public Integer openTasksCount { get; set; }
         @AuraEnabled public String lastActivityDate { get; set; }
         @AuraEnabled public String nextPlannedActivity { get; set; }
         @AuraEnabled public Integer opportunityCount { get; set; }
@@ -77,6 +78,27 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String caseMonth5Label { get; set; }
         @AuraEnabled public String caseMonth6Label { get; set; }
 
+        /** Monthly closed-won revenue (last 6 months, current year, oldest first) */
+        @AuraEnabled public Decimal wonMonth1 { get; set; }
+        @AuraEnabled public Decimal wonMonth2 { get; set; }
+        @AuraEnabled public Decimal wonMonth3 { get; set; }
+        @AuraEnabled public Decimal wonMonth4 { get; set; }
+        @AuraEnabled public Decimal wonMonth5 { get; set; }
+        @AuraEnabled public Decimal wonMonth6 { get; set; }
+        /** Same months, prior year */
+        @AuraEnabled public Decimal wonMonth1Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth2Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth3Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth4Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth5Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth6Prev { get; set; }
+        @AuraEnabled public String wonMonth1Label { get; set; }
+        @AuraEnabled public String wonMonth2Label { get; set; }
+        @AuraEnabled public String wonMonth3Label { get; set; }
+        @AuraEnabled public String wonMonth4Label { get; set; }
+        @AuraEnabled public String wonMonth5Label { get; set; }
+        @AuraEnabled public String wonMonth6Label { get; set; }
+
         /** Nearest renewal (from open Opportunity with Type='Renewal') */
         @AuraEnabled public Integer nearestRenewalDays { get; set; }
         @AuraEnabled public Decimal nearestRenewalAmount { get; set; }
@@ -109,6 +131,8 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public Date activityDateValue { get; set; }
         @AuraEnabled public String ownerName { get; set; }
         @AuraEnabled public Integer daysOverdue { get; set; }
+        @AuraEnabled public Boolean isOverdue { get; set; }
+        @AuraEnabled public Boolean isDueToday { get; set; }
         @AuraEnabled public String status { get; set; }
 
         /**
@@ -238,6 +262,15 @@ public with sharing class CSD_CSDashboardController {
                 AND ActivityDate < TODAY
             ];
             summary.overdueTasks = overdue;
+
+            // Count all open tasks
+            Integer openTasks = [
+                SELECT COUNT()
+                FROM Task
+                WHERE WhatId = :accountId
+                AND IsClosed = false
+            ];
+            summary.openTasksCount = openTasks;
 
             // Get last completed activity (Task or Event)
             List<Task> lastTasks = [
@@ -446,6 +479,25 @@ public with sharing class CSD_CSDashboardController {
         summary.caseMonth5Label = '';
         summary.caseMonth6Label = '';
 
+        summary.wonMonth1 = 0;
+        summary.wonMonth2 = 0;
+        summary.wonMonth3 = 0;
+        summary.wonMonth4 = 0;
+        summary.wonMonth5 = 0;
+        summary.wonMonth6 = 0;
+        summary.wonMonth1Prev = 0;
+        summary.wonMonth2Prev = 0;
+        summary.wonMonth3Prev = 0;
+        summary.wonMonth4Prev = 0;
+        summary.wonMonth5Prev = 0;
+        summary.wonMonth6Prev = 0;
+        summary.wonMonth1Label = '';
+        summary.wonMonth2Label = '';
+        summary.wonMonth3Label = '';
+        summary.wonMonth4Label = '';
+        summary.wonMonth5Label = '';
+        summary.wonMonth6Label = '';
+
         summary.nearestRenewalDays = 0;
         summary.nearestRenewalAmount = 0;
         summary.hasUpcomingRenewal = false;
@@ -534,6 +586,7 @@ public with sharing class CSD_CSDashboardController {
         populateLastFourQuartersWon(accountId, summary);
         populateCaseResolutionMetrics(accountId, summary);
         populateMonthlyCaseVolume(accountId, summary);
+        populateMonthlyWonRevenue(accountId, summary);
         populateNearestRenewal(accountId, summary);
     }
 
@@ -782,6 +835,99 @@ public with sharing class CSD_CSDashboardController {
         }
     }
 
+    private static void populateMonthlyWonRevenue(Id accountId, DashboardSummary summary) {
+        Date today = Date.today();
+        Integer currentMonth = today.month();
+        Integer currentYear = today.year();
+        Integer priorYear = currentYear - 1;
+
+        Integer startMonth = currentMonth - 5;
+        Integer startYear = currentYear;
+        if (startMonth < 1) {
+            startMonth += 12;
+            startYear--;
+        }
+        Date windowStart = Date.newInstance(startYear, startMonth, 1);
+        Date priorWindowStart = Date.newInstance(startYear - 1, startMonth, 1);
+
+        List<String> orderedKeys = new List<String>();
+        Integer m = startMonth;
+        Integer yr = startYear;
+        for (Integer i = 0; i < 6; i++) {
+            orderedKeys.add(yr + '-' + String.valueOf(m).leftPad(2, '0'));
+            m++;
+            if (m > 12) { m = 1; yr++; }
+        }
+
+        Map<String, Decimal> currentAmounts = new Map<String, Decimal>();
+        Map<String, Decimal> prevAmounts = new Map<String, Decimal>();
+        for (String k : orderedKeys) {
+            currentAmounts.put(k, 0);
+            Integer mo = Integer.valueOf(k.substring(5));
+            Integer y = Integer.valueOf(k.substring(0, 4));
+            String prevKey = (y - 1) + '-' + String.valueOf(mo).leftPad(2, '0');
+            prevAmounts.put(prevKey, 0);
+        }
+
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CloseDate) mo, CALENDAR_YEAR(CloseDate) yr, SUM(Amount) amt
+            FROM Opportunity
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND IsWon = true
+            AND CloseDate >= :windowStart
+            GROUP BY CALENDAR_MONTH(CloseDate), CALENDAR_YEAR(CloseDate)
+            ORDER BY CALENDAR_YEAR(CloseDate), CALENDAR_MONTH(CloseDate)
+        ]) {
+            Integer arMonth = (Integer) ar.get('mo');
+            Integer arYear = (Integer) ar.get('yr');
+            String key = arYear + '-' + String.valueOf(arMonth).leftPad(2, '0');
+            if (currentAmounts.containsKey(key)) {
+                Decimal amt = (Decimal) ar.get('amt');
+                currentAmounts.put(key, amt != null ? amt : 0);
+            }
+        }
+
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CloseDate) mo, CALENDAR_YEAR(CloseDate) yr, SUM(Amount) amt
+            FROM Opportunity
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND IsWon = true
+            AND CloseDate >= :priorWindowStart
+            AND CloseDate < :windowStart
+            GROUP BY CALENDAR_MONTH(CloseDate), CALENDAR_YEAR(CloseDate)
+            ORDER BY CALENDAR_YEAR(CloseDate), CALENDAR_MONTH(CloseDate)
+        ]) {
+            Integer arMonth = (Integer) ar.get('mo');
+            Integer arYear = (Integer) ar.get('yr');
+            String key = arYear + '-' + String.valueOf(arMonth).leftPad(2, '0');
+            if (prevAmounts.containsKey(key)) {
+                Decimal amt = (Decimal) ar.get('amt');
+                prevAmounts.put(key, amt != null ? amt : 0);
+            }
+        }
+
+        List<Decimal> curr = new List<Decimal>();
+        List<Decimal> prev = new List<Decimal>();
+        List<String> labels = new List<String>();
+        for (String key : orderedKeys) {
+            curr.add(currentAmounts.get(key));
+            Integer mo = Integer.valueOf(key.substring(5));
+            Integer y = Integer.valueOf(key.substring(0, 4));
+            String prevKey = (y - 1) + '-' + String.valueOf(mo).leftPad(2, '0');
+            prev.add(prevAmounts.containsKey(prevKey) ? prevAmounts.get(prevKey) : 0);
+            labels.add(MONTH_ABBREVS[mo - 1]);
+        }
+
+        summary.wonMonth1 = curr[0]; summary.wonMonth2 = curr[1]; summary.wonMonth3 = curr[2];
+        summary.wonMonth4 = curr[3]; summary.wonMonth5 = curr[4]; summary.wonMonth6 = curr[5];
+        summary.wonMonth1Prev = prev[0]; summary.wonMonth2Prev = prev[1]; summary.wonMonth3Prev = prev[2];
+        summary.wonMonth4Prev = prev[3]; summary.wonMonth5Prev = prev[4]; summary.wonMonth6Prev = prev[5];
+        summary.wonMonth1Label = labels[0]; summary.wonMonth2Label = labels[1]; summary.wonMonth3Label = labels[2];
+        summary.wonMonth4Label = labels[3]; summary.wonMonth5Label = labels[4]; summary.wonMonth6Label = labels[5];
+    }
+
     /**
      * @description Retrieves open cases for the specified Account
      * @param accountId The Id of the Account record
@@ -837,20 +983,20 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
-     * @description Retrieves overdue tasks for the specified Account
+     * @description Retrieves open tasks for the specified Account, sorted with overdue and due-today tasks first
      * @param accountId The Id of the Account record
-     * @param recordLimit Maximum number of records to return (default 5)
+     * @param recordLimit Maximum number of records to return (default 10)
      * @return List of ActivityData wrapper objects
      */
     @AuraEnabled(cacheable=false)
-    public static List<ActivityData> getOverdueTasks(Id accountId, Integer recordLimit) {
+    public static List<ActivityData> getOpenTasks(Id accountId, Integer recordLimit) {
         try {
             if (accountId == null) {
                 throw new AuraHandledException('Account ID is required');
             }
 
             if (recordLimit == null || recordLimit <= 0) {
-                recordLimit = 5;
+                recordLimit = 10;
             }
 
             List<ActivityData> activityList = new List<ActivityData>();
@@ -860,23 +1006,25 @@ public with sharing class CSD_CSDashboardController {
                 FROM Task
                 WHERE WhatId = :accountId
                 AND IsClosed = false
-                AND ActivityDate < TODAY
-                ORDER BY ActivityDate ASC
+                ORDER BY ActivityDate ASC NULLS LAST
                 LIMIT :recordLimit
             ];
 
+            Date today = Date.today();
             for (Task t : tasks) {
                 ActivityData activity = new ActivityData();
                 activity.activityId = t.Id;
                 activity.subject = t.Subject;
                 activity.activityType = 'Task';
                 activity.activityDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
+                activity.activityDateValue = t.ActivityDate;
                 activity.ownerName = t.Owner.Name;
                 activity.status = t.Status;
+                activity.isOverdue = t.ActivityDate != null && t.ActivityDate < today;
+                activity.isDueToday = t.ActivityDate != null && t.ActivityDate == today;
 
-                // Calculate days overdue
-                if (t.ActivityDate != null) {
-                    activity.daysOverdue = t.ActivityDate.daysBetween(Date.today());
+                if (activity.isOverdue) {
+                    activity.daysOverdue = t.ActivityDate.daysBetween(today);
                 }
 
                 activityList.add(activity);
@@ -885,7 +1033,7 @@ public with sharing class CSD_CSDashboardController {
             return activityList;
 
         } catch (Exception e) {
-            throw new AuraHandledException('Error retrieving overdue tasks: ' + e.getMessage());
+            throw new AuraHandledException('Error retrieving open tasks: ' + e.getMessage());
         }
     }
 
@@ -1127,12 +1275,12 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
-     * @description Retrieves all overdue tasks for modal display
+     * @description Retrieves all open tasks for modal display, overdue and due-today first
      * @param accountId The Id of the Account record
      * @return List of ActivityData wrapper objects
      */
     @AuraEnabled(cacheable=false)
-    public static List<ActivityData> getAllOverdueTasks(Id accountId) {
+    public static List<ActivityData> getAllOpenTasks(Id accountId) {
         try {
             if (accountId == null) {
                 throw new AuraHandledException('Account ID is required');
@@ -1145,22 +1293,25 @@ public with sharing class CSD_CSDashboardController {
                 FROM Task
                 WHERE WhatId = :accountId
                 AND IsClosed = false
-                AND ActivityDate < TODAY
-                ORDER BY ActivityDate ASC
+                ORDER BY ActivityDate ASC NULLS LAST
                 LIMIT 100
             ];
 
+            Date today = Date.today();
             for (Task t : tasks) {
                 ActivityData activity = new ActivityData();
                 activity.activityId = t.Id;
                 activity.subject = t.Subject;
                 activity.activityType = 'Task';
                 activity.activityDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
+                activity.activityDateValue = t.ActivityDate;
                 activity.ownerName = t.Owner.Name;
                 activity.status = t.Status;
+                activity.isOverdue = t.ActivityDate != null && t.ActivityDate < today;
+                activity.isDueToday = t.ActivityDate != null && t.ActivityDate == today;
 
-                if (t.ActivityDate != null) {
-                    activity.daysOverdue = t.ActivityDate.daysBetween(Date.today());
+                if (activity.isOverdue) {
+                    activity.daysOverdue = t.ActivityDate.daysBetween(today);
                 }
 
                 activityList.add(activity);
@@ -1169,7 +1320,7 @@ public with sharing class CSD_CSDashboardController {
             return activityList;
 
         } catch (Exception e) {
-            throw new AuraHandledException('Error retrieving all overdue tasks: ' + e.getMessage());
+            throw new AuraHandledException('Error retrieving open tasks: ' + e.getMessage());
         }
     }
 
