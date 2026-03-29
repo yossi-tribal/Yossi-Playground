@@ -190,32 +190,18 @@
                                 <span class="commercial-kpi-sub">Closed-won opportunities</span>
                             </button>
                             <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
-                                <span class="commercial-kpi-label">Won (this year)</span>
+                                <span class="commercial-kpi-label">Won revenue (YTD)</span>
                                 <span class="commercial-kpi-value">
                                     <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
                                 </span>
-                                <span class="commercial-kpi-sub">Calendar year to date</span>
-                            </button>
-                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialPriorYearClick}>
-                                <span class="commercial-kpi-label">Won (prior year)</span>
-                                <span class="commercial-kpi-value">
-                                    <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                </span>
-                                <span class="commercial-kpi-sub">Full prior calendar year</span>
+                                <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
                             </button>
                             <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialPipelineClick}>
                                 <span class="commercial-kpi-label">Open pipeline</span>
                                 <span class="commercial-kpi-value">
                                     <lightning-formatted-number value={summary.openPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
                                 </span>
-                                <span class="commercial-kpi-sub">Open opportunities</span>
-                            </button>
-                            <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialWeightedClick}>
-                                <span class="commercial-kpi-label">Weighted pipeline</span>
-                                <span class="commercial-kpi-value">
-                                    <lightning-formatted-number value={summary.weightedPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                </span>
-                                <span class="commercial-kpi-sub">Amount × probability</span>
+                                <span class="commercial-kpi-sub">Weighted: <lightning-formatted-number value={summary.weightedPipelineAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
                             </button>
                             <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialRecentCasesClick}>
                                 <span class="commercial-kpi-label">Cases (90 days)</span>
@@ -253,18 +239,9 @@
                                             {resolutionTrendText}
                                         </span>
                                     </div>
-                                    <div class="case-resolution-supporting">
-                                        <div class="case-resolution-supporting-block">
-                                            <span class="case-resolution-supporting-label">Fastest</span>
-                                            <span class="case-resolution-supporting-value">{caseResolutionMinDays}</span>
-                                            <span class="case-resolution-supporting-unit">{minDaysLabel}</span>
-                                        </div>
-                                        <div class="case-resolution-supporting-block">
-                                            <span class="case-resolution-supporting-label">Slowest</span>
-                                            <span class="case-resolution-supporting-value">{caseResolutionMaxDays}</span>
-                                            <span class="case-resolution-supporting-unit">{maxDaysLabel}</span>
-                                        </div>
-                                    </div>
+                                    <template if:true={showCaseResolutionRange}>
+                                        <p class="case-resolution-range">{caseResolutionRangeText}</p>
+                                    </template>
                                 </template>
                                 <template if:false={hasCaseResolutionData}>
                                     <div class="case-resolution-empty">No closed cases in the last 90 days</div>

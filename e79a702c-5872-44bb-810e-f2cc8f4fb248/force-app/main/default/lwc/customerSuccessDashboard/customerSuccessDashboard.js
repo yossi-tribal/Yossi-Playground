@@ -395,10 +395,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.openClosedWonModal('YTD', 'Won revenue (this year)');
     }
 
-    handleCommercialPriorYearClick() {
-        this.openClosedWonModal('PRIOR_YEAR', 'Won revenue (prior calendar year)');
-    }
-
     openClosedWonModal(scope, title) {
         this.kpiModalTitle = title;
         this.kpiModalType = 'closedWon';
@@ -421,23 +417,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.handleOpportunitiesClick();
     }
 
-    handleCommercialWeightedClick() {
-        this.kpiModalTitle = 'Open pipeline (weighted breakdown)';
-        this.kpiModalType = 'opportunities';
-        this.kpiModalScope = '';
-        this.kpiModalEmptyMessage = 'No open opportunities.';
-        this.kpiModalData = [];
-        this.showKpiModal = true;
 
-        getAllOpportunities({ accountId: this.recordId })
-            .then(result => {
-                this.kpiModalData = result || [];
-            })
-            .catch(error => {
-                this.handleError('Failed to load opportunities', error);
-                this.showKpiModal = false;
-            });
-    }
 
     handleCommercialRecentCasesClick() {
         this.kpiModalTitle = 'Cases opened (last 90 days)';
@@ -1264,12 +1244,12 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return `Resolution time ${this.resolutionTrendText.toLowerCase()}`;
     }
 
-    get minDaysLabel() {
-        return this.caseResolutionMinDays === 1 ? 'day' : 'days';
+    get showCaseResolutionRange() {
+        return this.hasCaseResolutionData && this.caseResolutionMinDays !== this.caseResolutionMaxDays;
     }
 
-    get maxDaysLabel() {
-        return this.caseResolutionMaxDays === 1 ? 'day' : 'days';
+    get caseResolutionRangeText() {
+        return `Fastest ${this.caseResolutionMinDays}d · Slowest ${this.caseResolutionMaxDays}d`;
     }
 
     /** Monthly case volume: 6-month bar array */

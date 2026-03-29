@@ -1906,36 +1906,11 @@ button:focus-visible,
     color: var(--csd-text-tertiary);
 }
 
-.case-resolution-supporting {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--csd-space-3);
-}
-
-.case-resolution-supporting-block {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.case-resolution-supporting-label {
-    font-size: var(--csd-text-xs);
-    font-weight: 600;
-    color: var(--csd-text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.case-resolution-supporting-value {
-    font-size: var(--csd-text-lg);
-    font-weight: 700;
-    color: var(--csd-text-primary);
-    font-variant-numeric: tabular-nums;
-}
-
-.case-resolution-supporting-unit {
+.case-resolution-range {
     font-size: var(--csd-text-xs);
     color: var(--csd-text-tertiary);
+    margin: 0;
+    line-height: 1.4;
 }
 
 .case-resolution-empty {
