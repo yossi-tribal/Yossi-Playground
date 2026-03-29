@@ -1279,17 +1279,18 @@ public with sharing class CSD_CSDashboardController {
         result.priorityValues = new List<PicklistOption>();
         result.typeValues = new List<PicklistOption>();
 
-        for (Schema.PicklistEntry pe : Schema.SObjectType.Task.fields.Status.getDescribe().getPicklistValues()) {
+        Map<String, Schema.SObjectField> taskFields = Schema.SObjectType.Task.fields.getMap();
+        for (Schema.PicklistEntry pe : taskFields.get('Status').getDescribe().getPicklistValues()) {
             if (pe.isActive()) {
                 result.statusValues.add(new PicklistOption(pe.getLabel(), pe.getValue()));
             }
         }
-        for (Schema.PicklistEntry pe : Schema.SObjectType.Task.fields.Priority.getDescribe().getPicklistValues()) {
+        for (Schema.PicklistEntry pe : taskFields.get('Priority').getDescribe().getPicklistValues()) {
             if (pe.isActive()) {
                 result.priorityValues.add(new PicklistOption(pe.getLabel(), pe.getValue()));
             }
         }
-        for (Schema.PicklistEntry pe : Schema.SObjectType.Task.fields.Type.getDescribe().getPicklistValues()) {
+        for (Schema.PicklistEntry pe : taskFields.get('Type').getDescribe().getPicklistValues()) {
             if (pe.isActive()) {
                 result.typeValues.add(new PicklistOption(pe.getLabel(), pe.getValue()));
             }
