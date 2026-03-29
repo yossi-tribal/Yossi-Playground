@@ -943,4 +943,73 @@ private class CSD_CSDashboardControllerTest {
         }
         Test.stopTest();
     }
+
+    @isTest
+    static void testCreateTaskForAccount_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        Test.startTest();
+        Id taskId = CSD_CSDashboardController.createTaskForAccount(
+            testAccount.Id,
+            'Quick action task',
+            String.valueOf(Date.today()),
+            'Not Started',
+            'Normal',
+            'Notes'
+        );
+        Test.stopTest();
+        System.assertNotEquals(null, taskId);
+        Task t = [SELECT Id, Subject, WhatId, Status, Priority FROM Task WHERE Id = :taskId];
+        System.assertEquals('Quick action task', t.Subject);
+        System.assertEquals(testAccount.Id, t.WhatId);
+    }
+
+    @isTest
+    static void testCreateTaskForAccount_NullAccount() {
+        Test.startTest();
+        try {
+            CSD_CSDashboardController.createTaskForAccount(null, 'X', null, 'Not Started', 'Normal', '');
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage().contains('Account ID'), 'Should require account');
+        }
+        Test.stopTest();
+    }
+
+    @isTest
+    static void testCreateEventForAccount_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        Datetime startDt = Datetime.now().addHours(1);
+        Datetime endDt = startDt.addHours(1);
+        String startIso = JSON.serialize(startDt).replace('"', '');
+        String endIso = JSON.serialize(endDt).replace('"', '');
+        Test.startTest();
+        Id evtId = CSD_CSDashboardController.createEventForAccount(
+            testAccount.Id,
+            'Meeting',
+            startIso,
+            endIso,
+            'Agenda'
+        );
+        Test.stopTest();
+        System.assertNotEquals(null, evtId);
+        Event evt = [SELECT Id, Subject, WhatId FROM Event WHERE Id = :evtId];
+        System.assertEquals('Meeting', evt.Subject);
+        System.assertEquals(testAccount.Id, evt.WhatId);
+    }
+
+    @isTest
+    static void testLogCallForAccount_Success() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        Test.startTest();
+        Id taskId = CSD_CSDashboardController.logCallForAccount(
+            testAccount.Id,
+            'Dial-in',
+            String.valueOf(Date.today()),
+            'Discussed renewal'
+        );
+        Test.stopTest();
+        Task t = [SELECT Type, Status FROM Task WHERE Id = :taskId];
+        System.assertEquals('Call', t.Type);
+        System.assertEquals('Completed', t.Status);
+    }
 }

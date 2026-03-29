@@ -847,49 +847,42 @@
                         <h2 id="activity-modal-heading" class="slds-modal__title slds-hyphenate">{activityModalTitle}</h2>
                     </header>
                     <div class="slds-modal__content slds-p-around_medium activity-modal-body">
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">Related to the account on this page.</p>
                         <template if:true={showActivityTaskForm}>
-                            <lightning-record-edit-form object-api-name="Task" onsuccess={handleActivityTaskSuccess} onerror={handleActivityFormError}>
-                                <lightning-messages></lightning-messages>
-                                <lightning-input-field field-name="WhatId" value={recordId} required></lightning-input-field>
-                                <lightning-input-field field-name="Subject"></lightning-input-field>
-                                <lightning-input-field field-name="ActivityDate"></lightning-input-field>
-                                <lightning-input-field field-name="Status"></lightning-input-field>
-                                <lightning-input-field field-name="Priority"></lightning-input-field>
-                                <lightning-input-field field-name="Description"></lightning-input-field>
+                            <div class="slds-form_stacked activity-modal-fields">
+                                <lightning-input label="Subject" value={taskSubject} required onchange={handleTaskSubjectChange}></lightning-input>
+                                <lightning-input type="date" label="Due Date" value={taskActivityDate} onchange={handleTaskActivityDateChange}></lightning-input>
+                                <lightning-combobox label="Status" value={taskStatus} options={taskStatusOptions} onchange={handleTaskStatusChange}></lightning-combobox>
+                                <lightning-combobox label="Priority" value={taskPriority} options={taskPriorityOptions} onchange={handleTaskPriorityChange}></lightning-combobox>
+                                <lightning-textarea label="Description" value={taskDescription} onchange={handleTaskDescriptionChange}></lightning-textarea>
                                 <div class="slds-m-top_medium activity-modal-form-actions">
-                                    <lightning-button label="Cancel" onclick={handleCloseActivityModal}></lightning-button>
-                                    <lightning-button type="submit" label="Save" variant="brand"></lightning-button>
+                                    <lightning-button label="Cancel" disabled={activitySaveInProgress} onclick={handleCloseActivityModal}></lightning-button>
+                                    <lightning-button label="Save" variant="brand" disabled={activitySaveInProgress} onclick={handleSaveActivityTask}></lightning-button>
                                 </div>
-                            </lightning-record-edit-form>
+                            </div>
                         </template>
                         <template if:true={showActivityEventForm}>
-                            <lightning-record-edit-form object-api-name="Event" onsuccess={handleActivityEventSuccess} onerror={handleActivityFormError}>
-                                <lightning-messages></lightning-messages>
-                                <lightning-input-field field-name="WhatId" value={recordId} required></lightning-input-field>
-                                <lightning-input-field field-name="Subject"></lightning-input-field>
-                                <lightning-input-field field-name="StartDateTime"></lightning-input-field>
-                                <lightning-input-field field-name="EndDateTime"></lightning-input-field>
-                                <lightning-input-field field-name="Description"></lightning-input-field>
+                            <div class="slds-form_stacked activity-modal-fields">
+                                <lightning-input label="Subject" value={eventSubject} required onchange={handleEventSubjectChange}></lightning-input>
+                                <lightning-input type="datetime" label="Start" value={eventStartDateTime} onchange={handleEventStartChange}></lightning-input>
+                                <lightning-input type="datetime" label="End" value={eventEndDateTime} onchange={handleEventEndChange}></lightning-input>
+                                <lightning-textarea label="Description" value={eventDescription} onchange={handleEventDescriptionChange}></lightning-textarea>
                                 <div class="slds-m-top_medium activity-modal-form-actions">
-                                    <lightning-button label="Cancel" onclick={handleCloseActivityModal}></lightning-button>
-                                    <lightning-button type="submit" label="Save" variant="brand"></lightning-button>
+                                    <lightning-button label="Cancel" disabled={activitySaveInProgress} onclick={handleCloseActivityModal}></lightning-button>
+                                    <lightning-button label="Save" variant="brand" disabled={activitySaveInProgress} onclick={handleSaveActivityEvent}></lightning-button>
                                 </div>
-                            </lightning-record-edit-form>
+                            </div>
                         </template>
                         <template if:true={showActivityLogCallForm}>
-                            <lightning-record-edit-form object-api-name="Task" onsuccess={handleActivityLogCallSuccess} onerror={handleActivityFormError}>
-                                <lightning-messages></lightning-messages>
-                                <lightning-input-field field-name="WhatId" value={recordId} required></lightning-input-field>
-                                <lightning-input-field field-name="Subject"></lightning-input-field>
-                                <lightning-input-field field-name="ActivityDate"></lightning-input-field>
-                                <lightning-input-field field-name="Status" value="Completed"></lightning-input-field>
-                                <lightning-input-field field-name="Type" value="Call"></lightning-input-field>
-                                <lightning-input-field field-name="Description"></lightning-input-field>
+                            <div class="slds-form_stacked activity-modal-fields">
+                                <lightning-input label="Subject" value={logCallSubject} placeholder="Call" onchange={handleLogCallSubjectChange}></lightning-input>
+                                <lightning-input type="date" label="Call date" value={logCallActivityDate} onchange={handleLogCallActivityDateChange}></lightning-input>
+                                <lightning-textarea label="Comments" value={logCallDescription} onchange={handleLogCallDescriptionChange}></lightning-textarea>
                                 <div class="slds-m-top_medium activity-modal-form-actions">
-                                    <lightning-button label="Cancel" onclick={handleCloseActivityModal}></lightning-button>
-                                    <lightning-button type="submit" label="Save" variant="brand"></lightning-button>
+                                    <lightning-button label="Cancel" disabled={activitySaveInProgress} onclick={handleCloseActivityModal}></lightning-button>
+                                    <lightning-button label="Save" variant="brand" disabled={activitySaveInProgress} onclick={handleSaveActivityLogCall}></lightning-button>
                                 </div>
-                            </lightning-record-edit-form>
+                            </div>
                         </template>
                     </div>
                 </div>

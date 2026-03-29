@@ -1628,6 +1628,12 @@ button:focus-visible,
     gap: var(--lwc-spacingSmall, 0.75rem);
 }
 
+.activity-modal-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lwc-spacingSmall, 0.75rem);
+}
+
 .kpi-modal-table-container {
     max-height: 500px;
     overflow-y: auto;
