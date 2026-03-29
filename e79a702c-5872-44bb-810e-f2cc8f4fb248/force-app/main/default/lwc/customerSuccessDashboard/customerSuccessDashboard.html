@@ -876,14 +876,44 @@
                                     <div class="activity-form-col">
                                         <label class="activity-field-label">Name</label>
                                         <div class="activity-polymorphic-lookup">
-                                            <lightning-combobox variant="label-hidden" label="Name Object Type" value={whoIdObjectType} options={whoIdObjectOptions} onchange={handleWhoIdObjectChange} class="activity-entity-picker"></lightning-combobox>
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhoIdEntityMenu}>
+                                                    <lightning-icon icon-name={whoIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhoIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whoIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhoIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
                                             <lightning-record-picker label="Name" variant="label-hidden" object-api-name={whoIdObjectType} value={activityForm.WhoId} onchange={handleWhoIdChange} class="activity-record-picker"></lightning-record-picker>
                                         </div>
                                     </div>
                                     <div class="activity-form-col">
                                         <label class="activity-field-label">Related To</label>
                                         <div class="activity-polymorphic-lookup">
-                                            <lightning-combobox variant="label-hidden" label="Related To Object Type" value={whatIdObjectType} options={whatIdObjectOptions} onchange={handleWhatIdObjectChange} class="activity-entity-picker"></lightning-combobox>
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhatIdEntityMenu}>
+                                                    <lightning-icon icon-name={whatIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhatIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whatIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhatIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
                                             <lightning-record-picker label="Related To" variant="label-hidden" object-api-name={whatIdObjectType} value={activityForm.WhatId} onchange={handleWhatIdChange} class="activity-record-picker"></lightning-record-picker>
                                         </div>
                                     </div>
@@ -924,14 +954,44 @@
                                     <div class="activity-form-col">
                                         <label class="activity-field-label">Name</label>
                                         <div class="activity-polymorphic-lookup">
-                                            <lightning-combobox variant="label-hidden" label="Name Object Type" value={whoIdObjectType} options={whoIdObjectOptions} onchange={handleWhoIdObjectChange} class="activity-entity-picker"></lightning-combobox>
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhoIdEntityMenu}>
+                                                    <lightning-icon icon-name={whoIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhoIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whoIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhoIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
                                             <lightning-record-picker label="Name" variant="label-hidden" object-api-name={whoIdObjectType} value={activityForm.WhoId} onchange={handleWhoIdChange} class="activity-record-picker"></lightning-record-picker>
                                         </div>
                                     </div>
                                     <div class="activity-form-col">
                                         <label class="activity-field-label">Related To</label>
                                         <div class="activity-polymorphic-lookup">
-                                            <lightning-combobox variant="label-hidden" label="Related To Object Type" value={whatIdObjectType} options={whatIdObjectOptions} onchange={handleWhatIdObjectChange} class="activity-entity-picker"></lightning-combobox>
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhatIdEntityMenu}>
+                                                    <lightning-icon icon-name={whatIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhatIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whatIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhatIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
                                             <lightning-record-picker label="Related To" variant="label-hidden" object-api-name={whatIdObjectType} value={activityForm.WhatId} onchange={handleWhatIdChange} class="activity-record-picker"></lightning-record-picker>
                                         </div>
                                     </div>

@@ -51,6 +51,8 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track whoIdObjectType = 'Contact';
     @track whatIdObjectType = 'Account';
     @track taskPicklistValues = null;
+    @track showWhoIdEntityMenu = false;
+    @track showWhatIdEntityMenu = false;
 
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
@@ -629,14 +631,26 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.activityForm = { ...this.activityForm, OwnerId: event.detail.recordId || null };
     }
 
-    handleWhoIdObjectChange(event) {
-        this.whoIdObjectType = event.detail.value;
-        this.activityForm = { ...this.activityForm, WhoId: null };
+    toggleWhoIdEntityMenu() {
+        this.showWhoIdEntityMenu = !this.showWhoIdEntityMenu;
+        this.showWhatIdEntityMenu = false;
     }
 
-    handleWhatIdObjectChange(event) {
-        this.whatIdObjectType = event.detail.value;
+    toggleWhatIdEntityMenu() {
+        this.showWhatIdEntityMenu = !this.showWhatIdEntityMenu;
+        this.showWhoIdEntityMenu = false;
+    }
+
+    selectWhoIdObject(event) {
+        this.whoIdObjectType = event.currentTarget.dataset.value;
+        this.activityForm = { ...this.activityForm, WhoId: null };
+        this.showWhoIdEntityMenu = false;
+    }
+
+    selectWhatIdObject(event) {
+        this.whatIdObjectType = event.currentTarget.dataset.value;
         this.activityForm = { ...this.activityForm, WhatId: null };
+        this.showWhatIdEntityMenu = false;
     }
 
     /**
@@ -1162,17 +1176,26 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get whoIdObjectOptions() {
         return [
-            { label: 'Contact', value: 'Contact' },
-            { label: 'Lead', value: 'Lead' }
+            { label: 'Contact', value: 'Contact', iconName: 'standard:contact' },
+            { label: 'Lead', value: 'Lead', iconName: 'standard:lead' }
         ];
     }
 
     get whatIdObjectOptions() {
         return [
-            { label: 'Account', value: 'Account' },
-            { label: 'Opportunity', value: 'Opportunity' },
-            { label: 'Case', value: 'Case' }
+            { label: 'Account', value: 'Account', iconName: 'standard:account' },
+            { label: 'Opportunity', value: 'Opportunity', iconName: 'standard:opportunity' },
+            { label: 'Case', value: 'Case', iconName: 'standard:case' }
         ];
+    }
+
+    get whoIdIconName() {
+        return this.whoIdObjectType === 'Contact' ? 'standard:contact' : 'standard:lead';
+    }
+
+    get whatIdIconName() {
+        const iconMap = { Account: 'standard:account', Opportunity: 'standard:opportunity', Case: 'standard:case' };
+        return iconMap[this.whatIdObjectType] || 'standard:account';
     }
 
     get activitySaveDisabled() {

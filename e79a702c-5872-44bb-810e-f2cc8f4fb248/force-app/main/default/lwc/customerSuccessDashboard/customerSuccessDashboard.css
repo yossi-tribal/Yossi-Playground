@@ -2015,12 +2015,59 @@ button:focus-visible,
 
 .activity-polymorphic-lookup {
     display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
+    align-items: stretch;
+    position: relative;
 }
 
-.activity-entity-picker {
-    flex: 0 0 140px;
+.activity-entity-switcher {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.activity-entity-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    height: 100%;
+    padding: 0 0.5rem;
+    border: 1px solid rgb(201, 201, 201);
+    border-right: none;
+    border-radius: 0.25rem 0 0 0.25rem;
+    background: rgb(243, 243, 243);
+    cursor: pointer;
+}
+
+.activity-entity-btn:hover {
+    background: rgb(229, 229, 229);
+}
+
+.activity-entity-chevron {
+    margin-left: -0.125rem;
+}
+
+.activity-entity-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 7001;
+    min-width: 10rem;
+    background: white;
+    border: 1px solid rgb(201, 201, 201);
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.16);
+    margin-top: 0.125rem;
+}
+
+.activity-entity-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+}
+
+.activity-entity-option:hover {
+    background: rgb(243, 243, 243);
 }
 
 .activity-record-picker {
