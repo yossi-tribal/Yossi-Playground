@@ -1480,15 +1480,16 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     get relationshipDepthLabel() {
-        if (!this.summary) return 'Relationship: None';
+        if (!this.summary) return 'Relationship Depth: None';
         const depth = this.summary.relationshipDepth || 'None';
-        return `Relationship: ${depth}`;
+        return `Relationship Depth: ${depth}`;
     }
 
     get relationshipDepthTooltip() {
         if (!this.summary) return '';
         const count = this.summary.contactCount || 0;
-        return `Relationship depth is based on contact coverage at this account (${count} contact${count !== 1 ? 's' : ''}). 1–4: Weak, 5–9: Moderate, 10+: Strong`;
+        const depth = this.summary.relationshipDepth || 'None';
+        return `Relationship Depth: ${depth} — Building relationships with multiple contacts at a customer's company reduces risk and increases retention. Currently ${count} contact${count !== 1 ? 's' : ''} on this account. (1–4: Weak, 5–9: Moderate, 10+: Strong)`;
     }
 
     get relationshipPillClass() {
