@@ -162,7 +162,7 @@
                     </div>
                 </template>
 
-                <!-- Commercial snapshot: value, YoY, quarterly trend, drilldowns -->
+                <!-- Customer Success Snapshot: revenue KPIs, case resolution, case trends, renewal -->
                 <template if:true={hasSummary}>
                     <div class={commercialSnapshotClass}>
                         <button
@@ -171,8 +171,8 @@
                             onclick={handleToggleCommercialSnapshot}
                             aria-expanded={commercialSnapshotExpanded}>
                             <div class="commercial-snapshot-head-main">
-                                <span class="commercial-snapshot-title">Commercial snapshot</span>
-                                <span class="commercial-snapshot-hint">Closed-won and pipeline from opportunities; cases opened in the last 90 days</span>
+                                <span class="commercial-snapshot-title">Customer Success Snapshot</span>
+                                <span class="commercial-snapshot-hint">Revenue, pipeline, case resolution, support trends, and renewals</span>
                             </div>
                             <lightning-icon
                                 icon-name="utility:chevronright"
@@ -222,48 +222,71 @@
                                 <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
                                 <span class="commercial-kpi-sub">Opened on this account</span>
                             </button>
+                            <template if:true={hasUpcomingRenewal}>
+                                <button type="button" class={renewalCardClass} onclick={handleCommercialRenewalClick}>
+                                    <span class="commercial-kpi-label">Next renewal</span>
+                                    <span class="commercial-kpi-value">
+                                        <lightning-formatted-number value={nearestRenewalAmount} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                    </span>
+                                    <span class={renewalDaysClass}>{renewalSubtitle}</span>
+                                </button>
+                            </template>
+                            <template if:false={hasUpcomingRenewal}>
+                                <div class="commercial-kpi">
+                                    <span class="commercial-kpi-label">Next renewal</span>
+                                    <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
+                                    <span class="commercial-kpi-sub">{renewalSubtitle}</span>
+                                </div>
+                            </template>
                         </div>
 
                         <div class="commercial-visuals">
-                            <div class="commercial-yoy">
-                                <span class="commercial-yoy-title">This year vs prior year (won revenue)</span>
-                                <p class="commercial-yoy-hint">Prior year is the full calendar year; this year is year-to-date. Segment lengths match these amounts.</p>
-                                <div
-                                    class="commercial-yoy-track"
-                                    role="img"
-                                    style={yoyTrackGridStyle}
-                                    aria-label={yoyComparisonAriaLabel}>
-                                    <div class="commercial-yoy-seg commercial-yoy-seg--this"></div>
-                                    <div class="commercial-yoy-seg commercial-yoy-seg--prior"></div>
-                                </div>
-                                <div class="commercial-yoy-values">
-                                    <div class="commercial-yoy-value-block">
-                                        <span class="commercial-yoy-value-label">This year (YTD)</span>
-                                        <span class="commercial-yoy-value-num">
-                                            <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                            <div class="case-resolution">
+                                <span class="case-resolution-title">Case resolution (90 days)</span>
+                                <template if:true={hasCaseResolutionData}>
+                                    <p class="case-resolution-subtitle">{closedCasesSubtitle}</p>
+                                    <div class="case-resolution-hero">
+                                        <span class="case-resolution-hero-value">{caseResolutionMedianDays}</span>
+                                        <span class="case-resolution-hero-unit">days</span>
+                                        <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>
+                                            <span class="case-resolution-trend-arrow">{resolutionTrendIcon}</span>
+                                            {resolutionTrendText}
                                         </span>
                                     </div>
-                                    <div class="commercial-yoy-value-block">
-                                        <span class="commercial-yoy-value-label">Prior year (full)</span>
-                                        <span class="commercial-yoy-value-num">
-                                            <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                        </span>
+                                    <div class="case-resolution-supporting">
+                                        <div class="case-resolution-supporting-block">
+                                            <span class="case-resolution-supporting-label">Fastest</span>
+                                            <span class="case-resolution-supporting-value">{caseResolutionMinDays}</span>
+                                            <span class="case-resolution-supporting-unit">{minDaysLabel}</span>
+                                        </div>
+                                        <div class="case-resolution-supporting-block">
+                                            <span class="case-resolution-supporting-label">Slowest</span>
+                                            <span class="case-resolution-supporting-value">{caseResolutionMaxDays}</span>
+                                            <span class="case-resolution-supporting-unit">{maxDaysLabel}</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="commercial-yoy-legend">
-                                    <span class="commercial-yoy-legend-item"><span class="commercial-yoy-dot commercial-yoy-dot--this"></span> This year (YTD)</span>
-                                    <span class="commercial-yoy-legend-item"><span class="commercial-yoy-dot commercial-yoy-dot--prior"></span> Prior year (full)</span>
-                                </div>
+                                </template>
+                                <template if:false={hasCaseResolutionData}>
+                                    <div class="case-resolution-empty">No closed cases in the last 90 days</div>
+                                </template>
                             </div>
-                            <div class="commercial-quarters-wrap">
-                                <span class="commercial-quarters-title">Won revenue by quarter</span>
-                                <div class="commercial-quarters">
-                                    <template for:each={commercialQuarterBars} for:item="qb">
-                                        <div key={qb.key} class="commercial-quarter-col">
-                                            <div class="commercial-quarter-bar-track">
-                                                <div class="commercial-quarter-bar-fill" style={qb.barStyle}></div>
-                                            </div>
-                                            <span class="commercial-quarter-label">{qb.label}</span>
+                            <div class="case-trend-wrap">
+                                <span class="case-trend-title">Cases opened (6 months)</span>
+                                <div class="case-trend">
+                                    <template for:each={caseTrendBars} for:item="cb">
+                                        <div key={cb.key} class="case-trend-col">
+                                            <button
+                                                type="button"
+                                                class="case-trend-bar-btn"
+                                                data-label={cb.label}
+                                                onclick={handleCaseTrendBarClick}
+                                                aria-label={cb.ariaLabel}>
+                                                <span class="case-trend-bar-count">{cb.count}</span>
+                                                <div class="case-trend-bar-track">
+                                                    <div class="case-trend-bar-fill" style={cb.barStyle}></div>
+                                                </div>
+                                            </button>
+                                            <span class="case-trend-label">{cb.label}</span>
                                         </div>
                                     </template>
                                 </div>

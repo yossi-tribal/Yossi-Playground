@@ -1211,50 +1211,146 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return 'USD';
     }
 
-    /** YoY bar: dollar ratio (grid fr units) — clearer than % of total width when segments differ greatly */
-    get yoyTrackGridStyle() {
-        const y = this.summary ? Number(this.summary.ytdWonRevenue || 0) : 0;
-        const p = this.summary ? Number(this.summary.priorYearWonRevenue || 0) : 0;
-        const t = y + p;
-        if (t <= 0) {
-            return 'grid-template-columns: 1fr 1fr;';
-        }
-        return `grid-template-columns: ${y}fr ${p}fr;`;
+    /** Case resolution: median close time formatted to 1 decimal */
+    get caseResolutionMedianDays() {
+        if (!this.summary) return '0';
+        const v = Number(this.summary.medianCaseCloseTimeDays || 0);
+        return v % 1 === 0 ? String(v) : v.toFixed(1);
     }
 
-    get yoyComparisonAriaLabel() {
-        const y = this.summary ? Number(this.summary.ytdWonRevenue || 0) : 0;
-        const p = this.summary ? Number(this.summary.priorYearWonRevenue || 0) : 0;
-        const code = this.currencyCode;
-        const fmt = (n) =>
-            new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(n);
-        return `Won revenue comparison. This year year-to-date: ${fmt(y)}. Prior calendar year full year: ${fmt(
-            p
-        )}. Bar length is proportional to these amounts.`;
+    get caseResolutionMinDays() {
+        if (!this.summary) return 0;
+        return Math.round(Number(this.summary.minCaseCloseTimeDays || 0));
     }
 
-    /** Last 4 quarters mini bars: height % vs max in quarter set */
-    get commercialQuarterBars() {
-        if (!this.summary) {
-            return [];
-        }
+    get caseResolutionMaxDays() {
+        if (!this.summary) return 0;
+        return Math.round(Number(this.summary.maxCaseCloseTimeDays || 0));
+    }
+
+    get closedCasesLast90Days() {
+        return this.summary ? (this.summary.closedCasesLast90Days || 0) : 0;
+    }
+
+    get hasCaseResolutionData() {
+        return this.closedCasesLast90Days > 0;
+    }
+
+    get closedCasesSubtitle() {
+        const n = this.closedCasesLast90Days;
+        return `Based on ${n} closed case${n !== 1 ? 's' : ''}`;
+    }
+
+    get resolutionTrendIcon() {
+        if (!this.summary || !this.summary.caseResolutionTrend) return '→';
+        if (this.summary.caseResolutionTrend === 'improving') return '↑';
+        if (this.summary.caseResolutionTrend === 'declining') return '↓';
+        return '→';
+    }
+
+    get resolutionTrendText() {
+        if (!this.summary || !this.summary.caseResolutionTrend) return 'Stable';
+        if (this.summary.caseResolutionTrend === 'improving') return 'Improving';
+        if (this.summary.caseResolutionTrend === 'declining') return 'Declining';
+        return 'Stable';
+    }
+
+    get resolutionTrendClass() {
+        const trend = this.summary ? this.summary.caseResolutionTrend : 'stable';
+        return `case-resolution-trend case-resolution-trend--${trend || 'stable'}`;
+    }
+
+    get resolutionTrendAriaLabel() {
+        return `Resolution time ${this.resolutionTrendText.toLowerCase()}`;
+    }
+
+    get minDaysLabel() {
+        return this.caseResolutionMinDays === 1 ? 'day' : 'days';
+    }
+
+    get maxDaysLabel() {
+        return this.caseResolutionMaxDays === 1 ? 'day' : 'days';
+    }
+
+    /** Monthly case volume: 6-month bar array */
+    get caseTrendBars() {
+        if (!this.summary) return [];
         const raw = [
-            { label: this.summary.wonQuarter1Label, value: Number(this.summary.wonQuarter1 || 0) },
-            { label: this.summary.wonQuarter2Label, value: Number(this.summary.wonQuarter2 || 0) },
-            { label: this.summary.wonQuarter3Label, value: Number(this.summary.wonQuarter3 || 0) },
-            { label: this.summary.wonQuarter4Label, value: Number(this.summary.wonQuarter4 || 0) }
+            { label: this.summary.caseMonth1Label, count: Number(this.summary.caseMonth1 || 0) },
+            { label: this.summary.caseMonth2Label, count: Number(this.summary.caseMonth2 || 0) },
+            { label: this.summary.caseMonth3Label, count: Number(this.summary.caseMonth3 || 0) },
+            { label: this.summary.caseMonth4Label, count: Number(this.summary.caseMonth4 || 0) },
+            { label: this.summary.caseMonth5Label, count: Number(this.summary.caseMonth5 || 0) },
+            { label: this.summary.caseMonth6Label, count: Number(this.summary.caseMonth6 || 0) }
         ];
-        const max = Math.max(...raw.map((r) => r.value), 1);
+        const max = Math.max(...raw.map((r) => r.count), 1);
         return raw.map((r, index) => {
-            const pct = Math.max(6, Math.round((r.value / max) * 100));
+            const pct = r.count === 0 ? 0 : Math.max(6, Math.round((r.count / max) * 100));
             return {
-                key: `wq-${index}`,
+                key: `cm-${index}`,
                 label: r.label || '—',
-                value: r.value,
-                heightPct: pct,
-                barStyle: `height: ${pct}%;`
+                count: r.count,
+                barStyle: `height: ${pct}%;`,
+                ariaLabel: `${r.count} case${r.count !== 1 ? 's' : ''} opened in ${r.label || ''}`
             };
         });
+    }
+
+    handleCaseTrendBarClick(event) {
+        const label = event.currentTarget.dataset.label;
+        this.kpiModalTitle = `Cases opened in ${label}`;
+        this.kpiModalType = 'recentCases';
+        this.kpiModalScope = '';
+        this.kpiModalEmptyMessage = `No cases opened in ${label}.`;
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getCasesOpenedInLastDays({ accountId: this.recordId, days: 180 })
+            .then(result => {
+                this.kpiModalData = result || [];
+            })
+            .catch(error => {
+                this.handleError('Failed to load cases', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    /** Nearest renewal KPI */
+    get hasUpcomingRenewal() {
+        return this.summary ? Boolean(this.summary.hasUpcomingRenewal) : false;
+    }
+
+    get nearestRenewalDays() {
+        return this.summary ? (this.summary.nearestRenewalDays || 0) : 0;
+    }
+
+    get nearestRenewalAmount() {
+        return this.summary ? (this.summary.nearestRenewalAmount || 0) : 0;
+    }
+
+    get renewalDaysClass() {
+        const days = this.nearestRenewalDays;
+        if (days <= 7) return 'commercial-kpi-sub renewal-days--critical';
+        if (days <= 30) return 'commercial-kpi-sub renewal-days--urgent';
+        return 'commercial-kpi-sub';
+    }
+
+    get renewalCardClass() {
+        return this.hasUpcomingRenewal
+            ? 'commercial-kpi commercial-kpi--click'
+            : 'commercial-kpi';
+    }
+
+    get renewalSubtitle() {
+        if (!this.hasUpcomingRenewal) return 'No open renewal opportunities';
+        const days = this.nearestRenewalDays;
+        return `${days} day${days !== 1 ? 's' : ''}`;
+    }
+
+    handleCommercialRenewalClick() {
+        if (this.summary && this.summary.nearestRenewalId) {
+            this.navigateToRecord(this.summary.nearestRenewalId);
+        }
     }
 
     get openCasesFactorClass() {

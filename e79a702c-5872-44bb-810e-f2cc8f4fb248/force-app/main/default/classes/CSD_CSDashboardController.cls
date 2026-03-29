@@ -55,6 +55,33 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String wonQuarter2Label { get; set; }
         @AuraEnabled public String wonQuarter3Label { get; set; }
         @AuraEnabled public String wonQuarter4Label { get; set; }
+
+        /** Case resolution metrics (closed cases, last 90 days) */
+        @AuraEnabled public Decimal medianCaseCloseTimeDays { get; set; }
+        @AuraEnabled public Decimal minCaseCloseTimeDays { get; set; }
+        @AuraEnabled public Decimal maxCaseCloseTimeDays { get; set; }
+        @AuraEnabled public Integer closedCasesLast90Days { get; set; }
+        @AuraEnabled public String caseResolutionTrend { get; set; }
+
+        /** Monthly case volume (last 6 months, oldest first) */
+        @AuraEnabled public Integer caseMonth1 { get; set; }
+        @AuraEnabled public Integer caseMonth2 { get; set; }
+        @AuraEnabled public Integer caseMonth3 { get; set; }
+        @AuraEnabled public Integer caseMonth4 { get; set; }
+        @AuraEnabled public Integer caseMonth5 { get; set; }
+        @AuraEnabled public Integer caseMonth6 { get; set; }
+        @AuraEnabled public String caseMonth1Label { get; set; }
+        @AuraEnabled public String caseMonth2Label { get; set; }
+        @AuraEnabled public String caseMonth3Label { get; set; }
+        @AuraEnabled public String caseMonth4Label { get; set; }
+        @AuraEnabled public String caseMonth5Label { get; set; }
+        @AuraEnabled public String caseMonth6Label { get; set; }
+
+        /** Nearest renewal (from open Opportunity with Type='Renewal') */
+        @AuraEnabled public Integer nearestRenewalDays { get; set; }
+        @AuraEnabled public Decimal nearestRenewalAmount { get; set; }
+        @AuraEnabled public Boolean hasUpcomingRenewal { get; set; }
+        @AuraEnabled public Id nearestRenewalId { get; set; }
     }
 
     /**
@@ -400,6 +427,30 @@ public with sharing class CSD_CSDashboardController {
         summary.wonQuarter3Label = '';
         summary.wonQuarter4Label = '';
 
+        summary.medianCaseCloseTimeDays = 0;
+        summary.minCaseCloseTimeDays = 0;
+        summary.maxCaseCloseTimeDays = 0;
+        summary.closedCasesLast90Days = 0;
+        summary.caseResolutionTrend = 'stable';
+
+        summary.caseMonth1 = 0;
+        summary.caseMonth2 = 0;
+        summary.caseMonth3 = 0;
+        summary.caseMonth4 = 0;
+        summary.caseMonth5 = 0;
+        summary.caseMonth6 = 0;
+        summary.caseMonth1Label = '';
+        summary.caseMonth2Label = '';
+        summary.caseMonth3Label = '';
+        summary.caseMonth4Label = '';
+        summary.caseMonth5Label = '';
+        summary.caseMonth6Label = '';
+
+        summary.nearestRenewalDays = 0;
+        summary.nearestRenewalAmount = 0;
+        summary.hasUpcomingRenewal = false;
+        summary.nearestRenewalId = null;
+
         Integer y = Date.today().year();
         Date ytdStart = Date.newInstance(y, 1, 1);
         Date ytdEnd = Date.newInstance(y, 12, 31);
@@ -481,6 +532,9 @@ public with sharing class CSD_CSDashboardController {
         ];
 
         populateLastFourQuartersWon(accountId, summary);
+        populateCaseResolutionMetrics(accountId, summary);
+        populateMonthlyCaseVolume(accountId, summary);
+        populateNearestRenewal(accountId, summary);
     }
 
     /**
@@ -569,6 +623,163 @@ public with sharing class CSD_CSDashboardController {
         w.endDate = Date.newInstance(year, endMonth, lastDay);
         w.label = 'Q' + String.valueOf(quarter) + ' ' + String.valueOf(year);
         return w;
+    }
+
+    private static List<Integer> computeDurations(List<Case> cases) {
+        List<Integer> durations = new List<Integer>();
+        for (Case c : cases) {
+            if (c.CreatedDate != null && c.ClosedDate != null) {
+                Integer days = c.CreatedDate.date().daysBetween(c.ClosedDate.date());
+                durations.add(Math.max(days, 0));
+            }
+        }
+        durations.sort();
+        return durations;
+    }
+
+    private static Decimal computeMedian(List<Integer> sorted) {
+        if (sorted.isEmpty()) return 0;
+        Integer n = sorted.size();
+        if (Math.mod(n, 2) == 1) {
+            return sorted[n / 2];
+        }
+        return ((Decimal) sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+    }
+
+    private static void populateCaseResolutionMetrics(Id accountId, DashboardSummary summary) {
+        List<Case> currentCases = [
+            SELECT CreatedDate, ClosedDate
+            FROM Case
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND ClosedDate >= LAST_N_DAYS:90
+        ];
+
+        List<Integer> durations = computeDurations(currentCases);
+        summary.closedCasesLast90Days = durations.size();
+
+        if (!durations.isEmpty()) {
+            summary.medianCaseCloseTimeDays = computeMedian(durations).setScale(1, System.RoundingMode.HALF_UP);
+            summary.minCaseCloseTimeDays = durations[0];
+            summary.maxCaseCloseTimeDays = durations[durations.size() - 1];
+        }
+
+        DateTime priorStart = DateTime.now().addDays(-180);
+        DateTime priorEnd = DateTime.now().addDays(-90);
+        List<Case> priorCases = [
+            SELECT CreatedDate, ClosedDate
+            FROM Case
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND ClosedDate >= :priorStart
+            AND ClosedDate < :priorEnd
+        ];
+
+        List<Integer> priorDurations = computeDurations(priorCases);
+        if (!durations.isEmpty() && !priorDurations.isEmpty()) {
+            Decimal currentMedian = computeMedian(durations);
+            Decimal priorMedian = computeMedian(priorDurations);
+            if (priorMedian > 0) {
+                Decimal pctChange = ((currentMedian - priorMedian) / priorMedian) * 100;
+                if (pctChange <= -10) {
+                    summary.caseResolutionTrend = 'improving';
+                } else if (pctChange >= 10) {
+                    summary.caseResolutionTrend = 'declining';
+                }
+            }
+        }
+    }
+
+    private static final String[] MONTH_ABBREVS = new String[]{
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    };
+
+    private static void populateMonthlyCaseVolume(Id accountId, DashboardSummary summary) {
+        Date today = Date.today();
+        Integer currentMonth = today.month();
+        Integer currentYear = today.year();
+
+        Integer startMonth = currentMonth - 5;
+        Integer startYear = currentYear;
+        if (startMonth < 1) {
+            startMonth += 12;
+            startYear--;
+        }
+        Date sixMonthsAgo = Date.newInstance(startYear, startMonth, 1);
+
+        Map<String, Integer> monthCounts = new Map<String, Integer>();
+        List<String> orderedKeys = new List<String>();
+
+        Integer m = startMonth;
+        Integer yr = startYear;
+        for (Integer i = 0; i < 6; i++) {
+            String key = yr + '-' + String.valueOf(m).leftPad(2, '0');
+            monthCounts.put(key, 0);
+            orderedKeys.add(key);
+            m++;
+            if (m > 12) {
+                m = 1;
+                yr++;
+            }
+        }
+
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CreatedDate) mo, CALENDAR_YEAR(CreatedDate) yr, COUNT(Id) cnt
+            FROM Case
+            WHERE AccountId = :accountId
+            AND CreatedDate >= :sixMonthsAgo
+            GROUP BY CALENDAR_MONTH(CreatedDate), CALENDAR_YEAR(CreatedDate)
+            ORDER BY CALENDAR_YEAR(CreatedDate), CALENDAR_MONTH(CreatedDate)
+        ]) {
+            Integer arMonth = (Integer) ar.get('mo');
+            Integer arYear = (Integer) ar.get('yr');
+            String key = arYear + '-' + String.valueOf(arMonth).leftPad(2, '0');
+            if (monthCounts.containsKey(key)) {
+                monthCounts.put(key, (Integer) ar.get('cnt'));
+            }
+        }
+
+        List<Integer> counts = new List<Integer>();
+        List<String> labels = new List<String>();
+        for (String key : orderedKeys) {
+            counts.add(monthCounts.get(key));
+            Integer mo = Integer.valueOf(key.substring(5));
+            labels.add(MONTH_ABBREVS[mo - 1]);
+        }
+
+        summary.caseMonth1 = counts[0];
+        summary.caseMonth2 = counts[1];
+        summary.caseMonth3 = counts[2];
+        summary.caseMonth4 = counts[3];
+        summary.caseMonth5 = counts[4];
+        summary.caseMonth6 = counts[5];
+        summary.caseMonth1Label = labels[0];
+        summary.caseMonth2Label = labels[1];
+        summary.caseMonth3Label = labels[2];
+        summary.caseMonth4Label = labels[3];
+        summary.caseMonth5Label = labels[4];
+        summary.caseMonth6Label = labels[5];
+    }
+
+    private static void populateNearestRenewal(Id accountId, DashboardSummary summary) {
+        List<Opportunity> renewals = [
+            SELECT Id, CloseDate, Amount
+            FROM Opportunity
+            WHERE AccountId = :accountId
+            AND IsClosed = false
+            AND Type = 'Renewal'
+            ORDER BY CloseDate ASC
+            LIMIT 1
+        ];
+
+        if (!renewals.isEmpty()) {
+            Opportunity r = renewals[0];
+            summary.hasUpcomingRenewal = true;
+            summary.nearestRenewalDays = Date.today().daysBetween(r.CloseDate);
+            summary.nearestRenewalAmount = r.Amount != null ? r.Amount : 0;
+            summary.nearestRenewalId = r.Id;
+        }
     }
 
     /**
