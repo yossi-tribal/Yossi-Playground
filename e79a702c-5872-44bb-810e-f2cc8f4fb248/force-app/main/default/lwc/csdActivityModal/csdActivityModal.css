@@ -1,0 +1,10 @@
+.slds-form__row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.slds-form__item {
+    flex: 1;
+    min-width: 0;
+}

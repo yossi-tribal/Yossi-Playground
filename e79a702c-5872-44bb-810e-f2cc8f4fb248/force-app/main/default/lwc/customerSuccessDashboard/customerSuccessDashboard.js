@@ -1,6 +1,7 @@
 import { LightningElement, api, track } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import CsdActivityModal from 'c/csdActivityModal';
 import getDashboardSummary from '@salesforce/apex/CSD_CSDashboardController.getDashboardSummary';
 import getOpenCases from '@salesforce/apex/CSD_CSDashboardController.getOpenCases';
 import getOverdueTasks from '@salesforce/apex/CSD_CSDashboardController.getOverdueTasks';
@@ -500,52 +501,59 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         });
     }
 
-    /**
-     * Create new task
-     */
-    handleCreateTask() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__objectPage',
-            attributes: {
-                objectApiName: 'Task',
-                actionName: 'new'
-            },
-            state: {
-                defaultFieldValues: `WhatId=${this.recordId}`
-            }
+    async handleCreateTask() {
+        const result = await CsdActivityModal.open({
+            size: 'medium',
+            description: 'Create a new Task',
+            objectApiName: 'Task',
+            whatId: this.recordId,
+            defaultFieldValues: {},
+            modalTitle: 'New Task'
         });
+        if (result && result.success) {
+            this.showSuccessToast('Task created successfully');
+            this.handleRefresh();
+        }
     }
 
-    /**
-     * Create new event
-     */
-    handleCreateEvent() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__objectPage',
-            attributes: {
-                objectApiName: 'Event',
-                actionName: 'new'
-            },
-            state: {
-                defaultFieldValues: `WhatId=${this.recordId}`
-            }
+    async handleCreateEvent() {
+        const result = await CsdActivityModal.open({
+            size: 'medium',
+            description: 'Create a new Event',
+            objectApiName: 'Event',
+            whatId: this.recordId,
+            defaultFieldValues: {},
+            modalTitle: 'New Event'
         });
+        if (result && result.success) {
+            this.showSuccessToast('Event created successfully');
+            this.handleRefresh();
+        }
     }
 
-    /**
-     * Log a call (create completed task)
-     */
-    handleLogCall() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__objectPage',
-            attributes: {
-                objectApiName: 'Task',
-                actionName: 'new'
-            },
-            state: {
-                defaultFieldValues: `WhatId=${this.recordId},Status=Completed,Type=Call`
-            }
+    async handleLogCall() {
+        const result = await CsdActivityModal.open({
+            size: 'medium',
+            description: 'Log a Call',
+            objectApiName: 'Task',
+            whatId: this.recordId,
+            defaultFieldValues: { Status: 'Completed', Type: 'Call' },
+            modalTitle: 'Log a Call'
         });
+        if (result && result.success) {
+            this.showSuccessToast('Call logged successfully');
+            this.handleRefresh();
+        }
+    }
+
+    showSuccessToast(message) {
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title: 'Success',
+                message: message,
+                variant: 'success'
+            })
+        );
     }
 
     /**

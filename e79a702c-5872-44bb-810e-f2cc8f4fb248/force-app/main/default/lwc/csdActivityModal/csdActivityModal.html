@@ -1,0 +1,130 @@
+<template>
+    <lightning-modal-header label={modalTitle}></lightning-modal-header>
+
+    <lightning-modal-body>
+        <lightning-record-edit-form
+            object-api-name={objectApiName}
+            onsuccess={handleSuccess}
+            onsubmit={handleSubmit}
+        >
+            <div class="slds-p-around_medium">
+                <!-- Task fields -->
+                <template lwc:if={isTask}>
+                    <div class="slds-form" role="list">
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="Subject"></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="ActivityDate"></lightning-input-field>
+                            </div>
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="Priority"></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field
+                                    field-name="Status"
+                                    value={defaultStatus}
+                                ></lightning-input-field>
+                            </div>
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field
+                                    field-name="Type"
+                                    value={defaultType}
+                                ></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="WhoId"></lightning-input-field>
+                            </div>
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field
+                                    field-name="WhatId"
+                                    value={whatId}
+                                ></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="OwnerId"></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="Description"></lightning-input-field>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Event fields -->
+                <template lwc:if={isEvent}>
+                    <div class="slds-form" role="list">
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="Subject"></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="IsAllDayEvent"></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="StartDateTime"></lightning-input-field>
+                            </div>
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="EndDateTime"></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="WhoId"></lightning-input-field>
+                            </div>
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field
+                                    field-name="WhatId"
+                                    value={whatId}
+                                ></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="Location"></lightning-input-field>
+                            </div>
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="OwnerId"></lightning-input-field>
+                            </div>
+                        </div>
+                        <div class="slds-form__row">
+                            <div class="slds-form__item" role="listitem">
+                                <lightning-input-field field-name="Description"></lightning-input-field>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <lightning-modal-footer>
+                <div class="slds-grid slds-grid_align-end">
+                    <lightning-button
+                        label="Cancel"
+                        onclick={handleCancel}
+                        class="slds-m-right_small"
+                    ></lightning-button>
+                    <lightning-button
+                        variant="brand"
+                        type="submit"
+                        label="Save"
+                    ></lightning-button>
+                </div>
+            </lightning-modal-footer>
+        </lightning-record-edit-form>
+    </lightning-modal-body>
+</template>
