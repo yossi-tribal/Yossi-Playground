@@ -834,5 +834,67 @@
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>
         </template>
+
+        <!-- Create activity modal (quick actions: task, event, log call) -->
+        <template if:true={activityModalOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="activity-modal-heading" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" type="button" onclick={handleCloseActivityModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 id="activity-modal-heading" class="slds-modal__title slds-hyphenate">{activityModalTitle}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium activity-modal-body">
+                        <template if:true={showActivityTaskForm}>
+                            <lightning-record-edit-form object-api-name="Task" onsuccess={handleActivityTaskSuccess} onerror={handleActivityFormError}>
+                                <lightning-messages></lightning-messages>
+                                <lightning-input-field field-name="WhatId" value={recordId} required></lightning-input-field>
+                                <lightning-input-field field-name="Subject"></lightning-input-field>
+                                <lightning-input-field field-name="ActivityDate"></lightning-input-field>
+                                <lightning-input-field field-name="Status"></lightning-input-field>
+                                <lightning-input-field field-name="Priority"></lightning-input-field>
+                                <lightning-input-field field-name="Description"></lightning-input-field>
+                                <div class="slds-m-top_medium activity-modal-form-actions">
+                                    <lightning-button label="Cancel" onclick={handleCloseActivityModal}></lightning-button>
+                                    <lightning-button type="submit" label="Save" variant="brand"></lightning-button>
+                                </div>
+                            </lightning-record-edit-form>
+                        </template>
+                        <template if:true={showActivityEventForm}>
+                            <lightning-record-edit-form object-api-name="Event" onsuccess={handleActivityEventSuccess} onerror={handleActivityFormError}>
+                                <lightning-messages></lightning-messages>
+                                <lightning-input-field field-name="WhatId" value={recordId} required></lightning-input-field>
+                                <lightning-input-field field-name="Subject"></lightning-input-field>
+                                <lightning-input-field field-name="StartDateTime"></lightning-input-field>
+                                <lightning-input-field field-name="EndDateTime"></lightning-input-field>
+                                <lightning-input-field field-name="Description"></lightning-input-field>
+                                <div class="slds-m-top_medium activity-modal-form-actions">
+                                    <lightning-button label="Cancel" onclick={handleCloseActivityModal}></lightning-button>
+                                    <lightning-button type="submit" label="Save" variant="brand"></lightning-button>
+                                </div>
+                            </lightning-record-edit-form>
+                        </template>
+                        <template if:true={showActivityLogCallForm}>
+                            <lightning-record-edit-form object-api-name="Task" onsuccess={handleActivityLogCallSuccess} onerror={handleActivityFormError}>
+                                <lightning-messages></lightning-messages>
+                                <lightning-input-field field-name="WhatId" value={recordId} required></lightning-input-field>
+                                <lightning-input-field field-name="Subject"></lightning-input-field>
+                                <lightning-input-field field-name="ActivityDate"></lightning-input-field>
+                                <lightning-input-field field-name="Status" value="Completed"></lightning-input-field>
+                                <lightning-input-field field-name="Type" value="Call"></lightning-input-field>
+                                <lightning-input-field field-name="Description"></lightning-input-field>
+                                <div class="slds-m-top_medium activity-modal-form-actions">
+                                    <lightning-button label="Cancel" onclick={handleCloseActivityModal}></lightning-button>
+                                    <lightning-button type="submit" label="Save" variant="brand"></lightning-button>
+                                </div>
+                            </lightning-record-edit-form>
+                        </template>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
     </lightning-card>
 </template>

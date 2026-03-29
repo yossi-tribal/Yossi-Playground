@@ -32,6 +32,10 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
 
+    /** Quick action: create Task / Event / Log call in-modal (stay on dashboard) */
+    @track activityModalOpen = false;
+    @track activityModalKind = ''; // 'task' | 'event' | 'logCall'
+
     /** Accordion: which detail sections are expanded */
     @track sectionExpanded = {
         overdueTasks: false,
@@ -501,51 +505,145 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     /**
-     * Create new task
+     * Create new task (modal; stays on Account page after save)
      */
     handleCreateTask() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__objectPage',
-            attributes: {
-                objectApiName: 'Task',
-                actionName: 'new'
-            },
-            state: {
-                defaultFieldValues: `WhatId=${this.recordId}`
-            }
-        });
+        if (!this.recordId) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Cannot create task',
+                    message: 'No account is associated with this dashboard.',
+                    variant: 'error'
+                })
+            );
+            return;
+        }
+        this.activityModalKind = 'task';
+        this.activityModalOpen = true;
     }
 
     /**
-     * Create new event
+     * Create new event (modal)
      */
     handleCreateEvent() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__objectPage',
-            attributes: {
-                objectApiName: 'Event',
-                actionName: 'new'
-            },
-            state: {
-                defaultFieldValues: `WhatId=${this.recordId}`
-            }
-        });
+        if (!this.recordId) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Cannot schedule event',
+                    message: 'No account is associated with this dashboard.',
+                    variant: 'error'
+                })
+            );
+            return;
+        }
+        this.activityModalKind = 'event';
+        this.activityModalOpen = true;
     }
 
     /**
-     * Log a call (create completed task)
+     * Log a call (modal; completed call task)
      */
     handleLogCall() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__objectPage',
-            attributes: {
-                objectApiName: 'Task',
-                actionName: 'new'
-            },
-            state: {
-                defaultFieldValues: `WhatId=${this.recordId},Status=Completed,Type=Call`
-            }
-        });
+        if (!this.recordId) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Cannot log call',
+                    message: 'No account is associated with this dashboard.',
+                    variant: 'error'
+                })
+            );
+            return;
+        }
+        this.activityModalKind = 'logCall';
+        this.activityModalOpen = true;
+    }
+
+    get activityModalTitle() {
+        switch (this.activityModalKind) {
+            case 'task':
+                return 'New Task';
+            case 'event':
+                return 'Schedule Event';
+            case 'logCall':
+                return 'Log a Call';
+            default:
+                return '';
+        }
+    }
+
+    get showActivityTaskForm() {
+        return this.activityModalOpen && this.activityModalKind === 'task';
+    }
+
+    get showActivityEventForm() {
+        return this.activityModalOpen && this.activityModalKind === 'event';
+    }
+
+    get showActivityLogCallForm() {
+        return this.activityModalOpen && this.activityModalKind === 'logCall';
+    }
+
+    handleCloseActivityModal() {
+        this.activityModalOpen = false;
+        this.activityModalKind = '';
+    }
+
+    finishActivitySave(kind) {
+        this.activityModalOpen = false;
+        this.activityModalKind = '';
+
+        const byKind = {
+            task: { title: 'Task created', message: 'Your task was saved and related to this account.' },
+            event: { title: 'Event scheduled', message: 'Your event was saved and related to this account.' },
+            logCall: { title: 'Call logged', message: 'Your call was logged as a completed task.' }
+        };
+        const { title, message } = byKind[kind] || {
+            title: 'Saved',
+            message: 'The record was created.'
+        };
+
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title,
+                message,
+                variant: 'success'
+            })
+        );
+
+        this.loadOverdueTasks();
+        this.loadUpcomingActivities();
+        this.loadSummary();
+    }
+
+    handleActivityTaskSuccess() {
+        this.finishActivitySave('task');
+    }
+
+    handleActivityEventSuccess() {
+        this.finishActivitySave('event');
+    }
+
+    handleActivityLogCallSuccess() {
+        this.finishActivitySave('logCall');
+    }
+
+    handleActivityFormError(event) {
+        const out = event.detail && event.detail.output;
+        const errs = out && out.errors;
+        let message = 'Check the form and try again.';
+        if (errs && errs.length) {
+            message = errs.map(e => e.message).join(' ');
+        } else if (event.detail && event.detail.message) {
+            message = event.detail.message;
+        }
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title: 'Could not save',
+                message,
+                variant: 'error',
+                mode: 'sticky'
+            })
+        );
     }
 
     /**
