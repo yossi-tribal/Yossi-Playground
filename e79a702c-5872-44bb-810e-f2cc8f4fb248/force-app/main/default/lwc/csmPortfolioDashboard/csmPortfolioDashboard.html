@@ -94,6 +94,11 @@
                                             {summary.atRiskAccounts} At Risk
                                         </div>
                                     </div>
+
+                                    <button class="breakdown-btn" onclick={handleViewHealthBreakdown} type="button">
+                                        <lightning-icon icon-name="utility:info" size="xx-small"></lightning-icon>
+                                        View Breakdown
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -106,13 +111,14 @@
                                     <template for:each={suggestedActions} for:item="action">
                                         <div key={action.id}
                                              class={action.actionClass}
-                                             data-action={action.actionFilter}
+                                             data-action-type={action.id}
                                              onclick={handleSuggestedActionClick}>
                                             <div class="suggested-action-content">
                                                 <span class={action.dotClass}></span>
                                                 <span class="suggested-action-badge">{action.badge}</span>
                                                 <span class="suggested-action-text">{action.text}</span>
                                             </div>
+                                            <lightning-icon icon-name="utility:chevronright" size="xx-small" class="suggested-action-chevron"></lightning-icon>
                                         </div>
                                     </template>
                                 </div>
@@ -227,13 +233,14 @@
                                                  data-id={renewal.opportunityId}
                                                  onclick={handleRenewalClick}>
                                                 <div class="renewal-item-left">
-                                                    <span class="renewal-account">{renewal.accountName}</span>
+                                                    <span class="renewal-account renewal-account-link">{renewal.accountName}</span>
                                                     <span class="renewal-opp">{renewal.opportunityName}</span>
                                                 </div>
                                                 <div class="renewal-item-right">
                                                     <span class="renewal-amount">{renewal.amountFormatted}</span>
                                                     <span class={renewal.daysClass}>{renewal.daysText}</span>
                                                 </div>
+                                                <lightning-icon icon-name="utility:chevronright" size="xx-small" class="renewal-nav-icon"></lightning-icon>
                                             </div>
                                         </template>
                                     </div>
@@ -283,6 +290,7 @@
                                         <th>Tasks</th>
                                         <th>Pipeline</th>
                                         <th>Renewal</th>
+                                        <th class="th-chevron"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -320,20 +328,47 @@
                                             <td>
                                                 <span class={account.renewalClass}>{account.renewalDisplay}</span>
                                             </td>
+                                            <td class="td-chevron">
+                                                <lightning-icon icon-name="utility:chevronright" size="x-small" class={account.chevronClass}></lightning-icon>
+                                            </td>
                                         </tr>
                                         <!-- Inline Expansion -->
                                         <template if:true={account.isExpanded}>
                                             <tr key={account.expansionKey} class="expansion-row">
-                                                <td colspan="8">
+                                                <td colspan="9">
                                                     <div class="expansion-card">
-                                                        <div class="expansion-grid">
-                                                            <template for:each={account.expansionMetrics} for:item="metric">
-                                                                <div key={metric.label} class="expansion-metric">
-                                                                    <span class="expansion-metric-label">{metric.label}</span>
-                                                                    <span class={metric.class}>{metric.value}</span>
+                                                        <div class="expansion-section-label">Health Factors</div>
+                                                        <div class="expansion-health-factors">
+                                                            <template for:each={account.healthFactors} for:item="factor">
+                                                                <div key={factor.label} class="health-factor-card">
+                                                                    <span class="health-factor-label">{factor.label}</span>
+                                                                    <span class={factor.valueClass}>{factor.value}</span>
+                                                                    <span class={factor.statusClass}>{factor.status}</span>
                                                                 </div>
                                                             </template>
                                                         </div>
+
+                                                        <template if:true={account.hasRecentActivities}>
+                                                            <div class="expansion-section-label">Recent Activity</div>
+                                                            <div class="expansion-recent-activities">
+                                                                <template for:each={account.recentActivities} for:item="activity">
+                                                                    <div key={activity.subject} class="recent-activity-item">
+                                                                        <span class="recent-activity-type">{activity.activityType}</span>
+                                                                        <span class="recent-activity-subject">{activity.subject}</span>
+                                                                        <span class="recent-activity-date">{activity.activityDate}</span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+
+                                                        <template if:true={account.primaryContactName}>
+                                                            <div class="expansion-section-label">Key Contact</div>
+                                                            <div class="expansion-contact">
+                                                                <lightning-icon icon-name="standard:contact" size="x-small"></lightning-icon>
+                                                                <span class="expansion-contact-name">{account.primaryContactName}</span>
+                                                            </div>
+                                                        </template>
+
                                                         <div class="expansion-actions">
                                                             <button class="custom-btn custom-btn--primary"
                                                                     data-id={account.accountId}
@@ -366,7 +401,10 @@
                                      onclick={handleAccountRowClick}>
                                     <div class="mobile-card-header">
                                         <span class="mobile-card-name">{account.accountName}</span>
-                                        <span class={account.healthBadgeClass}>{account.healthScore}</span>
+                                        <div class="mobile-card-header-right">
+                                            <span class={account.healthBadgeClass}>{account.healthScore}</span>
+                                            <lightning-icon icon-name="utility:chevronright" size="xx-small" class={account.chevronClass}></lightning-icon>
+                                        </div>
                                     </div>
                                     <div class="mobile-card-metrics">
                                         <div class="mobile-card-metric">
@@ -660,6 +698,135 @@
                     <footer class="slds-modal__footer">
                         <button class="slds-button slds-button_neutral" onclick={handleActivityModalCancel}>Cancel</button>
                         <button class="slds-button slds-button_brand" onclick={handleActivityModalSubmit} disabled={activitySaveDisabled}>Save</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Health Breakdown Modal -->
+        <template if:true={showHealthBreakdownModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_medium" aria-modal="true">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                title="Close"
+                                onclick={handleCloseHealthBreakdown}
+                                type="button">
+                            <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-text-heading_medium slds-hyphenate">Portfolio Health Breakdown</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <template if:true={healthBreakdown}>
+                            <p class="breakdown-description">How your {summary.totalAccounts} accounts score on each health factor:</p>
+                            <table class="breakdown-table">
+                                <thead>
+                                    <tr>
+                                        <th>Factor</th>
+                                        <th class="breakdown-th-center">Healthy</th>
+                                        <th class="breakdown-th-center">Needs Attention</th>
+                                        <th class="breakdown-th-center">At Risk</th>
+                                        <th>Thresholds</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="breakdown-factor-name">Activity Recency</td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsInactiveGreen}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsInactiveYellow}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsInactiveRed}</span></td>
+                                        <td class="breakdown-threshold">&lt;15d / 15-29d / 30+d</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="breakdown-factor-name">Overdue Tasks</td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsOverdueGreen}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsOverdueYellow}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsOverdueRed}</span></td>
+                                        <td class="breakdown-threshold">0 / 1-2 / 3+</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="breakdown-factor-name">High-Priority Cases</td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsHighPriGreen}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsHighPriYellow}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsHighPriRed}</span></td>
+                                        <td class="breakdown-threshold">0 / 1 / 2+</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="breakdown-factor-name">Total Open Cases</td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsCasesGreen}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsCasesYellow}</span></td>
+                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsCasesRed}</span></td>
+                                        <td class="breakdown-threshold">0-2 / 3-4 / 5+</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={healthBreakdown}>
+                            <div class="loading-container" style="min-height: 200px;">
+                                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+                            </div>
+                        </template>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="custom-btn custom-btn--secondary" onclick={handleCloseHealthBreakdown} type="button">Close</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Suggested Action Detail Modal -->
+        <template if:true={showSuggestedActionModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_medium" aria-modal="true">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                title="Close"
+                                onclick={handleCloseSuggestedActionModal}
+                                type="button">
+                            <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-text-heading_medium slds-hyphenate">{suggestedActionModalTitle}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <template if:true={suggestedActionModalLoading}>
+                            <div class="loading-container" style="min-height: 200px;">
+                                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+                            </div>
+                        </template>
+                        <template if:false={suggestedActionModalLoading}>
+                            <template if:true={hasSuggestedActionModalItems}>
+                                <div class="action-modal-list">
+                                    <template for:each={suggestedActionModalItems} for:item="item">
+                                        <div key={item.id}
+                                             class="action-modal-item"
+                                             data-id={item.id}
+                                             data-type={suggestedActionModalType}
+                                             onclick={handleActionModalItemClick}>
+                                            <div class="action-modal-item-left">
+                                                <span class="action-modal-item-account">{item.accountName}</span>
+                                                <span class="action-modal-item-subject">{item.subject}</span>
+                                            </div>
+                                            <div class="action-modal-item-right">
+                                                <span class={item.metricClass}>{item.metric}</span>
+                                            </div>
+                                            <lightning-icon icon-name="utility:chevronright" size="xx-small" class="action-modal-item-chevron"></lightning-icon>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template if:false={hasSuggestedActionModalItems}>
+                                <div class="empty-state">
+                                    <p class="empty-text">No items found</p>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="custom-btn custom-btn--secondary" onclick={handleCloseSuggestedActionModal} type="button">Close</button>
                     </footer>
                 </div>
             </section>

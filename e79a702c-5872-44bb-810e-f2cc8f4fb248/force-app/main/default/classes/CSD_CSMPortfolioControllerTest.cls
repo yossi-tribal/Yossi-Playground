@@ -464,4 +464,128 @@ private class CSD_CSMPortfolioControllerTest {
         }
         Test.stopTest();
     }
+
+    /**
+     * @description Test getPortfolioHealthBreakdown returns correct factor counts
+     */
+    @isTest
+    static void testGetPortfolioHealthBreakdown() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            CSD_CSMPortfolioController.PortfolioHealthBreakdown breakdown =
+                CSD_CSMPortfolioController.getPortfolioHealthBreakdown();
+
+            System.assertNotEquals(null, breakdown, 'Breakdown should not be null');
+
+            // Verify all factor counters sum to 3 (total portfolio accounts)
+            Integer activityTotal = breakdown.accountsInactiveRed + breakdown.accountsInactiveYellow + breakdown.accountsInactiveGreen;
+            System.assertEquals(3, activityTotal, 'Activity factor should cover all 3 accounts');
+
+            Integer overdueTotal = breakdown.accountsOverdueRed + breakdown.accountsOverdueYellow + breakdown.accountsOverdueGreen;
+            System.assertEquals(3, overdueTotal, 'Overdue factor should cover all 3 accounts');
+
+            Integer highPriTotal = breakdown.accountsHighPriRed + breakdown.accountsHighPriYellow + breakdown.accountsHighPriGreen;
+            System.assertEquals(3, highPriTotal, 'High-pri factor should cover all 3 accounts');
+
+            Integer casesTotal = breakdown.accountsCasesRed + breakdown.accountsCasesYellow + breakdown.accountsCasesGreen;
+            System.assertEquals(3, casesTotal, 'Cases factor should cover all 3 accounts');
+
+            // Account 1 has 1 high-pri case, so highPriYellow should be >= 1
+            System.assert(breakdown.accountsHighPriYellow >= 1, 'Should have at least 1 account in high-pri yellow');
+
+            // Account 2 has 1 overdue task, so overdueYellow should be >= 1
+            System.assert(breakdown.accountsOverdueYellow >= 1, 'Should have at least 1 account in overdue yellow');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Test getOverdueTasksForPortfolio returns overdue tasks
+     */
+    @isTest
+    static void testGetOverdueTasksForPortfolio() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            List<CSD_CSMPortfolioController.OverdueTaskRow> tasks =
+                CSD_CSMPortfolioController.getOverdueTasksForPortfolio();
+
+            System.assertNotEquals(null, tasks, 'Tasks list should not be null');
+            System.assertEquals(1, tasks.size(), 'Should have 1 overdue task');
+
+            CSD_CSMPortfolioController.OverdueTaskRow task = tasks[0];
+            System.assertEquals('Overdue Task', task.subject, 'Should match task subject');
+            System.assert(task.daysOverdue > 0, 'Days overdue should be positive');
+            System.assertNotEquals(null, task.taskId, 'Task ID should not be null');
+            System.assertNotEquals(null, task.accountName, 'Account name should not be null');
+            System.assertNotEquals(null, task.accountId, 'Account ID should not be null');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Test getHighPriorityCasesForPortfolio returns high-pri cases
+     */
+    @isTest
+    static void testGetHighPriorityCasesForPortfolio() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            List<CSD_CSMPortfolioController.HighPriorityCaseRow> cases =
+                CSD_CSMPortfolioController.getHighPriorityCasesForPortfolio();
+
+            System.assertNotEquals(null, cases, 'Cases list should not be null');
+            System.assertEquals(1, cases.size(), 'Should have 1 high-priority case');
+
+            CSD_CSMPortfolioController.HighPriorityCaseRow c = cases[0];
+            System.assertEquals('High', c.priority, 'Should be high priority');
+            System.assertNotEquals(null, c.caseId, 'Case ID should not be null');
+            System.assertNotEquals(null, c.caseNumber, 'Case number should not be null');
+            System.assertNotEquals(null, c.accountName, 'Account name should not be null');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Test AccountRow health factor fields and recent activities are populated
+     */
+    @isTest
+    static void testAccountRowHealthFactorFields() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            List<CSD_CSMPortfolioController.AccountRow> accounts =
+                CSD_CSMPortfolioController.getPortfolioAccounts('all', 'accountName', 'asc', 25, 1);
+
+            for (CSD_CSMPortfolioController.AccountRow acc : accounts) {
+                // Health factor fields should be populated (not null for numeric types)
+                System.assertNotEquals(null, acc.totalOpenCasesForHealth,
+                    'totalOpenCasesForHealth should be set for ' + acc.accountName);
+                System.assertNotEquals(null, acc.highPriorityCasesForHealth,
+                    'highPriorityCasesForHealth should be set for ' + acc.accountName);
+                System.assertNotEquals(null, acc.overdueTasksForHealth,
+                    'overdueTasksForHealth should be set for ' + acc.accountName);
+
+                // Recent activities should be a non-null list
+                System.assertNotEquals(null, acc.recentActivities,
+                    'recentActivities should not be null for ' + acc.accountName);
+            }
+
+            // Account 2 (Needs Attention) has a completed task, so it should have recent activities
+            Account acc2 = [SELECT Id FROM Account WHERE Name = 'Test Account 2 - Needs Attention' LIMIT 1];
+            for (CSD_CSMPortfolioController.AccountRow acc : accounts) {
+                if (acc.accountId == acc2.Id) {
+                    System.assert(acc.recentActivities.size() > 0,
+                        'Account 2 should have recent activities from completed task');
+                    break;
+                }
+            }
+        }
+        Test.stopTest();
+    }
 }

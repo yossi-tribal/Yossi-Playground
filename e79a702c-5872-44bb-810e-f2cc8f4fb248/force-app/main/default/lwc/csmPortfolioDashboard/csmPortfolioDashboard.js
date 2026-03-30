@@ -4,6 +4,9 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getPortfolioSummary from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioSummary';
 import getPortfolioAccounts from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioAccounts';
 import getUpcomingRenewals from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingRenewals';
+import getPortfolioHealthBreakdown from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioHealthBreakdown';
+import getOverdueTasksForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getOverdueTasksForPortfolio';
+import getHighPriorityCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getHighPriorityCasesForPortfolio';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
@@ -45,6 +48,15 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track taskPicklistValues = null;
     @track showWhoIdEntityMenu = false;
     @track showWhatIdEntityMenu = false;
+
+    @track showHealthBreakdownModal = false;
+    @track healthBreakdown = null;
+
+    @track showSuggestedActionModal = false;
+    @track suggestedActionModalTitle = '';
+    @track suggestedActionModalItems = [];
+    @track suggestedActionModalType = '';
+    @track suggestedActionModalLoading = false;
 
     connectedCallback() {
         this.loadPortfolioData();
@@ -112,12 +124,115 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     }
 
     handleSuggestedActionClick(event) {
-        const action = event.currentTarget.dataset.action;
-        if (!action || action === this.currentFilter) return;
-        this.currentFilter = action;
-        this.currentPage = 1;
-        this.isLoading = true;
-        this.loadAccounts().then(() => { this.isLoading = false; });
+        const actionType = event.currentTarget.dataset.actionType;
+        if (!actionType) return;
+
+        if (actionType === 'overdue') {
+            this.suggestedActionModalTitle = 'Overdue Tasks Across Portfolio';
+            this.suggestedActionModalType = 'task';
+            this.suggestedActionModalLoading = true;
+            this.showSuggestedActionModal = true;
+
+            getOverdueTasksForPortfolio()
+                .then(result => {
+                    if (result && result.length === 1) {
+                        this.showSuggestedActionModal = false;
+                        this[NavigationMixin.Navigate]({
+                            type: 'standard__recordPage',
+                            attributes: { recordId: result[0].taskId, objectApiName: 'Task', actionName: 'view' }
+                        });
+                    } else {
+                        this.suggestedActionModalItems = (result || []).map(t => ({
+                            id: t.taskId,
+                            accountName: t.accountName,
+                            subject: t.subject,
+                            metric: `${t.daysOverdue}d overdue`,
+                            metricClass: 'action-modal-item-metric action-modal-item-metric--danger'
+                        }));
+                    }
+                    this.suggestedActionModalLoading = false;
+                })
+                .catch(err => {
+                    this.handleError('Failed to load overdue tasks', err);
+                    this.suggestedActionModalLoading = false;
+                });
+
+        } else if (actionType === 'highpri') {
+            this.suggestedActionModalTitle = 'High-Priority Cases Across Portfolio';
+            this.suggestedActionModalType = 'case';
+            this.suggestedActionModalLoading = true;
+            this.showSuggestedActionModal = true;
+
+            getHighPriorityCasesForPortfolio()
+                .then(result => {
+                    if (result && result.length === 1) {
+                        this.showSuggestedActionModal = false;
+                        this[NavigationMixin.Navigate]({
+                            type: 'standard__recordPage',
+                            attributes: { recordId: result[0].caseId, objectApiName: 'Case', actionName: 'view' }
+                        });
+                    } else {
+                        this.suggestedActionModalItems = (result || []).map(c => ({
+                            id: c.caseId,
+                            accountName: c.accountName,
+                            subject: `${c.caseNumber}: ${c.subject}`,
+                            metric: c.priority,
+                            metricClass: 'action-modal-item-metric action-modal-item-metric--danger'
+                        }));
+                    }
+                    this.suggestedActionModalLoading = false;
+                })
+                .catch(err => {
+                    this.handleError('Failed to load high-priority cases', err);
+                    this.suggestedActionModalLoading = false;
+                });
+
+        } else if (actionType === 'renewals') {
+            if (this.renewals && this.renewals.length === 1) {
+                this[NavigationMixin.Navigate]({
+                    type: 'standard__recordPage',
+                    attributes: { recordId: this.renewals[0].opportunityId, objectApiName: 'Opportunity', actionName: 'view' }
+                });
+            } else {
+                this.suggestedActionModalTitle = 'Upcoming Renewals';
+                this.suggestedActionModalType = 'opportunity';
+                this.suggestedActionModalItems = (this.renewals || []).map(r => ({
+                    id: r.opportunityId,
+                    accountName: r.accountName,
+                    subject: r.opportunityName,
+                    metric: this.formatCurrencyShort(r.amount || 0),
+                    metricClass: 'action-modal-item-metric'
+                }));
+                this.suggestedActionModalLoading = false;
+                this.showSuggestedActionModal = true;
+            }
+
+        } else if (actionType === 'inactive') {
+            this.currentFilter = 'inactive';
+            this.currentPage = 1;
+            this.isLoading = true;
+            this.loadAccounts().then(() => { this.isLoading = false; });
+        }
+    }
+
+    handleCloseSuggestedActionModal() {
+        this.showSuggestedActionModal = false;
+        this.suggestedActionModalItems = [];
+    }
+
+    handleActionModalItemClick(event) {
+        const recordId = event.currentTarget.dataset.id;
+        const type = event.currentTarget.dataset.type;
+        if (!recordId) return;
+
+        const objectMap = { task: 'Task', case: 'Case', opportunity: 'Opportunity', account: 'Account' };
+        const objectApiName = objectMap[type] || 'Account';
+
+        this.showSuggestedActionModal = false;
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId, objectApiName, actionName: 'view' }
+        });
     }
 
     // ── Sort Handlers ──
@@ -205,6 +320,24 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     handleSnapshotToggle() {
         this.snapshotExpanded = !this.snapshotExpanded;
+    }
+
+    // ── Health Breakdown Modal ──
+
+    handleViewHealthBreakdown() {
+        this.healthBreakdown = null;
+        this.showHealthBreakdownModal = true;
+
+        getPortfolioHealthBreakdown()
+            .then(result => { this.healthBreakdown = result; })
+            .catch(err => {
+                this.handleError('Failed to load health breakdown', err);
+                this.showHealthBreakdownModal = false;
+            });
+    }
+
+    handleCloseHealthBreakdown() {
+        this.showHealthBreakdownModal = false;
     }
 
     // ── Stat Bar Clicks ──
@@ -367,6 +500,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     }
 
     get hasSuggestedActions() { return this.suggestedActions.length > 0; }
+    get hasSuggestedActionModalItems() { return this.suggestedActionModalItems && this.suggestedActionModalItems.length > 0; }
 
     // ── Stat Bar ──
 
@@ -441,26 +575,29 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     get accountsDecorated() {
         if (!this.accounts || this.accounts.length === 0) return [];
-        return this.accounts.map(acc => ({
-            ...acc,
-            expansionKey: acc.accountId + '-expand',
-            healthBadgeClass: `health-badge health-badge--${acc.healthScoreColor || 'gray'}`,
-            pipelineFormatted: this.formatCurrencyShort(acc.openPipelineAmount),
-            daysSinceActivityText: this.getDaysSinceActivityText(acc.daysSinceLastActivity),
-            daysSinceActivityClass: this.getDaysSinceActivityClass(acc.daysSinceLastActivity),
-            nextActivityText: this.getNextActivityText(acc.daysUntilNextActivity, acc.nextActivityDate),
-            casesDisplay: this.getCasesDisplay(acc),
-            casesClass: acc.highPriorityCasesCount > 0 ? 'cell-danger' : '',
-            tasksDisplay: this.getTasksDisplay(acc),
-            tasksClass: acc.overdueTasksCount > 0 ? 'cell-danger' : 'cell-muted',
-            renewalDisplay: this.getRenewalDisplay(acc),
-            renewalClass: this.getRenewalCellClass(acc),
-            isExpanded: acc.accountId === this.expandedAccountId,
-            rowClass: acc.accountId === this.expandedAccountId
-                ? 'account-row account-row--expanded'
-                : 'account-row',
-            expansionMetrics: this.getExpansionMetrics(acc)
-        }));
+        return this.accounts.map(acc => {
+            const isExpanded = acc.accountId === this.expandedAccountId;
+            return {
+                ...acc,
+                expansionKey: acc.accountId + '-expand',
+                healthBadgeClass: `health-badge health-badge--${acc.healthScoreColor || 'gray'}`,
+                pipelineFormatted: this.formatCurrencyShort(acc.openPipelineAmount),
+                daysSinceActivityText: this.getDaysSinceActivityText(acc.daysSinceLastActivity),
+                daysSinceActivityClass: this.getDaysSinceActivityClass(acc.daysSinceLastActivity),
+                nextActivityText: this.getNextActivityText(acc.daysUntilNextActivity, acc.nextActivityDate),
+                casesDisplay: this.getCasesDisplay(acc),
+                casesClass: acc.highPriorityCasesCount > 0 ? 'cell-danger' : '',
+                tasksDisplay: this.getTasksDisplay(acc),
+                tasksClass: acc.overdueTasksCount > 0 ? 'cell-danger' : 'cell-muted',
+                renewalDisplay: this.getRenewalDisplay(acc),
+                renewalClass: this.getRenewalCellClass(acc),
+                isExpanded,
+                rowClass: isExpanded ? 'account-row account-row--expanded' : 'account-row',
+                chevronClass: isExpanded ? 'row-chevron row-chevron--expanded' : 'row-chevron',
+                healthFactors: this.getHealthFactors(acc),
+                hasRecentActivities: acc.recentActivities && acc.recentActivities.length > 0
+            };
+        });
     }
 
     get sortIndicatorName() {
@@ -559,18 +696,82 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return 'renewal-days';
     }
 
-    getExpansionMetrics(acc) {
+    getHealthFactors(acc) {
+        const days = acc.daysSinceActivityForHealth;
+        const overdue = acc.overdueTasksForHealth || 0;
+        const highPri = acc.highPriorityCasesForHealth || 0;
+        const totalCases = acc.totalOpenCasesForHealth || 0;
+
         return [
-            { label: 'Health', value: acc.healthScore || 'N/A', class: 'expansion-metric-value' },
-            { label: 'Open Cases', value: String(acc.openCasesCount || 0),
-              class: acc.highPriorityCasesCount > 0 ? 'expansion-metric-value expansion-metric-value--danger' : 'expansion-metric-value' },
-            { label: 'Overdue Tasks', value: String(acc.overdueTasksCount || 0),
-              class: acc.overdueTasksCount > 0 ? 'expansion-metric-value expansion-metric-value--danger' : 'expansion-metric-value' },
-            { label: 'Pipeline', value: this.formatCurrencyShort(acc.openPipelineAmount),
-              class: 'expansion-metric-value' },
-            { label: 'Last Activity', value: this.getDaysSinceActivityText(acc.daysSinceLastActivity),
-              class: 'expansion-metric-value' }
+            {
+                label: 'Activity Recency',
+                value: this.getDaysSinceActivityText(days),
+                valueClass: this.getFactorValueClass('activity', days),
+                status: this.getFactorStatusLabel('activity', days),
+                statusClass: this.getFactorStatusClass('activity', days)
+            },
+            {
+                label: 'Overdue Tasks',
+                value: String(overdue),
+                valueClass: this.getFactorValueClass('overdue', overdue),
+                status: this.getFactorStatusLabel('overdue', overdue),
+                statusClass: this.getFactorStatusClass('overdue', overdue)
+            },
+            {
+                label: 'High-Priority Cases',
+                value: String(highPri),
+                valueClass: this.getFactorValueClass('highpri', highPri),
+                status: this.getFactorStatusLabel('highpri', highPri),
+                statusClass: this.getFactorStatusClass('highpri', highPri)
+            },
+            {
+                label: 'Open Cases',
+                value: String(totalCases),
+                valueClass: this.getFactorValueClass('cases', totalCases),
+                status: this.getFactorStatusLabel('cases', totalCases),
+                statusClass: this.getFactorStatusClass('cases', totalCases)
+            }
         ];
+    }
+
+    getFactorStatusLabel(type, value) {
+        if (value == null && type === 'activity') return 'No data';
+        if (type === 'activity') {
+            if (value >= 30) return 'At Risk';
+            if (value >= 15) return 'Warning';
+            return 'Healthy';
+        }
+        if (type === 'overdue') {
+            if (value >= 3) return 'At Risk';
+            if (value >= 1) return 'Warning';
+            return 'Healthy';
+        }
+        if (type === 'highpri') {
+            if (value >= 2) return 'At Risk';
+            if (value >= 1) return 'Warning';
+            return 'Healthy';
+        }
+        if (type === 'cases') {
+            if (value >= 5) return 'At Risk';
+            if (value >= 3) return 'Warning';
+            return 'Healthy';
+        }
+        return 'Healthy';
+    }
+
+    getFactorStatusClass(type, value) {
+        const label = this.getFactorStatusLabel(type, value);
+        if (label === 'At Risk') return 'health-factor-status health-factor-status--red';
+        if (label === 'Warning') return 'health-factor-status health-factor-status--yellow';
+        if (label === 'No data') return 'health-factor-status health-factor-status--gray';
+        return 'health-factor-status health-factor-status--green';
+    }
+
+    getFactorValueClass(type, value) {
+        const label = this.getFactorStatusLabel(type, value);
+        if (label === 'At Risk') return 'health-factor-value health-factor-value--red';
+        if (label === 'Warning') return 'health-factor-value health-factor-value--yellow';
+        return 'health-factor-value';
     }
 
     // ══════════════════════════════════════════════════════════

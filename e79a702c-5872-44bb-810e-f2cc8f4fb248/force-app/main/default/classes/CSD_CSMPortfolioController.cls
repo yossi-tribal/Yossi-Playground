@@ -49,6 +49,66 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public Boolean hasHighPriorityCases { get; set; }
         @AuraEnabled public String nearestRenewalDate { get; set; }
         @AuraEnabled public Integer daysUntilRenewal { get; set; }
+        @AuraEnabled public Integer totalOpenCasesForHealth { get; set; }
+        @AuraEnabled public Integer highPriorityCasesForHealth { get; set; }
+        @AuraEnabled public Integer overdueTasksForHealth { get; set; }
+        @AuraEnabled public Integer daysSinceActivityForHealth { get; set; }
+        @AuraEnabled public List<RecentActivity> recentActivities { get; set; }
+        @AuraEnabled public String primaryContactName { get; set; }
+    }
+
+    /**
+     * @description Wrapper for a recent activity (Task or Event) shown in expansion rows
+     */
+    public class RecentActivity {
+        @AuraEnabled public String subject { get; set; }
+        @AuraEnabled public String activityDate { get; set; }
+        @AuraEnabled public String activityType { get; set; }
+    }
+
+    /**
+     * @description Wrapper for portfolio-level health factor breakdown
+     */
+    public class PortfolioHealthBreakdown {
+        @AuraEnabled public Integer accountsInactiveRed { get; set; }
+        @AuraEnabled public Integer accountsInactiveYellow { get; set; }
+        @AuraEnabled public Integer accountsInactiveGreen { get; set; }
+        @AuraEnabled public Integer accountsOverdueRed { get; set; }
+        @AuraEnabled public Integer accountsOverdueYellow { get; set; }
+        @AuraEnabled public Integer accountsOverdueGreen { get; set; }
+        @AuraEnabled public Integer accountsHighPriRed { get; set; }
+        @AuraEnabled public Integer accountsHighPriYellow { get; set; }
+        @AuraEnabled public Integer accountsHighPriGreen { get; set; }
+        @AuraEnabled public Integer accountsCasesRed { get; set; }
+        @AuraEnabled public Integer accountsCasesYellow { get; set; }
+        @AuraEnabled public Integer accountsCasesGreen { get; set; }
+    }
+
+    /**
+     * @description Wrapper for an overdue task item shown in suggested action modal
+     */
+    public class OverdueTaskRow {
+        @AuraEnabled public Id taskId { get; set; }
+        @AuraEnabled public String subject { get; set; }
+        @AuraEnabled public String dueDate { get; set; }
+        @AuraEnabled public Integer daysOverdue { get; set; }
+        @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public String accountName { get; set; }
+        @AuraEnabled public Id accountId { get; set; }
+    }
+
+    /**
+     * @description Wrapper for a high-priority case shown in suggested action modal
+     */
+    public class HighPriorityCaseRow {
+        @AuraEnabled public Id caseId { get; set; }
+        @AuraEnabled public String caseNumber { get; set; }
+        @AuraEnabled public String subject { get; set; }
+        @AuraEnabled public String priority { get; set; }
+        @AuraEnabled public String status { get; set; }
+        @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public String accountName { get; set; }
+        @AuraEnabled public Id accountId { get; set; }
     }
 
     /**
@@ -364,6 +424,8 @@ public with sharing class CSD_CSMPortfolioController {
             Map<Id, Integer> overdueTasksByAccount = getOverdueTasksCounts(accountIds);
             Map<Id, Decimal> openPipelineByAccount = getOpenPipelineAmounts(accountIds);
             Map<Id, Date> nearestRenewalByAccount = getNearestRenewalDates(accountIds);
+            Map<Id, List<RecentActivity>> recentActivitiesByAccount = getRecentActivities(accountIds);
+            Map<Id, String> primaryContactByAccount = getPrimaryContactNames(accountIds);
 
             // Build account rows
             for (Account acc : accounts) {
@@ -420,6 +482,18 @@ public with sharing class CSD_CSMPortfolioController {
                     row.nearestRenewalDate = renewalDate.format();
                     row.daysUntilRenewal = Date.today().daysBetween(renewalDate);
                 }
+
+                // Health factor breakdown fields (mirror the values used above)
+                row.totalOpenCasesForHealth = row.openCasesCount;
+                row.highPriorityCasesForHealth = row.highPriorityCasesCount;
+                row.overdueTasksForHealth = row.overdueTasksCount;
+                row.daysSinceActivityForHealth = row.daysSinceLastActivity;
+
+                // Recent activities and primary contact
+                row.recentActivities = recentActivitiesByAccount.containsKey(acc.Id)
+                    ? recentActivitiesByAccount.get(acc.Id)
+                    : new List<RecentActivity>();
+                row.primaryContactName = primaryContactByAccount.get(acc.Id);
 
                 accountRows.add(row);
             }
@@ -726,6 +800,286 @@ public with sharing class CSD_CSMPortfolioController {
             return 'red';
         } else {
             return 'gray';
+        }
+    }
+
+    /**
+     * @description Gets the 2-3 most recent activities per account for expansion row display
+     * @param accountIds Set of account IDs
+     * @return Map of account ID to list of RecentActivity wrappers
+     */
+    private static Map<Id, List<RecentActivity>> getRecentActivities(Set<Id> accountIds) {
+        Map<Id, List<RecentActivity>> result = new Map<Id, List<RecentActivity>>();
+        if (accountIds.isEmpty()) {
+            return result;
+        }
+
+        Map<Id, List<RecentActivity>> tempMap = new Map<Id, List<RecentActivity>>();
+
+        for (Task t : [
+            SELECT WhatId, Subject, ActivityDate, Type
+            FROM Task
+            WHERE WhatId IN :accountIds
+            AND IsClosed = true
+            AND ActivityDate != null
+            ORDER BY ActivityDate DESC
+        ]) {
+            if (!tempMap.containsKey(t.WhatId)) {
+                tempMap.put(t.WhatId, new List<RecentActivity>());
+            }
+            List<RecentActivity> activities = tempMap.get(t.WhatId);
+            if (activities.size() < 3) {
+                RecentActivity ra = new RecentActivity();
+                ra.subject = t.Subject;
+                ra.activityDate = t.ActivityDate.format();
+                ra.activityType = (t.Type != null && t.Type.toLowerCase().contains('call')) ? 'Call' : 'Task';
+                activities.add(ra);
+            }
+        }
+
+        for (Event e : [
+            SELECT WhatId, Subject, ActivityDate
+            FROM Event
+            WHERE WhatId IN :accountIds
+            AND ActivityDate != null
+            AND ActivityDate <= TODAY
+            ORDER BY ActivityDate DESC
+        ]) {
+            if (!tempMap.containsKey(e.WhatId)) {
+                tempMap.put(e.WhatId, new List<RecentActivity>());
+            }
+            List<RecentActivity> activities = tempMap.get(e.WhatId);
+            if (activities.size() < 3) {
+                RecentActivity ra = new RecentActivity();
+                ra.subject = e.Subject;
+                ra.activityDate = e.ActivityDate.format();
+                ra.activityType = 'Event';
+                activities.add(ra);
+            }
+        }
+
+        // Sort by date descending and take top 3 per account
+        for (Id accId : tempMap.keySet()) {
+            List<RecentActivity> all = tempMap.get(accId);
+            // Already limited to 3 per source; just take as-is (max 6, but typically 3)
+            List<RecentActivity> top3 = new List<RecentActivity>();
+            for (Integer i = 0; i < Math.min(3, all.size()); i++) {
+                top3.add(all[i]);
+            }
+            result.put(accId, top3);
+        }
+
+        return result;
+    }
+
+    /**
+     * @description Gets primary contact name for each account
+     * @param accountIds Set of account IDs
+     * @return Map of account ID to primary contact full name
+     */
+    private static Map<Id, String> getPrimaryContactNames(Set<Id> accountIds) {
+        Map<Id, String> contactByAccount = new Map<Id, String>();
+        if (accountIds.isEmpty()) {
+            return contactByAccount;
+        }
+
+        for (Contact c : [
+            SELECT AccountId, Name
+            FROM Contact
+            WHERE AccountId IN :accountIds
+            ORDER BY CreatedDate ASC
+        ]) {
+            if (!contactByAccount.containsKey(c.AccountId)) {
+                contactByAccount.put(c.AccountId, c.Name);
+            }
+        }
+
+        return contactByAccount;
+    }
+
+    /**
+     * @description Retrieves portfolio-wide health factor breakdown for the health breakdown modal.
+     * Counts how many accounts fall into red/yellow/green for each of the 4 health factors.
+     * @return PortfolioHealthBreakdown with per-factor counts
+     */
+    @AuraEnabled(cacheable=false)
+    public static PortfolioHealthBreakdown getPortfolioHealthBreakdown() {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+            PortfolioHealthBreakdown breakdown = new PortfolioHealthBreakdown();
+
+            // Initialize all counters
+            breakdown.accountsInactiveRed = 0;
+            breakdown.accountsInactiveYellow = 0;
+            breakdown.accountsInactiveGreen = 0;
+            breakdown.accountsOverdueRed = 0;
+            breakdown.accountsOverdueYellow = 0;
+            breakdown.accountsOverdueGreen = 0;
+            breakdown.accountsHighPriRed = 0;
+            breakdown.accountsHighPriYellow = 0;
+            breakdown.accountsHighPriGreen = 0;
+            breakdown.accountsCasesRed = 0;
+            breakdown.accountsCasesYellow = 0;
+            breakdown.accountsCasesGreen = 0;
+
+            List<Account> portfolioAccounts = [
+                SELECT Id FROM Account WHERE CSD_Primary_CSM__c = :currentUserId
+            ];
+            if (portfolioAccounts.isEmpty()) {
+                return breakdown;
+            }
+
+            Set<Id> accountIds = new Set<Id>();
+            for (Account a : portfolioAccounts) {
+                accountIds.add(a.Id);
+            }
+
+            Map<Id, Date> lastActivityDates = getLastActivityDates(accountIds);
+            Map<Id, Integer> overdueCounts = getOverdueTasksCounts(accountIds);
+            Map<Id, Integer> highPriCounts = getHighPriorityCasesCounts(accountIds);
+            Map<Id, Integer> totalCaseCounts = getOpenCasesCounts(accountIds);
+
+            // Thresholds from CSD_AccountHealthScoreHandler
+            for (Id accId : accountIds) {
+                // Activity recency factor
+                Date lastActivity = lastActivityDates.get(accId);
+                Integer daysSince = lastActivity != null ? lastActivity.daysBetween(Date.today()) : 999;
+                if (daysSince >= 30) {
+                    breakdown.accountsInactiveRed++;
+                } else if (daysSince >= 15) {
+                    breakdown.accountsInactiveYellow++;
+                } else {
+                    breakdown.accountsInactiveGreen++;
+                }
+
+                // Overdue tasks factor
+                Integer overdue = overdueCounts.containsKey(accId) ? overdueCounts.get(accId) : 0;
+                if (overdue >= 3) {
+                    breakdown.accountsOverdueRed++;
+                } else if (overdue >= 1) {
+                    breakdown.accountsOverdueYellow++;
+                } else {
+                    breakdown.accountsOverdueGreen++;
+                }
+
+                // High-priority cases factor
+                Integer highPri = highPriCounts.containsKey(accId) ? highPriCounts.get(accId) : 0;
+                if (highPri >= 2) {
+                    breakdown.accountsHighPriRed++;
+                } else if (highPri >= 1) {
+                    breakdown.accountsHighPriYellow++;
+                } else {
+                    breakdown.accountsHighPriGreen++;
+                }
+
+                // Total open cases factor
+                Integer totalCases = totalCaseCounts.containsKey(accId) ? totalCaseCounts.get(accId) : 0;
+                if (totalCases >= 5) {
+                    breakdown.accountsCasesRed++;
+                } else if (totalCases >= 3) {
+                    breakdown.accountsCasesYellow++;
+                } else {
+                    breakdown.accountsCasesGreen++;
+                }
+            }
+
+            return breakdown;
+
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving health breakdown: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Retrieves overdue tasks across all portfolio accounts for the suggested action modal.
+     * @return List of OverdueTaskRow sorted by due date ascending (most overdue first)
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<OverdueTaskRow> getOverdueTasksForPortfolio() {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+
+            Set<Id> accountIds = new Set<Id>();
+            for (Account a : [SELECT Id FROM Account WHERE CSD_Primary_CSM__c = :currentUserId]) {
+                accountIds.add(a.Id);
+            }
+
+            List<OverdueTaskRow> rows = new List<OverdueTaskRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            for (Task t : [
+                SELECT Id, Subject, ActivityDate, Owner.Name, What.Name, WhatId
+                FROM Task
+                WHERE WhatId IN :accountIds
+                AND IsClosed = false
+                AND ActivityDate < TODAY
+                ORDER BY ActivityDate ASC
+                LIMIT 50
+            ]) {
+                OverdueTaskRow row = new OverdueTaskRow();
+                row.taskId = t.Id;
+                row.subject = t.Subject;
+                row.dueDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
+                row.daysOverdue = t.ActivityDate != null ? t.ActivityDate.daysBetween(Date.today()) : 0;
+                row.ownerName = t.Owner.Name;
+                row.accountName = t.What.Name;
+                row.accountId = t.WhatId;
+                rows.add(row);
+            }
+
+            return rows;
+
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving overdue tasks: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Retrieves high-priority/escalated cases across all portfolio accounts for the suggested action modal.
+     * @return List of HighPriorityCaseRow sorted by priority then created date
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<HighPriorityCaseRow> getHighPriorityCasesForPortfolio() {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+
+            Set<Id> accountIds = new Set<Id>();
+            for (Account a : [SELECT Id FROM Account WHERE CSD_Primary_CSM__c = :currentUserId]) {
+                accountIds.add(a.Id);
+            }
+
+            List<HighPriorityCaseRow> rows = new List<HighPriorityCaseRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            for (Case c : [
+                SELECT Id, CaseNumber, Subject, Priority, Status, Owner.Name, Account.Name, AccountId
+                FROM Case
+                WHERE AccountId IN :accountIds
+                AND IsClosed = false
+                AND (Priority = 'High' OR IsEscalated = true)
+                ORDER BY Priority DESC, CreatedDate ASC
+                LIMIT 50
+            ]) {
+                HighPriorityCaseRow row = new HighPriorityCaseRow();
+                row.caseId = c.Id;
+                row.caseNumber = c.CaseNumber;
+                row.subject = c.Subject;
+                row.priority = c.Priority;
+                row.status = c.Status;
+                row.ownerName = c.Owner.Name;
+                row.accountName = c.Account.Name;
+                row.accountId = c.AccountId;
+                rows.add(row);
+            }
+
+            return rows;
+
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving high-priority cases: ' + e.getMessage());
         }
     }
 }

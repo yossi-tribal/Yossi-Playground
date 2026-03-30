@@ -459,6 +459,8 @@
 }
 
 .suggested-action {
+    display: flex;
+    align-items: center;
     background: var(--csd-surface);
     border: 1px solid var(--csd-border);
     border-radius: var(--csd-radius-sm);
@@ -1528,4 +1530,354 @@ button:focus-visible,
     color: var(--csd-text-secondary);
     margin-bottom: var(--csd-space-1);
     display: block;
+}
+
+/* ===== ROW CHEVRON (Issue 2) ===== */
+
+.th-chevron {
+    width: 32px;
+}
+
+.td-chevron {
+    width: 32px;
+    text-align: center;
+}
+
+.row-chevron {
+    color: var(--csd-text-tertiary);
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.row-chevron--expanded {
+    transform: rotate(90deg);
+    color: var(--csd-blue);
+}
+
+.mobile-card-header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--csd-space-2);
+}
+
+/* ===== RENEWAL AFFORDANCE (Issue 5) ===== */
+
+.renewal-account-link {
+    color: var(--csd-blue);
+}
+
+.renewal-item:hover .renewal-account-link {
+    text-decoration: underline;
+    color: var(--csd-blue-dark);
+}
+
+.renewal-nav-icon {
+    color: var(--csd-text-tertiary);
+    flex-shrink: 0;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.renewal-item:hover .renewal-nav-icon {
+    color: var(--csd-blue);
+    transform: translateX(2px);
+}
+
+/* ===== SUGGESTED ACTION CHEVRON (Issue 1) ===== */
+
+.suggested-action-chevron {
+    color: var(--csd-text-tertiary);
+    flex-shrink: 0;
+    margin-left: auto;
+    transition: transform 0.15s ease;
+}
+
+.suggested-action:hover .suggested-action-chevron {
+    transform: translateX(2px);
+}
+
+/* ===== VIEW BREAKDOWN BUTTON (Issue 3) ===== */
+
+.breakdown-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--csd-space-1);
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: var(--csd-text-xs);
+    font-weight: 600;
+    padding: var(--csd-space-1) var(--csd-space-3);
+    border-radius: var(--csd-radius-sm);
+    cursor: pointer;
+    margin-top: var(--csd-space-3);
+    transition: background 0.15s ease, border-color 0.15s ease;
+    letter-spacing: 0.02em;
+}
+
+.breakdown-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* ===== HEALTH BREAKDOWN MODAL (Issue 3) ===== */
+
+.breakdown-description {
+    font-size: var(--csd-text-sm);
+    color: var(--csd-text-secondary);
+    margin-bottom: var(--csd-space-4);
+}
+
+.breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--csd-text-sm);
+}
+
+.breakdown-table thead th {
+    font-size: var(--csd-text-xs);
+    font-weight: 600;
+    color: var(--csd-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: var(--csd-space-2) var(--csd-space-3);
+    border-bottom: 2px solid var(--csd-border);
+    text-align: left;
+}
+
+.breakdown-th-center,
+.breakdown-td-center {
+    text-align: center !important;
+}
+
+.breakdown-table tbody td {
+    padding: var(--csd-space-3);
+    border-bottom: 1px solid var(--csd-gray-100);
+}
+
+.breakdown-factor-name {
+    font-weight: 600;
+    color: var(--csd-text-primary);
+}
+
+.breakdown-threshold {
+    font-size: var(--csd-text-xs);
+    color: var(--csd-text-tertiary);
+}
+
+/* ===== EXPANSION ROW REDESIGN (Issues 4/6) ===== */
+
+.expansion-section-label {
+    font-size: var(--csd-text-xs);
+    font-weight: 600;
+    color: var(--csd-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: var(--csd-space-2);
+}
+
+.expansion-health-factors {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--csd-space-3);
+    margin-bottom: var(--csd-space-4);
+}
+
+.health-factor-card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--csd-space-2) var(--csd-space-3);
+    background: var(--csd-surface);
+    border-radius: var(--csd-radius-sm);
+    border: 1px solid var(--csd-gray-100);
+}
+
+.health-factor-label {
+    font-size: var(--csd-text-xs);
+    font-weight: 600;
+    color: var(--csd-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.health-factor-value {
+    font-size: var(--csd-text-lg);
+    font-weight: 700;
+    color: var(--csd-text-primary);
+}
+
+.health-factor-value--red { color: var(--csd-red-dark); }
+.health-factor-value--yellow { color: var(--csd-amber-dark); }
+
+.health-factor-status {
+    font-size: var(--csd-text-xs);
+    font-weight: 600;
+    padding: 1px var(--csd-space-2);
+    border-radius: 99px;
+    display: inline-flex;
+    width: fit-content;
+}
+
+.health-factor-status--green {
+    color: var(--csd-green-dark);
+    background: var(--csd-green-50);
+}
+
+.health-factor-status--yellow {
+    color: var(--csd-amber-dark);
+    background: var(--csd-amber-50);
+}
+
+.health-factor-status--red {
+    color: var(--csd-red-dark);
+    background: var(--csd-red-50);
+}
+
+.health-factor-status--gray {
+    color: var(--csd-text-tertiary);
+    background: var(--csd-gray-100);
+}
+
+.expansion-recent-activities {
+    display: flex;
+    flex-direction: column;
+    gap: var(--csd-space-1);
+    margin-bottom: var(--csd-space-4);
+}
+
+.recent-activity-item {
+    display: flex;
+    align-items: center;
+    gap: var(--csd-space-3);
+    padding: var(--csd-space-1) var(--csd-space-2);
+    font-size: var(--csd-text-sm);
+    border-radius: var(--csd-radius-sm);
+}
+
+.recent-activity-item:hover {
+    background: var(--csd-gray-50);
+}
+
+.recent-activity-type {
+    font-size: var(--csd-text-xs);
+    font-weight: 600;
+    color: var(--csd-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    width: 40px;
+    flex-shrink: 0;
+}
+
+.recent-activity-subject {
+    flex: 1;
+    color: var(--csd-text-primary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-activity-date {
+    color: var(--csd-text-tertiary);
+    font-size: var(--csd-text-xs);
+    flex-shrink: 0;
+}
+
+.expansion-contact {
+    display: flex;
+    align-items: center;
+    gap: var(--csd-space-2);
+    margin-bottom: var(--csd-space-4);
+    padding: var(--csd-space-2) var(--csd-space-3);
+    background: var(--csd-surface);
+    border-radius: var(--csd-radius-sm);
+    border: 1px solid var(--csd-gray-100);
+}
+
+.expansion-contact-name {
+    font-size: var(--csd-text-sm);
+    font-weight: 600;
+    color: var(--csd-text-primary);
+}
+
+/* ===== SUGGESTED ACTION MODAL (Issue 1) ===== */
+
+.action-modal-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-modal-item {
+    display: flex;
+    align-items: center;
+    gap: var(--csd-space-3);
+    padding: var(--csd-space-3) var(--csd-space-4);
+    cursor: pointer;
+    border-bottom: 1px solid var(--csd-gray-100);
+    transition: background 0.15s ease;
+}
+
+.action-modal-item:hover {
+    background: var(--csd-gray-50);
+}
+
+.action-modal-item:last-child {
+    border-bottom: none;
+}
+
+.action-modal-item-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.action-modal-item-account {
+    font-size: var(--csd-text-xs);
+    color: var(--csd-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+}
+
+.action-modal-item-subject {
+    font-size: var(--csd-text-sm);
+    color: var(--csd-text-primary);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.action-modal-item-right {
+    flex-shrink: 0;
+}
+
+.action-modal-item-metric {
+    font-size: var(--csd-text-sm);
+    font-weight: 600;
+    color: var(--csd-text-secondary);
+}
+
+.action-modal-item-metric--danger {
+    color: var(--csd-red-dark);
+}
+
+.action-modal-item-chevron {
+    color: var(--csd-text-tertiary);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.action-modal-item:hover .action-modal-item-chevron {
+    color: var(--csd-blue);
+    transform: translateX(2px);
+}
+
+/* ===== RESPONSIVE OVERRIDES FOR NEW COMPONENTS ===== */
+
+@media (min-width: 600px) {
+    .expansion-health-factors {
+        grid-template-columns: repeat(4, 1fr);
+    }
 }
