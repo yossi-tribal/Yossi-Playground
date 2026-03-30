@@ -2757,6 +2757,9 @@ button:focus-visible,
 
 .action-modal-item-right {
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
 }
 
 .action-modal-item-metric {
@@ -2767,6 +2770,12 @@ button:focus-visible,
 
 .action-modal-item-metric--danger {
     color: var(--csd-red-dark);
+}
+
+.action-modal-item-metric-sub {
+    font-size: var(--csd-text-xs);
+    display: block;
+    text-align: right;
 }
 
 .action-modal-item-chevron {

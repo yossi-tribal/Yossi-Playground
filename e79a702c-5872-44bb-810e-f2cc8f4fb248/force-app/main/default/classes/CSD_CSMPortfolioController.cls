@@ -217,6 +217,18 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public String stageName { get; set; }
     }
 
+    /**
+     * @description Wrapper class for upcoming events across the portfolio
+     */
+    public class PortfolioEventRow {
+        @AuraEnabled public Id eventId { get; set; }
+        @AuraEnabled public String subject { get; set; }
+        @AuraEnabled public String activityDate { get; set; }
+        @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public String accountName { get; set; }
+        @AuraEnabled public Id accountId { get; set; }
+    }
+
     private static final String[] MONTH_ABBREVS = new String[]{
         'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -1075,6 +1087,55 @@ public with sharing class CSD_CSMPortfolioController {
 
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving upcoming renewals: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Retrieves upcoming events across the portfolio (next 90 days)
+     * @return List of PortfolioEventRow objects sorted by ActivityDate ASC
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioEventRow> getUpcomingEventsForPortfolio() {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+
+            Set<Id> accountIds = new Set<Id>();
+            for (Account a : [
+                SELECT Id FROM Account
+                WHERE CSD_Primary_CSM__c = :currentUserId
+            ]) {
+                accountIds.add(a.Id);
+            }
+
+            if (accountIds.isEmpty()) {
+                return new List<PortfolioEventRow>();
+            }
+
+            List<PortfolioEventRow> rows = new List<PortfolioEventRow>();
+
+            for (Event ev : [
+                SELECT Id, Subject, ActivityDate, Owner.Name,
+                       WhatId, What.Name
+                FROM Event
+                WHERE WhatId IN :accountIds
+                AND ActivityDate >= TODAY
+                ORDER BY ActivityDate ASC
+                LIMIT 10
+            ]) {
+                PortfolioEventRow row = new PortfolioEventRow();
+                row.eventId = ev.Id;
+                row.subject = ev.Subject != null ? ev.Subject : 'Untitled Event';
+                row.activityDate = ev.ActivityDate != null ? ev.ActivityDate.format() : '';
+                row.ownerName = ev.Owner.Name;
+                row.accountName = ev.What != null ? ev.What.Name : '';
+                row.accountId = ev.WhatId;
+                rows.add(row);
+            }
+
+            return rows;
+
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving upcoming events: ' + e.getMessage());
         }
     }
 

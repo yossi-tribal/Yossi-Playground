@@ -10,6 +10,7 @@ import getHighPriorityCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioC
 import getAllOpenCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenCasesForPortfolio';
 import getAllOpenOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenOpportunitiesForPortfolio';
 import getAllOpenTasksForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenTasksForPortfolio';
+import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingEventsForPortfolio';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
@@ -71,9 +72,11 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track secOpenTasks = false;
     @track secCases = false;
     @track secOpportunities = false;
+    @track secUpcomingEvents = false;
     @track openTasksList = [];
     @track openCasesList = [];
     @track openOpportunitiesList = [];
+    @track upcomingEventsList = [];
     @track detailListsLoaded = false;
 
     connectedCallback() {
@@ -130,7 +133,11 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
             getAllOpenOpportunitiesForPortfolio()
                 .then(result => { this.openOpportunitiesList = result || []; })
-                .catch(err => this.handleError('Failed to load open opportunities', err))
+                .catch(err => this.handleError('Failed to load open opportunities', err)),
+
+            getUpcomingEventsForPortfolio()
+                .then(result => { this.upcomingEventsList = result || []; })
+                .catch(err => this.handleError('Failed to load upcoming events', err))
         ]).then(() => { this.detailListsLoaded = true; });
     }
 
@@ -142,6 +149,8 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             this.secCases = !this.secCases;
         } else if (section === 'opportunities') {
             this.secOpportunities = !this.secOpportunities;
+        } else if (section === 'upcomingEvents') {
+            this.secUpcomingEvents = !this.secUpcomingEvents;
         }
     }
 
@@ -264,7 +273,9 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
                     accountName: r.accountName,
                     subject: r.opportunityName,
                     metric: this.formatCurrencyShort(r.amount || 0),
-                    metricClass: 'action-modal-item-metric'
+                    metricClass: 'action-modal-item-metric',
+                    metricSub: this.getRenewalDaysText(r.daysUntilClose),
+                    metricSubClass: 'action-modal-item-metric-sub ' + this.getRenewalDaysClass(r.daysUntilClose)
                 }));
                 this.suggestedActionModalLoading = false;
                 this.showSuggestedActionModal = true;
@@ -875,12 +886,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     }
 
     get supportCasesYearCardClass() {
-        const current = this.summary?.ytdCaseCount || 0;
-        const prior = this.summary?.priorYearCaseCount || 0;
-        if (current === 0 && prior === 0) {
-            return this.getSnapshotCardClass('neutral');
-        }
-        return this.getSnapshotCardClass(current > prior ? 'warning' : 'good');
+        return 'commercial-kpi';
     }
 
     get caseTrendBars() {
@@ -931,17 +937,13 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     get nearestRenewalAmount() {
         if (!this.renewals || this.renewals.length === 0) return 0;
-        return this.renewals[0].amount || 0;
+        return this.renewals.reduce((sum, r) => sum + (r.amount || 0), 0);
     }
 
     get renewalSubtitle() {
         if (!this.renewals || this.renewals.length === 0) return 'No renewals in next 90 days';
         const count = this.renewals.length;
-        const days = this.renewals[0].daysUntilClose;
-        if (count === 1) {
-            return days <= 14 ? `In ${days} days — urgent` : `In ${days} days`;
-        }
-        return `${count} renewals in next 90 days`;
+        return `${count} renewal${count !== 1 ? 's' : ''} in next 90 days`;
     }
 
     get renewalCardClass() {
@@ -1058,6 +1060,26 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     get opportunitiesAccordionClass() {
         return this.secOpportunities ? 'section-accordion section-accordion--expanded' : 'section-accordion';
+    }
+
+    get upcomingEventsAccordionClass() {
+        return this.secUpcomingEvents ? 'section-accordion section-accordion--expanded' : 'section-accordion';
+    }
+
+    get hasUpcomingEvents() {
+        return this.upcomingEventsList && this.upcomingEventsList.length > 0;
+    }
+
+    get upcomingEventsCount() {
+        return this.upcomingEventsList ? this.upcomingEventsList.length : 0;
+    }
+
+    get upcomingEventsDecorated() {
+        if (!this.upcomingEventsList || !this.upcomingEventsList.length) return [];
+        return this.upcomingEventsList.map(ev => ({
+            ...ev,
+            rowClass: 'activity-item'
+        }));
     }
 
     get hasOpenTasksList() {

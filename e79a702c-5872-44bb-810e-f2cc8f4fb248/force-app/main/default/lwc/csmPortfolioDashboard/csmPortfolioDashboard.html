@@ -286,28 +286,6 @@
                                         </div>
                                     </div>
 
-                                    <template if:true={hasRenewals}>
-                                        <div class="renewals-section">
-                                            <div class="renewals-title">Upcoming Renewals</div>
-                                            <template for:each={renewalsDecorated} for:item="renewal">
-                                                <a key={renewal.opportunityId}
-                                                   class="renewal-link"
-                                                   data-id={renewal.opportunityId}
-                                                   onclick={handleRenewalClick}
-                                                   title="Open opportunity">
-                                                    <div class="renewal-link-left">
-                                                        <span class="renewal-account">{renewal.accountName}</span>
-                                                        <span class="renewal-opp">{renewal.opportunityName}</span>
-                                                    </div>
-                                                    <div class="renewal-link-right">
-                                                        <span class="renewal-amount">{renewal.amountFormatted}</span>
-                                                        <span class={renewal.daysClass}>{renewal.daysText}</span>
-                                                    </div>
-                                                    <lightning-icon icon-name="utility:new_window" size="xx-small" class="renewal-nav-icon"></lightning-icon>
-                                                </a>
-                                            </template>
-                                        </div>
-                                    </template>
                                 </div>
 
                                 <!-- SUPPORT -->
@@ -397,213 +375,6 @@
                             </div>
                         </template>
                     </div>
-                </template>
-
-                <!-- Detail Sections (Accordion) -->
-                <template if:true={hasSummary}>
-                <div class="detail-sections">
-
-                    <!-- Open Tasks -->
-                    <div class={openTasksAccordionClass}>
-                        <button type="button" class="section-accordion-header" data-section="openTasks" onclick={handleToggleSection}>
-                            <lightning-icon icon-name="standard:task" size="small" class="section-accordion-icon"></lightning-icon>
-                            <span class="section-accordion-title">Open tasks</span>
-                            <span class="section-accordion-count">({openTasksCount})</span>
-                            <template if:true={hasOverdueTasks}>
-                                <span class="section-accordion-badge section-accordion-badge--danger">{summary.totalOverdueTasks} overdue</span>
-                            </template>
-                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
-                        </button>
-                        <template if:true={secOpenTasks}>
-                            <div class="section-accordion-body">
-                                <template if:true={hasOpenTasksList}>
-                                    <div class="section-accordion-actions">
-                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllTasks}>View all</button>
-                                    </div>
-                                    <div class="activity-list">
-                                        <template for:each={openTasksDecorated} for:item="task">
-                                            <div key={task.taskId} data-id={task.taskId} onclick={handleDetailRecordClick} class={task.rowClass}>
-                                                <div class="activity-icon-wrapper">
-                                                    <lightning-icon icon-name="standard:task" size="small"></lightning-icon>
-                                                </div>
-                                                <div class="activity-content">
-                                                    <div class="activity-subject">{task.subject}</div>
-                                                    <div class="activity-meta">
-                                                        <span>{task.accountName}</span>
-                                                        <span class="meta-separator">•</span>
-                                                        <span>{task.ownerName}</span>
-                                                        <template if:true={task.showUrgencyIndicator}>
-                                                            <span class="meta-separator">•</span>
-                                                            <span class="task-urgency-label">{task.urgencyLabel}</span>
-                                                        </template>
-                                                        <span class="meta-separator">•</span>
-                                                        <span class={task.dateMetaClass}>{task.dateMeta}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                                <template if:false={hasOpenTasksList}>
-                                    <div class="empty-state empty-state--compact">
-                                        <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
-                                        <p class="empty-text">No open tasks</p>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Open Cases -->
-                    <div class={casesAccordionClass}>
-                        <button type="button" class="section-accordion-header" data-section="cases" onclick={handleToggleSection}>
-                            <lightning-icon icon-name="standard:case" size="small" class="section-accordion-icon"></lightning-icon>
-                            <span class="section-accordion-title">Open support cases</span>
-                            <span class="section-accordion-count">({openCasesCountDisplay})</span>
-                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
-                        </button>
-                        <template if:true={secCases}>
-                            <div class="section-accordion-body">
-                                <template if:true={hasOpenCasesList}>
-                                    <div class="section-accordion-actions">
-                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllCases}>View all</button>
-                                    </div>
-                                    <div class="table-container table-container--plain data-table-desktop">
-                                        <table class="data-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Case #</th>
-                                                    <th>Account</th>
-                                                    <th>Subject</th>
-                                                    <th>Status</th>
-                                                    <th>Priority</th>
-                                                    <th class="data-table-col-age">Age</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template for:each={openCasesDecorated} for:item="caseItem">
-                                                    <tr key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleDetailRecordClick} class="table-row">
-                                                        <td>
-                                                            <span class="case-number">{caseItem.caseNumber}</span>
-                                                            <template if:true={caseItem.isEscalated}>
-                                                                <lightning-icon icon-name="utility:warning" size="xx-small" class="escalated-icon"></lightning-icon>
-                                                            </template>
-                                                        </td>
-                                                        <td>{caseItem.accountName}</td>
-                                                        <td class="subject-cell">{caseItem.subject}</td>
-                                                        <td>
-                                                            <span class="cell-status-wrap">
-                                                                <span class="status-dot"></span>
-                                                                <span class="status-text">{caseItem.status}</span>
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <span class="cell-priority-wrap">
-                                                                <span class={caseItem.priorityDotClass}></span>
-                                                                <span class="priority-text">{caseItem.priority}</span>
-                                                            </span>
-                                                        </td>
-                                                        <td class="data-table-col-age">{caseItem.age} days</td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="mobile-card-list">
-                                        <template for:each={openCasesDecorated} for:item="caseItem">
-                                            <div key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleDetailRecordClick} class="mobile-record-card">
-                                                <div class="mobile-record-card-title">{caseItem.subject}</div>
-                                                <div class="mobile-record-card-meta">
-                                                    <span class="case-number">{caseItem.caseNumber}</span>
-                                                    <span class="meta-separator">•</span>
-                                                    <span>{caseItem.accountName}</span>
-                                                    <span class="meta-separator">•</span>
-                                                    <span>{caseItem.status}</span>
-                                                    <span class="meta-separator">•</span>
-                                                    <span>{caseItem.age} days</span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                                <template if:false={hasOpenCasesList}>
-                                    <div class="empty-state empty-state--compact">
-                                        <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
-                                        <p class="empty-text">No open cases across the portfolio</p>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Open Opportunities -->
-                    <div class={opportunitiesAccordionClass}>
-                        <button type="button" class="section-accordion-header" data-section="opportunities" onclick={handleToggleSection}>
-                            <lightning-icon icon-name="standard:opportunity" size="small" class="section-accordion-icon"></lightning-icon>
-                            <span class="section-accordion-title">Open opportunities</span>
-                            <span class="section-accordion-count">({openOpportunitiesCount})</span>
-                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
-                        </button>
-                        <template if:true={secOpportunities}>
-                            <div class="section-accordion-body">
-                                <template if:true={hasOpenOpportunitiesList}>
-                                    <div class="section-accordion-actions">
-                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllOpportunities}>View all</button>
-                                    </div>
-                                    <div class="table-container table-container--plain data-table-desktop">
-                                        <table class="data-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th>Account</th>
-                                                    <th>Stage</th>
-                                                    <th>Close date</th>
-                                                    <th>Amount</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template for:each={openOpportunitiesDecorated} for:item="opp">
-                                                    <tr key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleDetailRecordClick} class="table-row">
-                                                        <td class="subject-cell">{opp.name}</td>
-                                                        <td>{opp.accountName}</td>
-                                                        <td><span class="status-badge">{opp.stageName}</span></td>
-                                                        <td>{opp.closeDate}</td>
-                                                        <td>
-                                                            <template if:true={opp.amount}>
-                                                                <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
-                                                            </template>
-                                                        </td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="mobile-card-list">
-                                        <template for:each={openOpportunitiesDecorated} for:item="opp">
-                                            <div key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleDetailRecordClick} class="mobile-record-card">
-                                                <div class="mobile-record-card-title">{opp.name}</div>
-                                                <div class="mobile-record-card-meta">
-                                                    <span>{opp.accountName}</span>
-                                                    <span class="meta-separator">•</span>
-                                                    <span>{opp.stageName}</span>
-                                                    <span class="meta-separator">•</span>
-                                                    <span>{opp.closeDate}</span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                                <template if:false={hasOpenOpportunitiesList}>
-                                    <div class="empty-state empty-state--compact">
-                                        <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
-                                        <p class="empty-text">No open opportunities</p>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-
-                </div>
                 </template>
 
                 <!-- Account Table Section -->
@@ -840,6 +611,256 @@
                         </div>
                     </template>
                 </div>
+
+                <!-- Detail Sections (Accordion) -->
+                <template if:true={hasSummary}>
+                <div class="detail-sections">
+
+                    <!-- Open Tasks -->
+                    <div class={openTasksAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="openTasks" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:task" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Open tasks</span>
+                            <span class="section-accordion-count">({openTasksCount})</span>
+                            <template if:true={hasOverdueTasks}>
+                                <span class="section-accordion-badge section-accordion-badge--danger">{summary.totalOverdueTasks} overdue</span>
+                            </template>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secOpenTasks}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasOpenTasksList}>
+                                    <div class="section-accordion-actions">
+                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllTasks}>View all</button>
+                                    </div>
+                                    <div class="activity-list">
+                                        <template for:each={openTasksDecorated} for:item="task">
+                                            <div key={task.taskId} data-id={task.taskId} onclick={handleDetailRecordClick} class={task.rowClass}>
+                                                <div class="activity-icon-wrapper">
+                                                    <lightning-icon icon-name="standard:task" size="small"></lightning-icon>
+                                                </div>
+                                                <div class="activity-content">
+                                                    <div class="activity-subject">{task.subject}</div>
+                                                    <div class="activity-meta">
+                                                        <span>{task.accountName}</span>
+                                                        <span class="meta-separator">•</span>
+                                                        <span>{task.ownerName}</span>
+                                                        <template if:true={task.showUrgencyIndicator}>
+                                                            <span class="meta-separator">•</span>
+                                                            <span class="task-urgency-label">{task.urgencyLabel}</span>
+                                                        </template>
+                                                        <span class="meta-separator">•</span>
+                                                        <span class={task.dateMetaClass}>{task.dateMeta}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasOpenTasksList}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No open tasks</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Open Cases -->
+                    <div class={casesAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="cases" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:case" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Open support cases</span>
+                            <span class="section-accordion-count">({openCasesCountDisplay})</span>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secCases}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasOpenCasesList}>
+                                    <div class="section-accordion-actions">
+                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllCases}>View all</button>
+                                    </div>
+                                    <div class="table-container table-container--plain data-table-desktop">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Case #</th>
+                                                    <th>Account</th>
+                                                    <th>Subject</th>
+                                                    <th>Status</th>
+                                                    <th>Priority</th>
+                                                    <th class="data-table-col-age">Age</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={openCasesDecorated} for:item="caseItem">
+                                                    <tr key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleDetailRecordClick} class="table-row">
+                                                        <td>
+                                                            <span class="case-number">{caseItem.caseNumber}</span>
+                                                            <template if:true={caseItem.isEscalated}>
+                                                                <lightning-icon icon-name="utility:warning" size="xx-small" class="escalated-icon"></lightning-icon>
+                                                            </template>
+                                                        </td>
+                                                        <td>{caseItem.accountName}</td>
+                                                        <td class="subject-cell">{caseItem.subject}</td>
+                                                        <td>
+                                                            <span class="cell-status-wrap">
+                                                                <span class="status-dot"></span>
+                                                                <span class="status-text">{caseItem.status}</span>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="cell-priority-wrap">
+                                                                <span class={caseItem.priorityDotClass}></span>
+                                                                <span class="priority-text">{caseItem.priority}</span>
+                                                            </span>
+                                                        </td>
+                                                        <td class="data-table-col-age">{caseItem.age} days</td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mobile-card-list">
+                                        <template for:each={openCasesDecorated} for:item="caseItem">
+                                            <div key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleDetailRecordClick} class="mobile-record-card">
+                                                <div class="mobile-record-card-title">{caseItem.subject}</div>
+                                                <div class="mobile-record-card-meta">
+                                                    <span class="case-number">{caseItem.caseNumber}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{caseItem.accountName}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{caseItem.status}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{caseItem.age} days</span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasOpenCasesList}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No open cases across the portfolio</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Open Opportunities -->
+                    <div class={opportunitiesAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="opportunities" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:opportunity" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Open opportunities</span>
+                            <span class="section-accordion-count">({openOpportunitiesCount})</span>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secOpportunities}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasOpenOpportunitiesList}>
+                                    <div class="section-accordion-actions">
+                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllOpportunities}>View all</button>
+                                    </div>
+                                    <div class="table-container table-container--plain data-table-desktop">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Account</th>
+                                                    <th>Stage</th>
+                                                    <th>Close date</th>
+                                                    <th>Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={openOpportunitiesDecorated} for:item="opp">
+                                                    <tr key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleDetailRecordClick} class="table-row">
+                                                        <td class="subject-cell">{opp.name}</td>
+                                                        <td>{opp.accountName}</td>
+                                                        <td><span class="status-badge">{opp.stageName}</span></td>
+                                                        <td>{opp.closeDate}</td>
+                                                        <td>
+                                                            <template if:true={opp.amount}>
+                                                                <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                            </template>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mobile-card-list">
+                                        <template for:each={openOpportunitiesDecorated} for:item="opp">
+                                            <div key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleDetailRecordClick} class="mobile-record-card">
+                                                <div class="mobile-record-card-title">{opp.name}</div>
+                                                <div class="mobile-record-card-meta">
+                                                    <span>{opp.accountName}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{opp.stageName}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{opp.closeDate}</span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasOpenOpportunitiesList}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No open opportunities</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Upcoming Events -->
+                    <div class={upcomingEventsAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="upcomingEvents" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:event" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Upcoming events</span>
+                            <span class="section-accordion-count">({upcomingEventsCount})</span>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secUpcomingEvents}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasUpcomingEvents}>
+                                    <div class="activity-list">
+                                        <template for:each={upcomingEventsDecorated} for:item="activity">
+                                            <div key={activity.eventId} data-id={activity.eventId} onclick={handleDetailRecordClick} class={activity.rowClass}>
+                                                <div class="activity-row-inner">
+                                                    <div class="activity-icon-wrapper">
+                                                        <lightning-icon icon-name="standard:event" size="small"></lightning-icon>
+                                                    </div>
+                                                    <div class="activity-content">
+                                                        <div class="activity-subject">{activity.subject}</div>
+                                                        <div class="activity-meta">
+                                                            <span>{activity.activityDate}</span>
+                                                            <span class="meta-separator">&#8226;</span>
+                                                            <span>{activity.ownerName}</span>
+                                                            <span class="meta-separator">&#8226;</span>
+                                                            <span>{activity.accountName}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasUpcomingEvents}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No upcoming events scheduled</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
+                </template>
 
                 <!-- Watermark -->
                 <div class="csd-watermark">Made by Tribal</div>
@@ -1185,6 +1206,9 @@
                                             </div>
                                             <div class="action-modal-item-right">
                                                 <span class={item.metricClass}>{item.metric}</span>
+                                                <template if:true={item.metricSub}>
+                                                    <span class={item.metricSubClass}>{item.metricSub}</span>
+                                                </template>
                                             </div>
                                             <lightning-icon icon-name="utility:chevronright" size="xx-small" class="action-modal-item-chevron"></lightning-icon>
                                         </div>
