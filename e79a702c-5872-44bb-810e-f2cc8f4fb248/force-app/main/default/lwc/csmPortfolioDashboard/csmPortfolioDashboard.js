@@ -3,83 +3,147 @@ import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getPortfolioSummary from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioSummary';
 import getPortfolioAccounts from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioAccounts';
+import getUpcomingRenewals from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingRenewals';
 
 export default class CsmPortfolioDashboard extends NavigationMixin(LightningElement) {
     @track summary = null;
     @track accounts = [];
+    @track renewals = [];
     @track isLoading = true;
     @track error = null;
 
-    // Filter and pagination state
     @track currentFilter = 'all';
+    @track sortField = 'accountName';
+    @track sortDirection = 'asc';
     @track currentPage = 1;
     @track pageSize = 25;
+    @track totalAccountCount = 0;
 
-    // Modal state
+    @track expandedAccountId = null;
     @track showAccountModal = false;
     @track selectedAccountId = null;
+    @track snapshotExpanded = false;
 
     connectedCallback() {
         this.loadPortfolioData();
     }
 
-    /**
-     * Load portfolio summary and accounts
-     */
     loadPortfolioData() {
         this.isLoading = true;
         this.error = null;
 
-        // Load summary
-        getPortfolioSummary()
-            .then(result => {
-                this.summary = result;
-            })
-            .catch(error => {
-                this.handleError('Failed to load portfolio summary', error);
-            });
+        const promises = [
+            getPortfolioSummary()
+                .then(result => { this.summary = result; })
+                .catch(err => this.handleError('Failed to load portfolio summary', err)),
 
-        // Load accounts
-        this.loadAccounts();
+            this.loadAccounts(),
+
+            getUpcomingRenewals({ daysAhead: 90 })
+                .then(result => { this.renewals = result || []; })
+                .catch(err => this.handleError('Failed to load renewals', err))
+        ];
+
+        Promise.all(promises).then(() => { this.isLoading = false; });
     }
 
-    /**
-     * Load accounts based on current filter and pagination
-     */
     loadAccounts() {
-        getPortfolioAccounts({
+        return getPortfolioAccounts({
             filterType: this.currentFilter,
-            sortField: 'accountName',
-            sortDirection: 'asc',
+            sortField: this.sortField,
+            sortDirection: this.sortDirection,
             pageSize: this.pageSize,
             pageNumber: this.currentPage
         })
             .then(result => {
-                this.accounts = result;
-                this.isLoading = false;
+                this.accounts = result || [];
+                this.expandedAccountId = null;
             })
-            .catch(error => {
-                this.handleError('Failed to load accounts', error);
-                this.isLoading = false;
+            .catch(err => {
+                this.handleError('Failed to load accounts', err);
             });
     }
 
-    /**
-     * Handle filter button click
-     */
+    // ── Filter Handlers ──
+
     handleFilterClick(event) {
         const filter = event.currentTarget.dataset.filter;
         if (filter && filter !== this.currentFilter) {
             this.currentFilter = filter;
             this.currentPage = 1;
-            this.loadAccounts();
+            this.isLoading = true;
+            this.loadAccounts().then(() => { this.isLoading = false; });
         }
     }
 
-    /**
-     * Handle account row click - open account detail modal
-     */
-    handleAccountClick(event) {
+    handleHealthBarClick(event) {
+        const segment = event.currentTarget.dataset.segment;
+        if (!segment) return;
+        const filterMap = { green: 'healthy', yellow: 'needs-attention', red: 'at-risk', gray: 'all' };
+        const newFilter = filterMap[segment] || 'all';
+        if (newFilter !== this.currentFilter) {
+            this.currentFilter = newFilter;
+            this.currentPage = 1;
+            this.isLoading = true;
+            this.loadAccounts().then(() => { this.isLoading = false; });
+        }
+    }
+
+    handleSuggestedActionClick(event) {
+        const action = event.currentTarget.dataset.action;
+        if (!action || action === this.currentFilter) return;
+        this.currentFilter = action;
+        this.currentPage = 1;
+        this.isLoading = true;
+        this.loadAccounts().then(() => { this.isLoading = false; });
+    }
+
+    // ── Sort Handlers ──
+
+    handleSort(event) {
+        const field = event.currentTarget.dataset.field;
+        if (!field) return;
+        if (this.sortField === field) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortField = field;
+            this.sortDirection = 'asc';
+        }
+        this.currentPage = 1;
+        this.isLoading = true;
+        this.loadAccounts().then(() => { this.isLoading = false; });
+    }
+
+    // ── Pagination ──
+
+    handlePrevPage() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.isLoading = true;
+            this.loadAccounts().then(() => { this.isLoading = false; });
+        }
+    }
+
+    handleNextPage() {
+        if (this.hasNextPage) {
+            this.currentPage++;
+            this.isLoading = true;
+            this.loadAccounts().then(() => { this.isLoading = false; });
+        }
+    }
+
+    // ── Expansion & Modal ──
+
+    handleAccountRowClick(event) {
+        const accountId = event.currentTarget.dataset.id;
+        if (!accountId) return;
+        // Prevent expansion when clicking the account name link
+        if (event.target && event.target.classList.contains('account-name-link')) return;
+        this.expandedAccountId = this.expandedAccountId === accountId ? null : accountId;
+    }
+
+    handleViewFullDashboard(event) {
+        event.stopPropagation();
         const accountId = event.currentTarget.dataset.id;
         if (accountId) {
             this.selectedAccountId = accountId;
@@ -87,139 +151,329 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         }
     }
 
-    /**
-     * Handle close account modal
-     */
     handleCloseAccountModal() {
         this.showAccountModal = false;
         this.selectedAccountId = null;
     }
 
-    /**
-     * Handle refresh button click
-     */
-    handleRefresh() {
-        this.loadPortfolioData();
-    }
-
-    /**
-     * Handle error and show toast
-     */
-    handleError(title, error) {
-        this.error = error;
-        const errorMessage = error.body ? error.body.message : error.message;
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: title,
-                message: errorMessage,
-                variant: 'error'
-            })
-        );
-    }
-
-    /**
-     * Navigate to account record page
-     */
-    navigateToAccount(event) {
+    handleGoToAccount(event) {
+        event.stopPropagation();
         const accountId = event.currentTarget.dataset.id;
         if (accountId) {
             this[NavigationMixin.Navigate]({
                 type: 'standard__recordPage',
-                attributes: {
-                    recordId: accountId,
-                    objectApiName: 'Account',
-                    actionName: 'view'
-                }
+                attributes: { recordId: accountId, objectApiName: 'Account', actionName: 'view' }
             });
         }
     }
 
-    // Computed properties
-
-    get hasSummary() {
-        return this.summary !== null;
+    navigateToAccount(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const accountId = event.currentTarget.dataset.id;
+        if (accountId) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: { recordId: accountId, objectApiName: 'Account', actionName: 'view' }
+            });
+        }
     }
 
-    get hasAccounts() {
-        return this.accounts && this.accounts.length > 0;
+    // ── Snapshot Toggle ──
+
+    handleSnapshotToggle() {
+        this.snapshotExpanded = !this.snapshotExpanded;
     }
 
-    get isAllFilter() {
-        return this.currentFilter === 'all';
+    // ── Stat Bar Clicks ──
+
+    handleStatClick(event) {
+        const stat = event.currentTarget.dataset.stat;
+        if (!stat) return;
+        const filterMap = { cases: 'all', tasks: 'all', pipeline: 'all' };
+        const sortMap = { cases: 'accountName', tasks: 'accountName', pipeline: 'accountName' };
+        this.currentFilter = filterMap[stat];
+        this.sortField = sortMap[stat];
+        this.sortDirection = 'desc';
+        this.currentPage = 1;
+        this.isLoading = true;
+        this.loadAccounts().then(() => { this.isLoading = false; });
     }
 
-    get isAtRiskFilter() {
-        return this.currentFilter === 'at-risk';
+    // ── Renewal Click ──
+
+    handleRenewalClick(event) {
+        const oppId = event.currentTarget.dataset.id;
+        if (oppId) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: { recordId: oppId, objectApiName: 'Opportunity', actionName: 'view' }
+            });
+        }
     }
 
-    get isNeedsAttentionFilter() {
-        return this.currentFilter === 'needs-attention';
+    // ── Refresh & Error ──
+
+    handleRefresh() {
+        this.loadPortfolioData();
     }
 
-    get isHealthyFilter() {
-        return this.currentFilter === 'healthy';
+    handleError(title, error) {
+        this.error = error;
+        const errorMessage = error.body ? error.body.message : error.message;
+        this.dispatchEvent(
+            new ShowToastEvent({ title, message: errorMessage, variant: 'error' })
+        );
     }
 
-    get isInactiveFilter() {
-        return this.currentFilter === 'inactive';
+    // ══════════════════════════════════════════════════════════
+    // COMPUTED PROPERTIES
+    // ══════════════════════════════════════════════════════════
+
+    get hasSummary() { return this.summary !== null; }
+    get hasAccounts() { return this.accounts && this.accounts.length > 0; }
+    get hasRenewals() { return this.renewals && this.renewals.length > 0; }
+
+    // ── Health Distribution ──
+
+    get healthyPercent() {
+        if (!this.summary || !this.summary.totalAccounts) return 0;
+        return Math.round((this.summary.healthyAccounts / this.summary.totalAccounts) * 100);
     }
 
-    get totalAccountsLabel() {
-        if (!this.summary) return '0 Accounts';
-        const count = this.summary.totalAccounts || 0;
-        return `${count} ${count === 1 ? 'Account' : 'Accounts'}`;
+    get needsAttentionPercent() {
+        if (!this.summary || !this.summary.totalAccounts) return 0;
+        return Math.round((this.summary.needsAttentionAccounts / this.summary.totalAccounts) * 100);
     }
 
-    get atRiskLabel() {
-        if (!this.summary) return '0 At Risk';
-        const count = this.summary.atRiskAccounts || 0;
-        return `${count} At Risk`;
+    get atRiskPercent() {
+        if (!this.summary || !this.summary.totalAccounts) return 0;
+        return Math.round((this.summary.atRiskAccounts / this.summary.totalAccounts) * 100);
     }
 
-    get needsAttentionLabel() {
-        if (!this.summary) return '0 Needs Attention';
-        const count = this.summary.needsAttentionAccounts || 0;
-        return `${count} Needs Attention`;
+    get unassessedCount() {
+        if (!this.summary) return 0;
+        return this.summary.totalAccounts -
+            (this.summary.healthyAccounts + this.summary.needsAttentionAccounts + this.summary.atRiskAccounts);
     }
 
-    get healthyLabel() {
-        if (!this.summary) return '0 Healthy';
-        const count = this.summary.healthyAccounts || 0;
-        return `${count} Healthy`;
+    get unassessedPercent() {
+        if (!this.summary || !this.summary.totalAccounts) return 0;
+        return Math.round((this.unassessedCount / this.summary.totalAccounts) * 100);
     }
 
-    /**
-     * Get health score badge class based on color
-     */
-    getHealthBadgeClass(healthScoreColor) {
-        return `slds-badge health-badge health-badge--${healthScoreColor}`;
+    get greenBarStyle() { return `width: ${this.healthyPercent}%`; }
+    get yellowBarStyle() { return `width: ${this.needsAttentionPercent}%`; }
+    get redBarStyle() { return `width: ${this.atRiskPercent}%`; }
+    get grayBarStyle() { return `width: ${this.unassessedPercent}%`; }
+
+    get heroCardClass() {
+        if (!this.summary) return 'hero-card hero-card--gray';
+        const h = this.summary.healthyAccounts || 0;
+        const y = this.summary.needsAttentionAccounts || 0;
+        const r = this.summary.atRiskAccounts || 0;
+        if (r > 0 && r >= h) return 'hero-card hero-card--red';
+        if (y > h) return 'hero-card hero-card--yellow';
+        if (h > 0) return 'hero-card hero-card--green';
+        return 'hero-card hero-card--gray';
     }
 
-    /**
-     * Format currency for display
-     */
-    formatCurrency(value) {
-        if (value == null) return '$0';
+    get heroScoreValue() {
+        return this.healthyPercent;
+    }
+
+    get heroSubText() {
+        if (!this.summary) return '';
+        return `${this.summary.totalAccounts} account${this.summary.totalAccounts !== 1 ? 's' : ''} in portfolio`;
+    }
+
+    // ── Suggested Actions ──
+
+    get suggestedActions() {
+        if (!this.summary) return [];
+        const actions = [];
+        const overdueAccts = this.summary.accountsWithOverdueTasks || 0;
+        const highPriAccts = this.summary.accountsWithHighPriCases || 0;
+        const inactiveAccts = this.summary.inactiveAccounts || 0;
+        const renewalCount = this.summary.upcomingRenewalsCount || 0;
+
+        if (overdueAccts > 0) {
+            actions.push({
+                id: 'overdue',
+                text: `${overdueAccts} account${overdueAccts > 1 ? 's' : ''} with overdue tasks`,
+                severity: 'danger',
+                actionFilter: 'all',
+                dotClass: 'suggested-action-dot suggested-action-dot--danger',
+                actionClass: 'suggested-action suggested-action--danger',
+                badge: 'Urgent'
+            });
+        }
+        if (highPriAccts > 0) {
+            actions.push({
+                id: 'highpri',
+                text: `${highPriAccts} account${highPriAccts > 1 ? 's' : ''} with high-priority cases`,
+                severity: 'danger',
+                actionFilter: 'all',
+                dotClass: 'suggested-action-dot suggested-action-dot--danger',
+                actionClass: 'suggested-action suggested-action--danger',
+                badge: 'Urgent'
+            });
+        }
+        if (inactiveAccts > 0) {
+            actions.push({
+                id: 'inactive',
+                text: `${inactiveAccts} account${inactiveAccts > 1 ? 's' : ''} inactive for 30+ days`,
+                severity: 'warning',
+                actionFilter: 'inactive',
+                dotClass: 'suggested-action-dot suggested-action-dot--warning',
+                actionClass: 'suggested-action suggested-action--warning',
+                badge: 'Attention'
+            });
+        }
+        if (renewalCount > 0) {
+            actions.push({
+                id: 'renewals',
+                text: `${renewalCount} renewal${renewalCount > 1 ? 's' : ''} closing in next 90 days`,
+                severity: 'info',
+                actionFilter: 'all',
+                dotClass: 'suggested-action-dot suggested-action-dot--info',
+                actionClass: 'suggested-action suggested-action--info',
+                badge: 'Info'
+            });
+        }
+        return actions;
+    }
+
+    get hasSuggestedActions() { return this.suggestedActions.length > 0; }
+
+    // ── Stat Bar ──
+
+    get openCasesStatClass() {
+        const highPri = this.summary?.accountsWithHighPriCases || 0;
+        if (highPri > 0) return 'stat-value stat-value--warning';
+        return 'stat-value';
+    }
+
+    get overdueTasksStatClass() {
+        const overdue = this.summary?.totalOverdueTasks || 0;
+        if (overdue > 0) return 'stat-value stat-value--danger';
+        return 'stat-value';
+    }
+
+    get casesHint() {
+        const highPri = this.summary?.accountsWithHighPriCases || 0;
+        if (highPri > 0) return `${highPri} high priority`;
+        return 'across portfolio';
+    }
+
+    get tasksHint() {
+        const accts = this.summary?.accountsWithOverdueTasks || 0;
+        if (accts > 0) return `across ${accts} account${accts > 1 ? 's' : ''}`;
+        return 'none overdue';
+    }
+
+    get pipelineFormatted() {
+        return this.formatCurrencyShort(this.summary?.totalOpenPipeline || 0);
+    }
+
+    // ── Commercial Snapshot ──
+
+    get snapshotClass() {
+        return this.snapshotExpanded
+            ? 'commercial-snapshot commercial-snapshot--expanded'
+            : 'commercial-snapshot commercial-snapshot--collapsed';
+    }
+
+    get ltvFormatted() { return this.formatCurrencyShort(this.summary?.totalClosedWonAmount || 0); }
+    get weightedPipelineFormatted() { return this.formatCurrencyShort(this.summary?.totalWeightedPipeline || 0); }
+    get ytdWonFormatted() { return this.formatCurrencyShort(this.summary?.totalYtdClosedWon || 0); }
+    get openPipelineFormatted() { return this.formatCurrencyShort(this.summary?.totalOpenPipeline || 0); }
+
+    get renewalsDecorated() {
+        if (!this.renewals) return [];
+        return this.renewals.map(r => ({
+            ...r,
+            amountFormatted: this.formatCurrencyShort(r.amount || 0),
+            daysText: this.getRenewalDaysText(r.daysUntilClose),
+            daysClass: this.getRenewalDaysClass(r.daysUntilClose)
+        }));
+    }
+
+    // ── Filter Pills ──
+
+    get filterPills() {
+        return [
+            { label: 'All', value: 'all', class: this.pillClass('all') },
+            { label: 'At Risk', value: 'at-risk', class: this.pillClass('at-risk') },
+            { label: 'Needs Attention', value: 'needs-attention', class: this.pillClass('needs-attention') },
+            { label: 'Healthy', value: 'healthy', class: this.pillClass('healthy') },
+            { label: 'Inactive', value: 'inactive', class: this.pillClass('inactive') }
+        ];
+    }
+
+    pillClass(value) {
+        return value === this.currentFilter ? 'filter-pill filter-pill--active' : 'filter-pill';
+    }
+
+    // ── Account Table ──
+
+    get accountsDecorated() {
+        if (!this.accounts || this.accounts.length === 0) return [];
+        return this.accounts.map(acc => ({
+            ...acc,
+            expansionKey: acc.accountId + '-expand',
+            healthBadgeClass: `health-badge health-badge--${acc.healthScoreColor || 'gray'}`,
+            pipelineFormatted: this.formatCurrencyShort(acc.openPipelineAmount),
+            daysSinceActivityText: this.getDaysSinceActivityText(acc.daysSinceLastActivity),
+            daysSinceActivityClass: this.getDaysSinceActivityClass(acc.daysSinceLastActivity),
+            nextActivityText: this.getNextActivityText(acc.daysUntilNextActivity, acc.nextActivityDate),
+            casesDisplay: this.getCasesDisplay(acc),
+            casesClass: acc.highPriorityCasesCount > 0 ? 'cell-danger' : '',
+            tasksDisplay: this.getTasksDisplay(acc),
+            tasksClass: acc.overdueTasksCount > 0 ? 'cell-danger' : 'cell-muted',
+            renewalDisplay: this.getRenewalDisplay(acc),
+            renewalClass: this.getRenewalCellClass(acc),
+            isExpanded: acc.accountId === this.expandedAccountId,
+            rowClass: acc.accountId === this.expandedAccountId
+                ? 'account-row account-row--expanded'
+                : 'account-row',
+            expansionMetrics: this.getExpansionMetrics(acc)
+        }));
+    }
+
+    get sortIndicatorName() {
+        return this.sortDirection === 'asc' ? '▲' : '▼';
+    }
+
+    getSortIndicator(field) {
+        return this.sortField === field ? (this.sortDirection === 'asc' ? ' ▲' : ' ▼') : '';
+    }
+
+    get sortIndicatorAccountName() { return this.getSortIndicator('accountName'); }
+    get sortIndicatorHealthScore() { return this.getSortIndicator('healthScore'); }
+
+    // ── Pagination ──
+
+    get hasPrevPage() { return this.currentPage > 1; }
+    get hasNextPage() { return this.accounts && this.accounts.length >= this.pageSize; }
+    get noPrevPage() { return !this.hasPrevPage; }
+    get noNextPage() { return !this.hasNextPage; }
+
+    get paginationInfo() {
+        const start = ((this.currentPage - 1) * this.pageSize) + 1;
+        const end = start + (this.accounts ? this.accounts.length : 0) - 1;
+        return `${start}–${end}`;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // HELPER METHODS
+    // ══════════════════════════════════════════════════════════
+
+    formatCurrencyShort(value) {
+        if (value == null || value === 0) return '$0';
         if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
         if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
         return `$${value.toFixed(0)}`;
-    }
-
-    /**
-     * Get accounts with computed properties for display
-     */
-    get accountsDecorated() {
-        if (!this.accounts || this.accounts.length === 0) {
-            return [];
-        }
-
-        return this.accounts.map(acc => ({
-            ...acc,
-            healthBadgeClass: this.getHealthBadgeClass(acc.healthScoreColor),
-            pipelineFormatted: this.formatCurrency(acc.openPipelineAmount),
-            daysSinceActivityText: this.getDaysSinceActivityText(acc.daysSinceLastActivity),
-            hasRiskIndicators: acc.hasNoActivity || acc.hasOverdueTasks || acc.hasHighPriorityCases
-        }));
     }
 
     getDaysSinceActivityText(days) {
@@ -227,5 +481,73 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         if (days === 0) return 'Today';
         if (days === 1) return '1 day ago';
         return `${days} days ago`;
+    }
+
+    getDaysSinceActivityClass(days) {
+        if (days == null) return 'cell-muted';
+        if (days > 30) return 'cell-danger';
+        if (days > 14) return 'cell-warning';
+        return '';
+    }
+
+    getNextActivityText(daysUntil, dateStr) {
+        if (daysUntil == null || !dateStr) return 'None scheduled';
+        if (daysUntil === 0) return 'Today';
+        if (daysUntil === 1) return 'Tomorrow';
+        return dateStr;
+    }
+
+    getCasesDisplay(acc) {
+        if (!acc.openCasesCount) return '0';
+        if (acc.highPriorityCasesCount > 0) {
+            return `${acc.openCasesCount} (${acc.highPriorityCasesCount} high)`;
+        }
+        return `${acc.openCasesCount}`;
+    }
+
+    getTasksDisplay(acc) {
+        if (acc.overdueTasksCount > 0) return `${acc.overdueTasksCount} overdue`;
+        return '0 overdue';
+    }
+
+    getRenewalDisplay(acc) {
+        if (!acc.nearestRenewalDate) return '—';
+        if (acc.daysUntilRenewal <= 0) return 'Past due';
+        if (acc.daysUntilRenewal <= 30) return `${acc.daysUntilRenewal}d`;
+        return acc.nearestRenewalDate;
+    }
+
+    getRenewalCellClass(acc) {
+        if (!acc.nearestRenewalDate) return 'cell-muted';
+        if (acc.daysUntilRenewal <= 14) return 'cell-danger';
+        if (acc.daysUntilRenewal <= 30) return 'cell-warning';
+        return '';
+    }
+
+    getRenewalDaysText(days) {
+        if (days == null) return '';
+        if (days === 0) return 'Today';
+        if (days === 1) return 'Tomorrow';
+        return `in ${days} days`;
+    }
+
+    getRenewalDaysClass(days) {
+        if (days <= 14) return 'renewal-days renewal-days--critical';
+        if (days <= 30) return 'renewal-days renewal-days--urgent';
+        return 'renewal-days';
+    }
+
+    getExpansionMetrics(acc) {
+        return [
+            { label: 'Health', value: acc.healthScore || 'N/A', class: 'expansion-metric-value' },
+            { label: 'Open Cases', value: String(acc.openCasesCount || 0),
+              class: acc.highPriorityCasesCount > 0 ? 'expansion-metric-value expansion-metric-value--danger' : 'expansion-metric-value' },
+            { label: 'Overdue Tasks', value: String(acc.overdueTasksCount || 0),
+              class: acc.overdueTasksCount > 0 ? 'expansion-metric-value expansion-metric-value--danger' : 'expansion-metric-value' },
+            { label: 'Pipeline', value: this.formatCurrencyShort(acc.openPipelineAmount),
+              class: 'expansion-metric-value' },
+            { label: 'Last Activity', value: this.getDaysSinceActivityText(acc.daysSinceLastActivity),
+              class: 'expansion-metric-value' }
+        ];
     }
 }

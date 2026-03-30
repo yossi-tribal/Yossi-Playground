@@ -21,6 +21,12 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public Integer totalOverdueTasks { get; set; }
         @AuraEnabled public Integer inactiveAccounts { get; set; }
         @AuraEnabled public Decimal totalOpenPipeline { get; set; }
+        @AuraEnabled public Integer accountsWithOverdueTasks { get; set; }
+        @AuraEnabled public Integer accountsWithHighPriCases { get; set; }
+        @AuraEnabled public Decimal totalClosedWonAmount { get; set; }
+        @AuraEnabled public Decimal totalWeightedPipeline { get; set; }
+        @AuraEnabled public Decimal totalYtdClosedWon { get; set; }
+        @AuraEnabled public Integer upcomingRenewalsCount { get; set; }
     }
 
     /**
@@ -41,6 +47,22 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public Boolean hasNoActivity { get; set; }
         @AuraEnabled public Boolean hasOverdueTasks { get; set; }
         @AuraEnabled public Boolean hasHighPriorityCases { get; set; }
+        @AuraEnabled public String nearestRenewalDate { get; set; }
+        @AuraEnabled public Integer daysUntilRenewal { get; set; }
+    }
+
+    /**
+     * @description Wrapper class for upcoming renewal opportunities
+     */
+    public class RenewalRow {
+        @AuraEnabled public Id accountId { get; set; }
+        @AuraEnabled public String accountName { get; set; }
+        @AuraEnabled public Id opportunityId { get; set; }
+        @AuraEnabled public String opportunityName { get; set; }
+        @AuraEnabled public Decimal amount { get; set; }
+        @AuraEnabled public String closeDate { get; set; }
+        @AuraEnabled public Integer daysUntilClose { get; set; }
+        @AuraEnabled public String stageName { get; set; }
     }
 
     /**
@@ -117,8 +139,28 @@ public with sharing class CSD_CSMPortfolioController {
                 ];
             }
 
-            // Inactive accounts (no activity in 30+ days) - calculated in getPortfolioAccounts
+            // Inactive accounts (no activity in 30+ days)
             summary.inactiveAccounts = 0;
+            if (!accountIds.isEmpty()) {
+                Set<Id> activeAccountIds = new Set<Id>();
+                for (Task t : [
+                    SELECT WhatId FROM Task
+                    WHERE WhatId IN :accountIds
+                    AND ActivityDate >= LAST_N_DAYS:30
+                    AND ActivityDate != null
+                ]) {
+                    activeAccountIds.add(t.WhatId);
+                }
+                for (Event e : [
+                    SELECT WhatId FROM Event
+                    WHERE WhatId IN :accountIds
+                    AND ActivityDate >= LAST_N_DAYS:30
+                    AND ActivityDate != null
+                ]) {
+                    activeAccountIds.add(e.WhatId);
+                }
+                summary.inactiveAccounts = accountIds.size() - activeAccountIds.size();
+            }
 
             // Total open pipeline across all accounts
             summary.totalOpenPipeline = 0;
@@ -132,6 +174,91 @@ public with sharing class CSD_CSMPortfolioController {
                     Decimal amt = (Decimal) ar.get('totalAmount');
                     summary.totalOpenPipeline = amt != null ? amt : 0;
                 }
+            }
+
+            // Accounts with overdue tasks (count of distinct accounts)
+            summary.accountsWithOverdueTasks = 0;
+            if (!accountIds.isEmpty()) {
+                List<AggregateResult> overdueAccounts = [
+                    SELECT WhatId FROM Task
+                    WHERE WhatId IN :accountIds
+                    AND IsClosed = false
+                    AND ActivityDate < TODAY
+                    GROUP BY WhatId
+                ];
+                summary.accountsWithOverdueTasks = overdueAccounts.size();
+            }
+
+            // Accounts with high-priority cases
+            summary.accountsWithHighPriCases = 0;
+            if (!accountIds.isEmpty()) {
+                List<AggregateResult> highPriAccounts = [
+                    SELECT AccountId FROM Case
+                    WHERE AccountId IN :accountIds
+                    AND IsClosed = false
+                    AND (Priority = 'High' OR IsEscalated = true)
+                    GROUP BY AccountId
+                ];
+                summary.accountsWithHighPriCases = highPriAccounts.size();
+            }
+
+            // Total closed-won amount (lifetime value)
+            summary.totalClosedWonAmount = 0;
+            if (!accountIds.isEmpty()) {
+                for (AggregateResult ar : [
+                    SELECT SUM(Amount) totalAmount
+                    FROM Opportunity
+                    WHERE AccountId IN :accountIds
+                    AND IsWon = true
+                ]) {
+                    Decimal amt = (Decimal) ar.get('totalAmount');
+                    summary.totalClosedWonAmount = amt != null ? amt : 0;
+                }
+            }
+
+            // Total weighted pipeline
+            summary.totalWeightedPipeline = 0;
+            if (!accountIds.isEmpty()) {
+                for (Opportunity opp : [
+                    SELECT Amount, Probability
+                    FROM Opportunity
+                    WHERE AccountId IN :accountIds
+                    AND IsClosed = false
+                    AND Amount != null
+                ]) {
+                    Decimal prob = opp.Probability != null ? opp.Probability : 0;
+                    summary.totalWeightedPipeline += opp.Amount * (prob / 100);
+                }
+            }
+
+            // Total YTD closed-won
+            summary.totalYtdClosedWon = 0;
+            if (!accountIds.isEmpty()) {
+                Date ytdStart = Date.newInstance(Date.today().year(), 1, 1);
+                for (AggregateResult ar : [
+                    SELECT SUM(Amount) totalAmount
+                    FROM Opportunity
+                    WHERE AccountId IN :accountIds
+                    AND IsWon = true
+                    AND CloseDate >= :ytdStart
+                ]) {
+                    Decimal amt = (Decimal) ar.get('totalAmount');
+                    summary.totalYtdClosedWon = amt != null ? amt : 0;
+                }
+            }
+
+            // Upcoming renewals count (next 90 days)
+            summary.upcomingRenewalsCount = 0;
+            if (!accountIds.isEmpty()) {
+                Date futureDate = Date.today().addDays(90);
+                summary.upcomingRenewalsCount = [
+                    SELECT COUNT()
+                    FROM Opportunity
+                    WHERE AccountId IN :accountIds
+                    AND IsClosed = false
+                    AND CloseDate >= TODAY
+                    AND CloseDate <= :futureDate
+                ];
             }
 
             return summary;
@@ -236,6 +363,7 @@ public with sharing class CSD_CSMPortfolioController {
             Map<Id, Integer> highPriCasesByAccount = getHighPriorityCasesCounts(accountIds);
             Map<Id, Integer> overdueTasksByAccount = getOverdueTasksCounts(accountIds);
             Map<Id, Decimal> openPipelineByAccount = getOpenPipelineAmounts(accountIds);
+            Map<Id, Date> nearestRenewalByAccount = getNearestRenewalDates(accountIds);
 
             // Build account rows
             for (Account acc : accounts) {
@@ -285,6 +413,13 @@ public with sharing class CSD_CSMPortfolioController {
                 row.hasNoActivity = row.daysSinceLastActivity != null && row.daysSinceLastActivity > 30;
                 row.hasOverdueTasks = row.overdueTasksCount > 0;
                 row.hasHighPriorityCases = row.highPriorityCasesCount > 0;
+
+                // Set nearest renewal date
+                Date renewalDate = nearestRenewalByAccount.get(acc.Id);
+                if (renewalDate != null) {
+                    row.nearestRenewalDate = renewalDate.format();
+                    row.daysUntilRenewal = Date.today().daysBetween(renewalDate);
+                }
 
                 accountRows.add(row);
             }
@@ -501,6 +636,80 @@ public with sharing class CSD_CSMPortfolioController {
         }
 
         return pipelineByAccount;
+    }
+
+    /**
+     * @description Gets nearest renewal/close date for open opportunities per account
+     * @param accountIds Set of account IDs
+     * @return Map of account ID to nearest renewal date
+     */
+    private static Map<Id, Date> getNearestRenewalDates(Set<Id> accountIds) {
+        Map<Id, Date> renewalByAccount = new Map<Id, Date>();
+
+        if (accountIds.isEmpty()) {
+            return renewalByAccount;
+        }
+
+        for (Opportunity opp : [
+            SELECT AccountId, CloseDate
+            FROM Opportunity
+            WHERE AccountId IN :accountIds
+            AND IsClosed = false
+            AND CloseDate >= TODAY
+            ORDER BY CloseDate ASC
+        ]) {
+            if (!renewalByAccount.containsKey(opp.AccountId)) {
+                renewalByAccount.put(opp.AccountId, opp.CloseDate);
+            }
+        }
+
+        return renewalByAccount;
+    }
+
+    /**
+     * @description Retrieves upcoming renewal/closing opportunities across the portfolio
+     * @param daysAhead Number of days to look ahead (default 90)
+     * @return List of RenewalRow objects sorted by close date
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<RenewalRow> getUpcomingRenewals(Integer daysAhead) {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+            if (daysAhead == null || daysAhead <= 0) {
+                daysAhead = 90;
+            }
+            Date futureDate = Date.today().addDays(daysAhead);
+
+            List<RenewalRow> renewals = new List<RenewalRow>();
+
+            for (Opportunity opp : [
+                SELECT Id, Name, Amount, CloseDate, StageName,
+                       AccountId, Account.Name
+                FROM Opportunity
+                WHERE Account.CSD_Primary_CSM__c = :currentUserId
+                AND IsClosed = false
+                AND CloseDate >= TODAY
+                AND CloseDate <= :futureDate
+                ORDER BY CloseDate ASC
+                LIMIT 20
+            ]) {
+                RenewalRow row = new RenewalRow();
+                row.accountId = opp.AccountId;
+                row.accountName = opp.Account.Name;
+                row.opportunityId = opp.Id;
+                row.opportunityName = opp.Name;
+                row.amount = opp.Amount != null ? opp.Amount : 0;
+                row.closeDate = opp.CloseDate.format();
+                row.daysUntilClose = Date.today().daysBetween(opp.CloseDate);
+                row.stageName = opp.StageName;
+                renewals.add(row);
+            }
+
+            return renewals;
+
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving upcoming renewals: ' + e.getMessage());
+        }
     }
 
     /**
