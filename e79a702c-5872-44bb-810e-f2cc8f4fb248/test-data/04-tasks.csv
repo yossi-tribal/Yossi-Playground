@@ -1,0 +1,26 @@
+WhatId,Subject,Status,Priority,ActivityDate,Type
+001a5000027fDM2AAM,Quarterly business review call,Completed,Normal,2026-03-27,Call
+001a5000027fDM2AAM,Send updated contract terms,Completed,Normal,2026-03-25,Email
+001a5000027fDM2AAM,Product demo for new features,Completed,Normal,2026-03-20,Call
+001a5000027fDM2AAM,Follow up on expansion discussion,Not Started,Normal,2026-04-03,Call
+001a5000027fDM2AAM,Schedule training for new users,Not Started,Normal,2026-04-10,Other
+001a5000027fDM2AAM,Review Q1 usage metrics,Not Started,Normal,2026-04-15,Other
+001a5000027fDM6AAM,Monthly check-in call,Completed,Normal,2026-03-10,Call
+001a5000027fDM6AAM,Send usage report,Completed,Normal,2026-03-05,Email
+001a5000027fDM6AAM,Follow up on integration issue,Not Started,High,2026-03-15,Call
+001a5000027fDM6AAM,Send updated documentation,Not Started,Normal,2026-03-20,Email
+001a5000027fDM6AAM,Quarterly planning session,Not Started,Normal,2026-04-07,Call
+001a5000027fDM6AAM,Review renewal terms,Not Started,High,2026-04-14,Other
+001a5000027fDM4AAM,Initial onboarding call,Completed,Normal,2026-02-18,Call
+001a5000027fDM4AAM,Escalation follow-up call,Not Started,High,2026-03-01,Call
+001a5000027fDM4AAM,Send migration fix instructions,Not Started,High,2026-03-05,Email
+001a5000027fDM4AAM,Schedule executive sponsor meeting,Not Started,Normal,2026-03-10,Other
+001a5000027fDM4AAM,Review support case backlog,Not Started,Normal,2026-03-15,Other
+001a5000027fDM4AAM,Emergency account review,Not Started,High,2026-04-01,Call
+001a5000027fDMBAA2,Executive business review,Completed,Normal,2026-03-28,Call
+001a5000027fDMBAA2,Product roadmap walkthrough,Completed,Normal,2026-03-22,Call
+001a5000027fDMBAA2,Contract renewal discussion,Completed,Normal,2026-03-15,Call
+001a5000027fDMBAA2,Send pricing proposal update,Not Started,Normal,2026-03-25,Email
+001a5000027fDMBAA2,Training session for new module,Not Started,Normal,2026-04-02,Other
+001a5000027fDMBAA2,Follow up with finance team,Not Started,Normal,2026-04-08,Call
+001a5000027fDMBAA2,Success plan review,Not Started,High,2026-04-20,Other

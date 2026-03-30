@@ -217,8 +217,8 @@
                                     </div>
                                 </template>
                             </div>
-                            <div class="revenue-visuals">
-                                <div class="revenue-renewal-card">
+                            <div class="snapshot-visuals">
+                                <div class="snapshot-left-card">
                                     <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
                                         <span class="commercial-kpi-label">Won this year</span>
                                         <span class="commercial-kpi-value">
@@ -227,33 +227,33 @@
                                         <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
                                     </button>
                                 </div>
-                                <div class="revenue-trend-wrap">
-                                    <div class="revenue-trend-header">
-                                        <span class="revenue-trend-title">Closed won per month</span>
-                                        <div class="revenue-trend-legend">
-                                            <span class="revenue-trend-legend-item">
-                                                <span class="revenue-trend-legend-dot revenue-trend-legend-dot--current"></span>
+                                <div class="trend-chart-wrap">
+                                    <div class="trend-chart-header">
+                                        <span class="trend-chart-title">Closed won per month</span>
+                                        <div class="trend-chart-legend">
+                                            <span class="trend-chart-legend-item">
+                                                <span class="trend-chart-legend-dot trend-chart-legend-dot--current"></span>
                                                 This year
                                             </span>
-                                            <span class="revenue-trend-legend-item">
-                                                <span class="revenue-trend-legend-dot revenue-trend-legend-dot--prev"></span>
+                                            <span class="trend-chart-legend-item">
+                                                <span class="trend-chart-legend-dot trend-chart-legend-dot--prev"></span>
                                                 Last year
                                             </span>
                                         </div>
                                     </div>
                                     <template if:true={hasRevenueMonthData}>
-                                        <div class="revenue-trend">
+                                        <div class="trend-chart">
                                             <template for:each={revenueMonthBars} for:item="rb">
-                                                <div key={rb.key} class="revenue-trend-col" aria-label={rb.ariaLabel}>
-                                                    <div class="revenue-trend-pair">
-                                                        <div class="revenue-trend-bar-track">
+                                                <div key={rb.key} class="trend-chart-col" aria-label={rb.ariaLabel}>
+                                                    <div class="trend-chart-pair">
+                                                        <div class="trend-chart-bar-track">
                                                             <template if:true={rb.hasPrevBar}>
-                                                                <div class="revenue-trend-bar-fill revenue-trend-bar-fill--prev" style={rb.prevBarStyle}></div>
+                                                                <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={rb.prevBarStyle}></div>
                                                             </template>
                                                         </div>
-                                                        <div class="revenue-trend-bar-track">
+                                                        <div class="trend-chart-bar-track">
                                                             <template if:true={rb.hasCurrentBar}>
-                                                                <div class="revenue-trend-bar-fill revenue-trend-bar-fill--current" style={rb.currentBarStyle}></div>
+                                                                <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={rb.currentBarStyle}></div>
                                                             </template>
                                                         </div>
                                                     </div>
@@ -272,59 +272,83 @@
                         <!-- SUPPORT -->
                         <div class="snapshot-section snapshot-section--border">
                             <span class="snapshot-section-header">Support</span>
-                            <div class="commercial-kpi-row commercial-kpi-row--single">
+                            <div class="commercial-kpi-row">
                                 <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialRecentCasesClick}>
                                     <span class="commercial-kpi-label">Cases (90 days)</span>
                                     <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
                                     <span class="commercial-kpi-sub">Opened on this account</span>
                                 </button>
-                            </div>
-                            <div class="revenue-visuals">
-                                <div class="revenue-renewal-card">
-                                    <template if:true={hasCaseResolutionData}>
-                                        <div class="commercial-kpi">
-                                            <span class="commercial-kpi-label">Case resolution (90 days)</span>
-                                            <span class="commercial-kpi-value">
-                                                {caseResolutionMedianDays}
-                                                <span class="commercial-kpi-value-unit">days</span>
-                                            </span>
-                                            <span class="commercial-kpi-sub">{closedCasesSubtitle}</span>
-                                            <span class="commercial-kpi-sub">
-                                                <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>{resolutionTrendIcon} {resolutionTrendText}</span>
-                                                <template if:true={showCaseResolutionRange}>
-                                                     · {caseResolutionRangeText}
-                                                </template>
-                                            </span>
-                                        </div>
-                                    </template>
-                                    <template if:false={hasCaseResolutionData}>
-                                        <div class="commercial-kpi">
-                                            <span class="commercial-kpi-label">Case resolution (90 days)</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
-                                            <span class="commercial-kpi-sub">No closed cases in the last 90 days</span>
-                                        </div>
-                                    </template>
+                                <div class="commercial-kpi">
+                                    <span class="commercial-kpi-label">Escalated (90 days)</span>
+                                    <span class={escalationValueClass}>{summary.escalatedCasesLast90Days}</span>
+                                    <span class="commercial-kpi-sub">of {summary.casesOpenedLast90Days} cases</span>
                                 </div>
-                                <div class="revenue-trend-wrap">
-                                    <span class="case-trend-title">Cases opened (6 months)</span>
-                                    <div class="case-trend">
-                                        <template for:each={caseTrendBars} for:item="cb">
-                                            <div key={cb.key} class="case-trend-col">
-                                                <button
-                                                    type="button"
-                                                    class="case-trend-bar-btn"
-                                                    data-label={cb.label}
-                                                    onclick={handleCaseTrendBarClick}
-                                                    aria-label={cb.ariaLabel}>
-                                                    <span class="case-trend-bar-count">{cb.count}</span>
-                                                    <div class="case-trend-bar-track">
-                                                        <div class="case-trend-bar-fill" style={cb.barStyle}></div>
-                                                    </div>
-                                                </button>
-                                                <span class="case-trend-label">{cb.label}</span>
-                                            </div>
-                                        </template>
+                                <template if:true={hasCaseResolutionData}>
+                                    <div class="commercial-kpi">
+                                        <span class="commercial-kpi-label">Avg resolution</span>
+                                        <span class="commercial-kpi-value">
+                                            {caseResolutionMedianDays}
+                                            <span class="commercial-kpi-value-unit">days</span>
+                                        </span>
+                                        <span class="commercial-kpi-sub">
+                                            <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>{resolutionTrendIcon} {resolutionTrendText}</span>
+                                        </span>
                                     </div>
+                                </template>
+                                <template if:false={hasCaseResolutionData}>
+                                    <div class="commercial-kpi">
+                                        <span class="commercial-kpi-label">Avg resolution</span>
+                                        <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
+                                        <span class="commercial-kpi-sub">No closed cases (90 days)</span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="snapshot-visuals">
+                                <div class="snapshot-left-card">
+                                    <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdCasesClick}>
+                                        <span class="commercial-kpi-label">Cases this year</span>
+                                        <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
+                                        <span class="commercial-kpi-sub">Prior year: {summary.priorYearCaseCount}</span>
+                                    </button>
+                                </div>
+                                <div class="trend-chart-wrap">
+                                    <div class="trend-chart-header">
+                                        <span class="trend-chart-title">Cases opened (6 months)</span>
+                                        <div class="trend-chart-legend">
+                                            <span class="trend-chart-legend-item">
+                                                <span class="trend-chart-legend-dot trend-chart-legend-dot--current"></span>
+                                                This year
+                                            </span>
+                                            <span class="trend-chart-legend-item">
+                                                <span class="trend-chart-legend-dot trend-chart-legend-dot--prev"></span>
+                                                Last year
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <template if:true={hasCaseMonthData}>
+                                        <div class="trend-chart">
+                                            <template for:each={caseTrendBars} for:item="cb">
+                                                <div key={cb.key} class="trend-chart-col" aria-label={cb.ariaLabel}>
+                                                    <div class="trend-chart-pair">
+                                                        <div class="trend-chart-bar-track">
+                                                            <template if:true={cb.hasPrevBar}>
+                                                                <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={cb.prevBarStyle}></div>
+                                                            </template>
+                                                        </div>
+                                                        <div class="trend-chart-bar-track">
+                                                            <template if:true={cb.hasCurrentBar}>
+                                                                <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={cb.currentBarStyle}></div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                    <span class="case-trend-label">{cb.label}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template if:false={hasCaseMonthData}>
+                                        <div class="case-resolution-empty">No cases opened in the last 6 months</div>
+                                    </template>
                                 </div>
                             </div>
                         </div>

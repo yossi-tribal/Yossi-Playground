@@ -420,6 +420,27 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
 
 
+    handleCommercialYtdCasesClick() {
+        this.kpiModalTitle = 'Cases opened this year';
+        this.kpiModalType = 'recentCases';
+        this.kpiModalScope = '';
+        this.kpiModalEmptyMessage = 'No cases opened this year.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        const daysIntoYear = Math.ceil(
+            (Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 86400000
+        );
+        getCasesOpenedInLastDays({ accountId: this.recordId, days: daysIntoYear })
+            .then(result => {
+                this.kpiModalData = result || [];
+            })
+            .catch(error => {
+                this.handleError('Failed to load YTD cases', error);
+                this.showKpiModal = false;
+            });
+    }
+
     handleCommercialRecentCasesClick() {
         this.kpiModalTitle = 'Cases opened (last 90 days)';
         this.kpiModalType = 'recentCases';
@@ -1314,28 +1335,59 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return `Fastest ${this.caseResolutionMinDays}d · Slowest ${this.caseResolutionMaxDays}d`;
     }
 
-    /** Monthly case volume: 6-month bar array */
+    /** Monthly case volume: 6-month paired bar array (this year vs last year) */
     get caseTrendBars() {
         if (!this.summary) return [];
         const raw = [
-            { label: this.summary.caseMonth1Label, count: Number(this.summary.caseMonth1 || 0) },
-            { label: this.summary.caseMonth2Label, count: Number(this.summary.caseMonth2 || 0) },
-            { label: this.summary.caseMonth3Label, count: Number(this.summary.caseMonth3 || 0) },
-            { label: this.summary.caseMonth4Label, count: Number(this.summary.caseMonth4 || 0) },
-            { label: this.summary.caseMonth5Label, count: Number(this.summary.caseMonth5 || 0) },
-            { label: this.summary.caseMonth6Label, count: Number(this.summary.caseMonth6 || 0) }
+            { label: this.summary.caseMonth1Label, current: Number(this.summary.caseMonth1 || 0), prev: Number(this.summary.caseMonth1Prev || 0) },
+            { label: this.summary.caseMonth2Label, current: Number(this.summary.caseMonth2 || 0), prev: Number(this.summary.caseMonth2Prev || 0) },
+            { label: this.summary.caseMonth3Label, current: Number(this.summary.caseMonth3 || 0), prev: Number(this.summary.caseMonth3Prev || 0) },
+            { label: this.summary.caseMonth4Label, current: Number(this.summary.caseMonth4 || 0), prev: Number(this.summary.caseMonth4Prev || 0) },
+            { label: this.summary.caseMonth5Label, current: Number(this.summary.caseMonth5 || 0), prev: Number(this.summary.caseMonth5Prev || 0) },
+            { label: this.summary.caseMonth6Label, current: Number(this.summary.caseMonth6 || 0), prev: Number(this.summary.caseMonth6Prev || 0) }
         ];
-        const max = Math.max(...raw.map((r) => r.count), 1);
+        const max = Math.max(...raw.flatMap((r) => [r.current, r.prev]), 1);
         return raw.map((r, index) => {
-            const pct = r.count === 0 ? 0 : Math.max(6, Math.round((r.count / max) * 100));
+            const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
+            const prevPct = r.prev === 0 ? 0 : Math.max(6, Math.round((r.prev / max) * 100));
             return {
                 key: `cm-${index}`,
                 label: r.label || '—',
-                count: r.count,
-                barStyle: `height: ${pct}%;`,
-                ariaLabel: `${r.count} case${r.count !== 1 ? 's' : ''} opened in ${r.label || ''}`
+                currentCount: r.current,
+                prevCount: r.prev,
+                currentBarStyle: `height: ${curPct}%;`,
+                prevBarStyle: `height: ${prevPct}%;`,
+                hasCurrentBar: r.current > 0,
+                hasPrevBar: r.prev > 0,
+                ariaLabel: `${r.label || ''}: this year ${r.current}, last year ${r.prev}`
             };
         });
+    }
+
+    get escalationValueClass() {
+        if (!this.summary) return 'commercial-kpi-value commercial-kpi-value--num';
+        const count = this.summary.escalatedCasesLast90Days || 0;
+        if (count >= 3) return 'commercial-kpi-value commercial-kpi-value--num commercial-kpi-value--danger';
+        if (count >= 1) return 'commercial-kpi-value commercial-kpi-value--num commercial-kpi-value--warning';
+        return 'commercial-kpi-value commercial-kpi-value--num commercial-kpi-value--good';
+    }
+
+    get hasCaseMonthData() {
+        if (!this.summary) return false;
+        return [
+            this.summary.caseMonth1, this.summary.caseMonth2, this.summary.caseMonth3,
+            this.summary.caseMonth4, this.summary.caseMonth5, this.summary.caseMonth6,
+            this.summary.caseMonth1Prev, this.summary.caseMonth2Prev, this.summary.caseMonth3Prev,
+            this.summary.caseMonth4Prev, this.summary.caseMonth5Prev, this.summary.caseMonth6Prev
+        ].some((v) => Number(v || 0) > 0);
+    }
+
+    get hasCasePrevYearData() {
+        if (!this.summary) return false;
+        return [
+            this.summary.caseMonth1Prev, this.summary.caseMonth2Prev, this.summary.caseMonth3Prev,
+            this.summary.caseMonth4Prev, this.summary.caseMonth5Prev, this.summary.caseMonth6Prev
+        ].some((v) => Number(v || 0) > 0);
     }
 
     /** Monthly closed-won revenue: 6-month paired bar array (this year vs last year) */

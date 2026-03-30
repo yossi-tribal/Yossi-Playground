@@ -1866,6 +1866,18 @@ button:focus-visible,
     line-height: 1.35;
 }
 
+.commercial-kpi-value--danger {
+    color: var(--csd-red);
+}
+
+.commercial-kpi-value--warning {
+    color: var(--csd-amber);
+}
+
+.commercial-kpi-value--good {
+    color: var(--csd-green);
+}
+
 .commercial-kpi-value-unit {
     font-size: var(--csd-text-sm);
     font-weight: 400;
@@ -2108,38 +2120,38 @@ button:focus-visible,
     max-width: 280px;
 }
 
-/* Revenue visuals: renewal card + won-per-month chart */
-.revenue-visuals {
+/* Snapshot visuals: left card + trend chart */
+.snapshot-visuals {
     display: flex;
     flex-direction: column;
     gap: var(--csd-space-4);
 }
 
 @media (min-width: 768px) {
-    .revenue-visuals {
+    .snapshot-visuals {
         flex-direction: row;
         align-items: flex-start;
         gap: var(--csd-space-6);
     }
 
-    .revenue-renewal-card {
+    .snapshot-left-card {
         flex: 0 0 auto;
         min-width: 200px;
         max-width: 280px;
     }
 
-    .revenue-trend-wrap {
+    .trend-chart-wrap {
         flex: 1 1 0%;
         min-width: 0;
     }
 }
 
-.revenue-renewal-card .commercial-kpi,
-.revenue-renewal-card .commercial-kpi--click {
+.snapshot-left-card .commercial-kpi,
+.snapshot-left-card .commercial-kpi--click {
     width: 100%;
 }
 
-.revenue-trend-header {
+.trend-chart-header {
     display: flex;
     flex-direction: row;
     align-items: baseline;
@@ -2148,7 +2160,7 @@ button:focus-visible,
     margin-bottom: var(--csd-space-2);
 }
 
-.revenue-trend-title {
+.trend-chart-title {
     font-size: var(--csd-text-xs);
     font-weight: 600;
     color: var(--csd-text-secondary);
@@ -2156,12 +2168,12 @@ button:focus-visible,
     letter-spacing: 0.05em;
 }
 
-.revenue-trend-legend {
+.trend-chart-legend {
     display: flex;
     gap: var(--csd-space-3);
 }
 
-.revenue-trend-legend-item {
+.trend-chart-legend-item {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -2170,7 +2182,7 @@ button:focus-visible,
     white-space: nowrap;
 }
 
-.revenue-trend-legend-dot {
+.trend-chart-legend-dot {
     display: inline-block;
     width: 8px;
     height: 8px;
@@ -2178,16 +2190,16 @@ button:focus-visible,
     flex-shrink: 0;
 }
 
-.revenue-trend-legend-dot--current {
+.trend-chart-legend-dot--current {
     background: var(--csd-blue);
 }
 
-.revenue-trend-legend-dot--prev {
+.trend-chart-legend-dot--prev {
     background: var(--csd-gray-200);
 }
 
-/* Revenue bar chart */
-.revenue-trend {
+/* Paired bar chart (shared by Revenue and Support) */
+.trend-chart {
     display: flex;
     flex-direction: row;
     align-items: flex-end;
@@ -2196,7 +2208,7 @@ button:focus-visible,
     min-height: 72px;
 }
 
-.revenue-trend-col {
+.trend-chart-col {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -2205,7 +2217,7 @@ button:focus-visible,
     min-width: 0;
 }
 
-.revenue-trend-pair {
+.trend-chart-pair {
     display: flex;
     flex-direction: row;
     align-items: flex-end;
@@ -2214,7 +2226,7 @@ button:focus-visible,
     justify-content: center;
 }
 
-.revenue-trend-bar-track {
+.trend-chart-bar-track {
     width: 100%;
     max-width: 18px;
     height: 56px;
@@ -2226,26 +2238,26 @@ button:focus-visible,
     overflow: hidden;
 }
 
-.revenue-trend-bar-fill {
+.trend-chart-bar-fill {
     width: 100%;
     min-height: 4px;
     border-radius: var(--csd-radius-sm) var(--csd-radius-sm) 0 0;
     transition: height 0.2s ease;
 }
 
-.revenue-trend-bar-fill--current {
+.trend-chart-bar-fill--current {
     background: linear-gradient(180deg, var(--csd-blue), var(--csd-blue-light));
 }
 
-.revenue-trend-bar-fill--prev {
+.trend-chart-bar-fill--prev {
     background: var(--csd-gray-200);
 }
 
-.revenue-trend-col:hover .revenue-trend-bar-fill--current {
+.trend-chart-col:hover .trend-chart-bar-fill--current {
     background: linear-gradient(180deg, var(--csd-blue-dark), var(--csd-blue));
 }
 
-.revenue-trend-col:hover .revenue-trend-bar-fill--prev {
+.trend-chart-col:hover .trend-chart-bar-fill--prev {
     background: var(--csd-gray-300);
 }
 

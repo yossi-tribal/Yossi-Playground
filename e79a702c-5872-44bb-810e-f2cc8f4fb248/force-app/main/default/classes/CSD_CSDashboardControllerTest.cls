@@ -116,7 +116,29 @@ private class CSD_CSDashboardControllerTest {
         ));
         insert testOpps;
 
+        // Create prior-year cases for YTD and paired bar chart testing
         Integer py = Date.today().year() - 1;
+        List<Case> priorYearCases = new List<Case>();
+        priorYearCases.add(new Case(
+            AccountId = testAccount.Id,
+            Subject = 'Prior Year Case 1',
+            Status = 'Closed',
+            Priority = 'Medium',
+            Origin = 'Web'
+        ));
+        priorYearCases.add(new Case(
+            AccountId = testAccount.Id,
+            Subject = 'Prior Year Case 2',
+            Status = 'Closed',
+            Priority = 'Low',
+            Origin = 'Email'
+        ));
+        insert priorYearCases;
+
+        // Backdate CreatedDate for prior-year cases using Test.setCreatedDate
+        Test.setCreatedDate(priorYearCases[0].Id, DateTime.newInstance(py, 6, 15));
+        Test.setCreatedDate(priorYearCases[1].Id, DateTime.newInstance(py, 6, 20));
+
         List<Opportunity> closedWonOpps = new List<Opportunity>();
         closedWonOpps.add(new Opportunity(
             AccountId = testAccount.Id,
@@ -201,6 +223,10 @@ private class CSD_CSDashboardControllerTest {
         System.assert(summary.wonMonth6 >= 0, 'Current month won amount should be non-negative');
         System.assert(summary.wonMonth6Prev >= 0, 'Prior year month won amount should be non-negative');
         System.assert(summary.wonMonth6 == 5000, 'Current month should include the Closed Won YTD opp');
+
+        System.assert(summary.ytdCaseCount >= 3, 'YTD case count should include cases created this year');
+        System.assertEquals(2, summary.priorYearCaseCount, 'Prior year case count should include backdated prior-year cases');
+        System.assert(summary.caseMonth1Prev >= 0, 'Prior year monthly case count should be non-negative');
     }
 
     /**
@@ -249,6 +275,9 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals(0, summary.wonMonth1, 'Monthly won should be 0 for empty account');
         System.assertEquals(0, summary.wonMonth1Prev, 'Prior year monthly won should be 0 for empty account');
         System.assertNotEquals(null, summary.wonMonth1Label, 'Monthly won label should be set even for empty account');
+        System.assertEquals(0, summary.ytdCaseCount, 'YTD case count should be 0 for empty account');
+        System.assertEquals(0, summary.priorYearCaseCount, 'Prior year case count should be 0 for empty account');
+        System.assertEquals(0, summary.caseMonth1Prev, 'Prior year monthly case count should be 0 for empty account');
     }
 
     /**

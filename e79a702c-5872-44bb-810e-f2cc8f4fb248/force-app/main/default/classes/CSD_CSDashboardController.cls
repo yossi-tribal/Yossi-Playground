@@ -77,6 +77,18 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String caseMonth4Label { get; set; }
         @AuraEnabled public String caseMonth5Label { get; set; }
         @AuraEnabled public String caseMonth6Label { get; set; }
+        /** Same 6 months, prior year (for paired bar chart) */
+        @AuraEnabled public Integer caseMonth1Prev { get; set; }
+        @AuraEnabled public Integer caseMonth2Prev { get; set; }
+        @AuraEnabled public Integer caseMonth3Prev { get; set; }
+        @AuraEnabled public Integer caseMonth4Prev { get; set; }
+        @AuraEnabled public Integer caseMonth5Prev { get; set; }
+        @AuraEnabled public Integer caseMonth6Prev { get; set; }
+        /** YTD case count and prior year case count */
+        @AuraEnabled public Integer ytdCaseCount { get; set; }
+        @AuraEnabled public Integer priorYearCaseCount { get; set; }
+        /** Escalated cases in the last 90 days */
+        @AuraEnabled public Integer escalatedCasesLast90Days { get; set; }
 
         /** Monthly closed-won revenue (last 6 months, current year, oldest first) */
         @AuraEnabled public Decimal wonMonth1 { get; set; }
@@ -478,6 +490,15 @@ public with sharing class CSD_CSDashboardController {
         summary.caseMonth4Label = '';
         summary.caseMonth5Label = '';
         summary.caseMonth6Label = '';
+        summary.caseMonth1Prev = 0;
+        summary.caseMonth2Prev = 0;
+        summary.caseMonth3Prev = 0;
+        summary.caseMonth4Prev = 0;
+        summary.caseMonth5Prev = 0;
+        summary.caseMonth6Prev = 0;
+        summary.ytdCaseCount = 0;
+        summary.priorYearCaseCount = 0;
+        summary.escalatedCasesLast90Days = 0;
 
         summary.wonMonth1 = 0;
         summary.wonMonth2 = 0;
@@ -583,11 +604,20 @@ public with sharing class CSD_CSDashboardController {
             AND CreatedDate >= LAST_N_DAYS:90
         ];
 
+        summary.escalatedCasesLast90Days = [
+            SELECT COUNT()
+            FROM Case
+            WHERE AccountId = :accountId
+            AND CreatedDate >= LAST_N_DAYS:90
+            AND IsEscalated = true
+        ];
+
         populateLastFourQuartersWon(accountId, summary);
         populateCaseResolutionMetrics(accountId, summary);
         populateMonthlyCaseVolume(accountId, summary);
         populateMonthlyWonRevenue(accountId, summary);
         populateNearestRenewal(accountId, summary);
+        populateYtdCaseCount(accountId, summary);
     }
 
     /**
@@ -760,8 +790,10 @@ public with sharing class CSD_CSDashboardController {
             startYear--;
         }
         Date sixMonthsAgo = Date.newInstance(startYear, startMonth, 1);
+        Date priorSixMonthsAgo = Date.newInstance(startYear - 1, startMonth, 1);
 
         Map<String, Integer> monthCounts = new Map<String, Integer>();
+        Map<String, Integer> prevMonthCounts = new Map<String, Integer>();
         List<String> orderedKeys = new List<String>();
 
         Integer m = startMonth;
@@ -770,6 +802,8 @@ public with sharing class CSD_CSDashboardController {
             String key = yr + '-' + String.valueOf(m).leftPad(2, '0');
             monthCounts.put(key, 0);
             orderedKeys.add(key);
+            String prevKey = (yr - 1) + '-' + String.valueOf(m).leftPad(2, '0');
+            prevMonthCounts.put(prevKey, 0);
             m++;
             if (m > 12) {
                 m = 1;
@@ -793,11 +827,32 @@ public with sharing class CSD_CSDashboardController {
             }
         }
 
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CreatedDate) mo, CALENDAR_YEAR(CreatedDate) yr, COUNT(Id) cnt
+            FROM Case
+            WHERE AccountId = :accountId
+            AND CreatedDate >= :priorSixMonthsAgo
+            AND CreatedDate < :sixMonthsAgo
+            GROUP BY CALENDAR_MONTH(CreatedDate), CALENDAR_YEAR(CreatedDate)
+            ORDER BY CALENDAR_YEAR(CreatedDate), CALENDAR_MONTH(CreatedDate)
+        ]) {
+            Integer arMonth = (Integer) ar.get('mo');
+            Integer arYear = (Integer) ar.get('yr');
+            String key = arYear + '-' + String.valueOf(arMonth).leftPad(2, '0');
+            if (prevMonthCounts.containsKey(key)) {
+                prevMonthCounts.put(key, (Integer) ar.get('cnt'));
+            }
+        }
+
         List<Integer> counts = new List<Integer>();
+        List<Integer> prevCounts = new List<Integer>();
         List<String> labels = new List<String>();
         for (String key : orderedKeys) {
             counts.add(monthCounts.get(key));
             Integer mo = Integer.valueOf(key.substring(5));
+            Integer y = Integer.valueOf(key.substring(0, 4));
+            String prevKey = (y - 1) + '-' + String.valueOf(mo).leftPad(2, '0');
+            prevCounts.add(prevMonthCounts.containsKey(prevKey) ? prevMonthCounts.get(prevKey) : 0);
             labels.add(MONTH_ABBREVS[mo - 1]);
         }
 
@@ -807,12 +862,41 @@ public with sharing class CSD_CSDashboardController {
         summary.caseMonth4 = counts[3];
         summary.caseMonth5 = counts[4];
         summary.caseMonth6 = counts[5];
+        summary.caseMonth1Prev = prevCounts[0];
+        summary.caseMonth2Prev = prevCounts[1];
+        summary.caseMonth3Prev = prevCounts[2];
+        summary.caseMonth4Prev = prevCounts[3];
+        summary.caseMonth5Prev = prevCounts[4];
+        summary.caseMonth6Prev = prevCounts[5];
         summary.caseMonth1Label = labels[0];
         summary.caseMonth2Label = labels[1];
         summary.caseMonth3Label = labels[2];
         summary.caseMonth4Label = labels[3];
         summary.caseMonth5Label = labels[4];
         summary.caseMonth6Label = labels[5];
+    }
+
+    private static void populateYtdCaseCount(Id accountId, DashboardSummary summary) {
+        Integer y = Date.today().year();
+        Date ytdStart = Date.newInstance(y, 1, 1);
+        Integer py = y - 1;
+        Date priorYearStart = Date.newInstance(py, 1, 1);
+        Date priorYearEnd = Date.newInstance(py, 12, 31);
+
+        summary.ytdCaseCount = [
+            SELECT COUNT()
+            FROM Case
+            WHERE AccountId = :accountId
+            AND CreatedDate >= :ytdStart
+        ];
+
+        summary.priorYearCaseCount = [
+            SELECT COUNT()
+            FROM Case
+            WHERE AccountId = :accountId
+            AND CreatedDate >= :priorYearStart
+            AND CreatedDate <= :priorYearEnd
+        ];
     }
 
     private static void populateNearestRenewal(Id accountId, DashboardSummary summary) {
