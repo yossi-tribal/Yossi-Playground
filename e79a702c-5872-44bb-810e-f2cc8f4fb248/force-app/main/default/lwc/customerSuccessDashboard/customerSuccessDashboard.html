@@ -216,17 +216,15 @@
                                         <span class="commercial-kpi-sub">{renewalSubtitle}</span>
                                     </div>
                                 </template>
+                                <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
+                                    <span class="commercial-kpi-label">Won this year</span>
+                                    <span class="commercial-kpi-value">
+                                        <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
+                                    </span>
+                                    <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
+                                </button>
                             </div>
                             <div class="snapshot-visuals">
-                                <div class="snapshot-left-card">
-                                    <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdClick}>
-                                        <span class="commercial-kpi-label">Won this year</span>
-                                        <span class="commercial-kpi-value">
-                                            <lightning-formatted-number value={summary.ytdWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number>
-                                        </span>
-                                        <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code={currencyCode}></lightning-formatted-number></span>
-                                    </button>
-                                </div>
                                 <div class="trend-chart-wrap">
                                     <div class="trend-chart-header">
                                         <span class="trend-chart-title">Closed won (12 months)</span>
@@ -301,15 +299,13 @@
                                         <span class="commercial-kpi-sub">No closed cases (90 days)</span>
                                     </div>
                                 </template>
+                                <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdCasesClick}>
+                                    <span class="commercial-kpi-label">Cases this year</span>
+                                    <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
+                                    <span class="commercial-kpi-sub">Prior year: {summary.priorYearCaseCount}</span>
+                                </button>
                             </div>
                             <div class="snapshot-visuals">
-                                <div class="snapshot-left-card">
-                                    <button type="button" class="commercial-kpi commercial-kpi--click" onclick={handleCommercialYtdCasesClick}>
-                                        <span class="commercial-kpi-label">Cases this year</span>
-                                        <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
-                                        <span class="commercial-kpi-sub">Prior year: {summary.priorYearCaseCount}</span>
-                                    </button>
-                                </div>
                                 <div class="trend-chart-wrap">
                                     <div class="trend-chart-header">
                                         <span class="trend-chart-title">Cases opened (12 months)</span>
