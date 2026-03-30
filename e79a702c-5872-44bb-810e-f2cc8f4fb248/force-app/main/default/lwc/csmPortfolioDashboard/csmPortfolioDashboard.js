@@ -29,6 +29,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track currentPage = 1;
     @track pageSize = 25;
     @track totalAccountCount = 0;
+    @track isAccountsLoading = false;
 
     @track expandedAccountId = null;
     @track showAccountModal = false;
@@ -335,8 +336,8 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             this.sortDirection = 'asc';
         }
         this.currentPage = 1;
-        this.isLoading = true;
-        this.loadAccounts().then(() => { this.isLoading = false; });
+        this.isAccountsLoading = true;
+        this.loadAccounts().then(() => { this.isAccountsLoading = false; });
     }
 
     // ── Pagination ──
@@ -344,16 +345,16 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     handlePrevPage() {
         if (this.currentPage > 1) {
             this.currentPage--;
-            this.isLoading = true;
-            this.loadAccounts().then(() => { this.isLoading = false; });
+            this.isAccountsLoading = true;
+            this.loadAccounts().then(() => { this.isAccountsLoading = false; });
         }
     }
 
     handleNextPage() {
         if (this.hasNextPage) {
             this.currentPage++;
-            this.isLoading = true;
-            this.loadAccounts().then(() => { this.isLoading = false; });
+            this.isAccountsLoading = true;
+            this.loadAccounts().then(() => { this.isAccountsLoading = false; });
         }
     }
 
@@ -1270,6 +1271,10 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     // ── Pagination ──
 
+    get tableSectionClass() {
+        return this.isAccountsLoading ? 'table-section table-section--loading' : 'table-section';
+    }
+
     get hasPrevPage() { return this.currentPage > 1; }
     get hasNextPage() { return this.accounts && this.accounts.length >= this.pageSize; }
     get noPrevPage() { return !this.hasPrevPage; }
@@ -1290,8 +1295,8 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         this.sortField = sortField;
         this.sortDirection = sortDirection;
         this.currentPage = 1;
-        this.isLoading = true;
-        this.loadAccounts().then(() => { this.isLoading = false; });
+        this.isAccountsLoading = true;
+        this.loadAccounts().then(() => { this.isAccountsLoading = false; });
     }
 
     formatCurrencyShort(value) {
