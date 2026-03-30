@@ -437,6 +437,17 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return this.healthyPercent;
     }
 
+    get heroHealthBadgeClass() {
+        if (!this.summary) return 'health-badge health-badge--gray';
+        const h = this.summary.healthyAccounts || 0;
+        const y = this.summary.needsAttentionAccounts || 0;
+        const r = this.summary.atRiskAccounts || 0;
+        if (r > 0 && r >= h) return 'health-badge health-badge--red';
+        if (y > h) return 'health-badge health-badge--yellow';
+        if (h > 0) return 'health-badge health-badge--green';
+        return 'health-badge health-badge--gray';
+    }
+
     get heroSubText() {
         if (!this.summary) return '';
         return `${this.summary.totalAccounts} account${this.summary.totalAccounts !== 1 ? 's' : ''} in portfolio`;

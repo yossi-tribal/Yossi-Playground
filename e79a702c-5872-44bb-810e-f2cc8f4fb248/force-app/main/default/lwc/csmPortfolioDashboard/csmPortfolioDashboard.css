@@ -651,38 +651,50 @@
     margin-bottom: var(--csd-space-3);
 }
 
-.renewal-item {
+.renewal-link {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--csd-space-3);
-    padding: var(--csd-space-3);
-    border: 1px solid var(--csd-border);
-    border-radius: var(--csd-radius-sm);
-    background: var(--csd-surface);
-    margin-bottom: var(--csd-space-2);
+    padding: var(--csd-space-2) 0;
+    border-bottom: 1px solid var(--csd-gray-100);
     cursor: pointer;
+    text-decoration: none;
+    color: inherit;
     transition: background-color 0.15s ease;
 }
 
-.renewal-item:hover {
-    background: var(--csd-gray-50);
+.renewal-link:last-child {
+    border-bottom: none;
 }
 
-.renewal-item-left {
+.renewal-link:hover {
+    background: var(--csd-gray-50);
+    margin: 0 calc(-1 * var(--csd-space-2));
+    padding: var(--csd-space-2);
+    border-radius: var(--csd-radius-sm);
+    border-bottom-color: transparent;
+}
+
+.renewal-link-left {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+    flex: 1;
 }
 
 .renewal-account {
     font-size: var(--csd-text-base);
     font-weight: 600;
-    color: var(--csd-text-primary);
+    color: var(--csd-blue);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.renewal-link:hover .renewal-account {
+    text-decoration: underline;
+    color: var(--csd-blue-dark);
 }
 
 .renewal-opp {
@@ -693,7 +705,7 @@
     white-space: nowrap;
 }
 
-.renewal-item-right {
+.renewal-link-right {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -1015,6 +1027,21 @@
 .custom-btn--secondary:hover {
     background: var(--csd-gray-50);
     border-color: var(--csd-gray-400);
+    transform: translateY(-1px);
+}
+
+.hero-card .custom-btn--secondary {
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--csd-gray-700);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-top: var(--csd-space-3);
+}
+
+.hero-card .custom-btn--secondary:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     transform: translateY(-1px);
 }
 
@@ -1559,26 +1586,16 @@ button:focus-visible,
     gap: var(--csd-space-2);
 }
 
-/* ===== RENEWAL AFFORDANCE (Issue 5) ===== */
-
-.renewal-account-link {
-    color: var(--csd-blue);
-}
-
-.renewal-item:hover .renewal-account-link {
-    text-decoration: underline;
-    color: var(--csd-blue-dark);
-}
+/* ===== RENEWAL NAV ICON ===== */
 
 .renewal-nav-icon {
     color: var(--csd-text-tertiary);
     flex-shrink: 0;
-    transition: transform 0.15s ease, color 0.15s ease;
+    transition: color 0.15s ease;
 }
 
-.renewal-item:hover .renewal-nav-icon {
+.renewal-link:hover .renewal-nav-icon {
     color: var(--csd-blue);
-    transform: translateX(2px);
 }
 
 /* ===== SUGGESTED ACTION CHEVRON (Issue 1) ===== */
@@ -1594,73 +1611,96 @@ button:focus-visible,
     transform: translateX(2px);
 }
 
-/* ===== VIEW BREAKDOWN BUTTON (Issue 3) ===== */
+/* ===== HEALTH BREAKDOWN MODAL ===== */
 
-.breakdown-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--csd-space-1);
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: var(--csd-text-xs);
-    font-weight: 600;
-    padding: var(--csd-space-1) var(--csd-space-3);
-    border-radius: var(--csd-radius-sm);
-    cursor: pointer;
-    margin-top: var(--csd-space-3);
-    transition: background 0.15s ease, border-color 0.15s ease;
-    letter-spacing: 0.02em;
+.health-breakdown-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--csd-space-6);
 }
 
-.breakdown-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.6);
-}
-
-/* ===== HEALTH BREAKDOWN MODAL (Issue 3) ===== */
-
-.breakdown-description {
-    font-size: var(--csd-text-sm);
-    color: var(--csd-text-secondary);
-    margin-bottom: var(--csd-space-4);
-}
-
-.breakdown-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--csd-text-sm);
-}
-
-.breakdown-table thead th {
-    font-size: var(--csd-text-xs);
-    font-weight: 600;
-    color: var(--csd-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: var(--csd-space-2) var(--csd-space-3);
-    border-bottom: 2px solid var(--csd-border);
-    text-align: left;
-}
-
-.breakdown-th-center,
-.breakdown-td-center {
-    text-align: center !important;
-}
-
-.breakdown-table tbody td {
-    padding: var(--csd-space-3);
+.breakdown-section {
+    padding-bottom: var(--csd-space-4);
     border-bottom: 1px solid var(--csd-gray-100);
 }
 
-.breakdown-factor-name {
-    font-weight: 600;
-    color: var(--csd-text-primary);
+.breakdown-section:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
-.breakdown-threshold {
+.breakdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--csd-space-3);
+}
+
+.breakdown-title {
+    font-size: var(--csd-text-lg);
+    font-weight: 700;
+    color: var(--csd-text-primary);
+    margin: 0 0 var(--csd-space-3) 0;
+}
+
+.breakdown-description {
+    font-size: var(--csd-text-base);
+    color: var(--csd-text-secondary);
+    line-height: 1.6;
+}
+
+.breakdown-description p {
+    margin: 0;
+}
+
+.breakdown-factor {
+    padding: var(--csd-space-4);
+    background: var(--csd-surface);
+    border-radius: var(--csd-radius-sm);
+    border: 1px solid var(--csd-border);
+    margin-bottom: var(--csd-space-3);
+}
+
+.breakdown-factor:last-child {
+    margin-bottom: 0;
+}
+
+.factor-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--csd-space-1);
+}
+
+.factor-label {
+    font-size: var(--csd-text-base);
+    font-weight: 600;
+    color: var(--csd-gray-700);
+}
+
+.factor-value {
+    font-size: var(--csd-text-sm);
+    font-weight: 600;
+    color: var(--csd-text-secondary);
+}
+
+.factor-distribution {
+    display: flex;
+    gap: var(--csd-space-2);
+    margin: var(--csd-space-2) 0;
+}
+
+.factor-distribution .health-badge {
+    padding: var(--csd-space-1) var(--csd-space-3);
+    font-size: var(--csd-text-sm);
+    min-width: 36px;
+    text-align: center;
+}
+
+.factor-note {
     font-size: var(--csd-text-xs);
     color: var(--csd-text-tertiary);
+    margin: var(--csd-space-1) 0 0 0;
 }
 
 /* ===== EXPANSION ROW REDESIGN (Issues 4/6) ===== */
@@ -1874,10 +1914,10 @@ button:focus-visible,
     transform: translateX(2px);
 }
 
-/* ===== RESPONSIVE OVERRIDES FOR NEW COMPONENTS ===== */
+/* ===== MOBILE EXPANSION CONTENT ===== */
 
-@media (min-width: 600px) {
-    .expansion-health-factors {
-        grid-template-columns: repeat(4, 1fr);
-    }
+.mobile-expansion-content {
+    margin-top: var(--csd-space-3);
+    padding-top: var(--csd-space-3);
+    border-top: 1px solid var(--csd-gray-100);
 }

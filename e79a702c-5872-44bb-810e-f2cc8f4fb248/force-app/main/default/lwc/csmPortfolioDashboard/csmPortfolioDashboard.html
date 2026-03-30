@@ -95,8 +95,7 @@
                                         </div>
                                     </div>
 
-                                    <button class="breakdown-btn" onclick={handleViewHealthBreakdown} type="button">
-                                        <lightning-icon icon-name="utility:info" size="xx-small"></lightning-icon>
+                                    <button class="custom-btn custom-btn--secondary" onclick={handleViewHealthBreakdown} type="button">
                                         View Breakdown
                                     </button>
                                 </div>
@@ -228,20 +227,21 @@
                                     <div class="renewals-section">
                                         <div class="renewals-title">Upcoming Renewals</div>
                                         <template for:each={renewalsDecorated} for:item="renewal">
-                                            <div key={renewal.opportunityId}
-                                                 class="renewal-item"
-                                                 data-id={renewal.opportunityId}
-                                                 onclick={handleRenewalClick}>
-                                                <div class="renewal-item-left">
-                                                    <span class="renewal-account renewal-account-link">{renewal.accountName}</span>
+                                            <a key={renewal.opportunityId}
+                                               class="renewal-link"
+                                               data-id={renewal.opportunityId}
+                                               onclick={handleRenewalClick}
+                                               title="Open opportunity">
+                                                <div class="renewal-link-left">
+                                                    <span class="renewal-account">{renewal.accountName}</span>
                                                     <span class="renewal-opp">{renewal.opportunityName}</span>
                                                 </div>
-                                                <div class="renewal-item-right">
+                                                <div class="renewal-link-right">
                                                     <span class="renewal-amount">{renewal.amountFormatted}</span>
                                                     <span class={renewal.daysClass}>{renewal.daysText}</span>
                                                 </div>
-                                                <lightning-icon icon-name="utility:chevronright" size="xx-small" class="renewal-nav-icon"></lightning-icon>
-                                            </div>
+                                                <lightning-icon icon-name="utility:new_window" size="xx-small" class="renewal-nav-icon"></lightning-icon>
+                                            </a>
                                         </template>
                                     </div>
                                 </template>
@@ -337,17 +337,6 @@
                                             <tr key={account.expansionKey} class="expansion-row">
                                                 <td colspan="9">
                                                     <div class="expansion-card">
-                                                        <div class="expansion-section-label">Health Factors</div>
-                                                        <div class="expansion-health-factors">
-                                                            <template for:each={account.healthFactors} for:item="factor">
-                                                                <div key={factor.label} class="health-factor-card">
-                                                                    <span class="health-factor-label">{factor.label}</span>
-                                                                    <span class={factor.valueClass}>{factor.value}</span>
-                                                                    <span class={factor.statusClass}>{factor.status}</span>
-                                                                </div>
-                                                            </template>
-                                                        </div>
-
                                                         <template if:true={account.hasRecentActivities}>
                                                             <div class="expansion-section-label">Recent Activity</div>
                                                             <div class="expansion-recent-activities">
@@ -426,19 +415,42 @@
                                     </div>
                                     <!-- Mobile Expansion -->
                                     <template if:true={account.isExpanded}>
-                                        <div class="expansion-actions" style="margin-top: 12px;">
-                                            <button class="custom-btn custom-btn--primary"
-                                                    data-id={account.accountId}
-                                                    onclick={handleViewFullDashboard}
-                                                    type="button">
-                                                View Full Dashboard
-                                            </button>
-                                            <button class="custom-btn custom-btn--secondary"
-                                                    data-id={account.accountId}
-                                                    onclick={handleGoToAccount}
-                                                    type="button">
-                                                Go to Account
-                                            </button>
+                                        <div class="mobile-expansion-content">
+                                            <template if:true={account.hasRecentActivities}>
+                                                <div class="expansion-section-label">Recent Activity</div>
+                                                <div class="expansion-recent-activities">
+                                                    <template for:each={account.recentActivities} for:item="activity">
+                                                        <div key={activity.subject} class="recent-activity-item">
+                                                            <span class="recent-activity-type">{activity.activityType}</span>
+                                                            <span class="recent-activity-subject">{activity.subject}</span>
+                                                            <span class="recent-activity-date">{activity.activityDate}</span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <template if:true={account.primaryContactName}>
+                                                <div class="expansion-section-label">Key Contact</div>
+                                                <div class="expansion-contact">
+                                                    <lightning-icon icon-name="standard:contact" size="x-small"></lightning-icon>
+                                                    <span class="expansion-contact-name">{account.primaryContactName}</span>
+                                                </div>
+                                            </template>
+
+                                            <div class="expansion-actions">
+                                                <button class="custom-btn custom-btn--primary"
+                                                        data-id={account.accountId}
+                                                        onclick={handleViewFullDashboard}
+                                                        type="button">
+                                                    View Full Dashboard
+                                                </button>
+                                                <button class="custom-btn custom-btn--secondary"
+                                                        data-id={account.accountId}
+                                                        onclick={handleGoToAccount}
+                                                        type="button">
+                                                    Go to Account
+                                                </button>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
@@ -716,52 +728,77 @@
                             <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
                             <span class="slds-assistive-text">Close</span>
                         </button>
-                        <h2 class="slds-text-heading_medium slds-hyphenate">Portfolio Health Breakdown</h2>
+                        <h2 class="slds-text-heading_medium slds-hyphenate">Health Score Breakdown</h2>
                     </header>
                     <div class="slds-modal__content slds-p-around_medium">
                         <template if:true={healthBreakdown}>
-                            <p class="breakdown-description">How your {summary.totalAccounts} accounts score on each health factor:</p>
-                            <table class="breakdown-table">
-                                <thead>
-                                    <tr>
-                                        <th>Factor</th>
-                                        <th class="breakdown-th-center">Healthy</th>
-                                        <th class="breakdown-th-center">Needs Attention</th>
-                                        <th class="breakdown-th-center">At Risk</th>
-                                        <th>Thresholds</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td class="breakdown-factor-name">Activity Recency</td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsInactiveGreen}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsInactiveYellow}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsInactiveRed}</span></td>
-                                        <td class="breakdown-threshold">&lt;15d / 15-29d / 30+d</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="breakdown-factor-name">Overdue Tasks</td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsOverdueGreen}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsOverdueYellow}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsOverdueRed}</span></td>
-                                        <td class="breakdown-threshold">0 / 1-2 / 3+</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="breakdown-factor-name">High-Priority Cases</td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsHighPriGreen}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsHighPriYellow}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsHighPriRed}</span></td>
-                                        <td class="breakdown-threshold">0 / 1 / 2+</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="breakdown-factor-name">Total Open Cases</td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--green">{healthBreakdown.accountsCasesGreen}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--yellow">{healthBreakdown.accountsCasesYellow}</span></td>
-                                        <td class="breakdown-td-center"><span class="health-badge health-badge--red">{healthBreakdown.accountsCasesRed}</span></td>
-                                        <td class="breakdown-threshold">0-2 / 3-4 / 5+</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <div class="health-breakdown-content">
+                                <div class="breakdown-section">
+                                    <div class="breakdown-header">
+                                        <h3 class="breakdown-title">Portfolio Health Score</h3>
+                                        <div class={heroHealthBadgeClass}>{heroScoreValue}%</div>
+                                    </div>
+                                    <div class="breakdown-description">
+                                        <p>Current portfolio health across {summary.totalAccounts} accounts based on activity recency, case load, task completion, and engagement.</p>
+                                    </div>
+                                </div>
+
+                                <div class="breakdown-section">
+                                    <h3 class="breakdown-title">Contributing Factors</h3>
+
+                                    <div class="breakdown-factor">
+                                        <div class="factor-row">
+                                            <span class="factor-label">Activity Recency</span>
+                                            <span class="factor-value">{healthBreakdown.accountsInactiveRed} at risk</span>
+                                        </div>
+                                        <div class="factor-distribution">
+                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsInactiveGreen}</span>
+                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsInactiveYellow}</span>
+                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsInactiveRed}</span>
+                                        </div>
+                                        <p class="factor-note">Thresholds: &lt;15d healthy, 15-29d warning, 30+d at risk</p>
+                                    </div>
+
+                                    <div class="breakdown-factor">
+                                        <div class="factor-row">
+                                            <span class="factor-label">Overdue Tasks</span>
+                                            <span class="factor-value">{healthBreakdown.accountsOverdueRed} at risk</span>
+                                        </div>
+                                        <div class="factor-distribution">
+                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsOverdueGreen}</span>
+                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsOverdueYellow}</span>
+                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsOverdueRed}</span>
+                                        </div>
+                                        <p class="factor-note">Thresholds: 0 healthy, 1-2 warning, 3+ at risk</p>
+                                    </div>
+
+                                    <div class="breakdown-factor">
+                                        <div class="factor-row">
+                                            <span class="factor-label">High-Priority Cases</span>
+                                            <span class="factor-value">{healthBreakdown.accountsHighPriRed} at risk</span>
+                                        </div>
+                                        <div class="factor-distribution">
+                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsHighPriGreen}</span>
+                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsHighPriYellow}</span>
+                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsHighPriRed}</span>
+                                        </div>
+                                        <p class="factor-note">Thresholds: 0 healthy, 1 warning, 2+ at risk</p>
+                                    </div>
+
+                                    <div class="breakdown-factor">
+                                        <div class="factor-row">
+                                            <span class="factor-label">Total Open Cases</span>
+                                            <span class="factor-value">{healthBreakdown.accountsCasesRed} at risk</span>
+                                        </div>
+                                        <div class="factor-distribution">
+                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsCasesGreen}</span>
+                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsCasesYellow}</span>
+                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsCasesRed}</span>
+                                        </div>
+                                        <p class="factor-note">Thresholds: 0-2 healthy, 3-4 warning, 5+ at risk</p>
+                                    </div>
+                                </div>
+                            </div>
                         </template>
                         <template if:false={healthBreakdown}>
                             <div class="loading-container" style="min-height: 200px;">
