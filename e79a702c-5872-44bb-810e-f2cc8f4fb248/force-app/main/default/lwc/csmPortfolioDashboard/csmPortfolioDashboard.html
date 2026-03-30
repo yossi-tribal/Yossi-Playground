@@ -1,0 +1,270 @@
+<template>
+    <div class="portfolio-dashboard">
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading portfolio" size="medium"></lightning-spinner>
+        </template>
+
+        <!-- Portfolio Content -->
+        <template if:false={isLoading}>
+            <!-- Header -->
+            <div class="slds-page-header">
+                <div class="slds-page-header__row">
+                    <div class="slds-page-header__col-title">
+                        <div class="slds-media">
+                            <div class="slds-media__figure">
+                                <lightning-icon icon-name="standard:work_capacity_usage" size="medium"></lightning-icon>
+                            </div>
+                            <div class="slds-media__body">
+                                <div class="slds-page-header__name">
+                                    <div class="slds-page-header__name-title">
+                                        <h1>
+                                            <span class="slds-page-header__title slds-truncate">My Portfolio</span>
+                                        </h1>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slds-page-header__col-actions">
+                        <div class="slds-page-header__controls">
+                            <div class="slds-page-header__control">
+                                <lightning-button
+                                    label="Refresh"
+                                    icon-name="utility:refresh"
+                                    onclick={handleRefresh}
+                                ></lightning-button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary KPIs -->
+            <template if:true={hasSummary}>
+                <div class="slds-grid slds-wrap slds-gutters slds-m-top_medium">
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                        <article class="slds-card">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-text-heading_small slds-text-color_weak">Total Accounts</div>
+                                <div class="slds-text-heading_large">{summary.totalAccounts}</div>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                        <article class="slds-card kpi-card-danger">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-text-heading_small slds-text-color_weak">At Risk</div>
+                                <div class="slds-text-heading_large">{summary.atRiskAccounts}</div>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                        <article class="slds-card kpi-card-warning">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-text-heading_small slds-text-color_weak">Needs Attention</div>
+                                <div class="slds-text-heading_large">{summary.needsAttentionAccounts}</div>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                        <article class="slds-card kpi-card-success">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-text-heading_small slds-text-color_weak">Healthy</div>
+                                <div class="slds-text-heading_large">{summary.healthyAccounts}</div>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+
+                <!-- Additional KPIs -->
+                <div class="slds-grid slds-wrap slds-gutters slds-m-top_small">
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <article class="slds-card">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-text-heading_small slds-text-color_weak">Open Cases</div>
+                                <div class="slds-text-heading_medium">{summary.totalOpenCases}</div>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <article class="slds-card">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-text-heading_small slds-text-color_weak">Overdue Tasks</div>
+                                <div class="slds-text-heading_medium">{summary.totalOverdueTasks}</div>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <article class="slds-card">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-text-heading_small slds-text-color_weak">Open Pipeline</div>
+                                <div class="slds-text-heading_medium">
+                                    <lightning-formatted-number
+                                        value={summary.totalOpenPipeline}
+                                        format-style="currency"
+                                        currency-code="USD"
+                                        minimum-fraction-digits="0"
+                                        maximum-fraction-digits="0"
+                                    ></lightning-formatted-number>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Filter Buttons -->
+            <div class="slds-m-top_large slds-m-bottom_small">
+                <lightning-button-group>
+                    <lightning-button
+                        label="All Accounts"
+                        data-filter="all"
+                        variant={isAllFilter}
+                        onclick={handleFilterClick}
+                    ></lightning-button>
+                    <lightning-button
+                        label="At Risk"
+                        data-filter="at-risk"
+                        variant={isAtRiskFilter}
+                        onclick={handleFilterClick}
+                    ></lightning-button>
+                    <lightning-button
+                        label="Needs Attention"
+                        data-filter="needs-attention"
+                        variant={isNeedsAttentionFilter}
+                        onclick={handleFilterClick}
+                    ></lightning-button>
+                    <lightning-button
+                        label="Healthy"
+                        data-filter="healthy"
+                        variant={isHealthyFilter}
+                        onclick={handleFilterClick}
+                    ></lightning-button>
+                    <lightning-button
+                        label="Inactive"
+                        data-filter="inactive"
+                        variant={isInactiveFilter}
+                        onclick={handleFilterClick}
+                    ></lightning-button>
+                </lightning-button-group>
+            </div>
+
+            <!-- Accounts Table -->
+            <template if:true={hasAccounts}>
+                <div class="slds-card">
+                    <div class="slds-card__body">
+                        <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th class="" scope="col">
+                                        <div class="slds-truncate" title="Account Name">Account Name</div>
+                                    </th>
+                                    <th class="" scope="col">
+                                        <div class="slds-truncate" title="Health Score">Health Score</div>
+                                    </th>
+                                    <th class="" scope="col">
+                                        <div class="slds-truncate" title="Last Activity">Last Activity</div>
+                                    </th>
+                                    <th class="" scope="col">
+                                        <div class="slds-truncate" title="Open Cases">Cases</div>
+                                    </th>
+                                    <th class="" scope="col">
+                                        <div class="slds-truncate" title="Overdue Tasks">Tasks</div>
+                                    </th>
+                                    <th class="" scope="col">
+                                        <div class="slds-truncate" title="Pipeline">Pipeline</div>
+                                    </th>
+                                    <th class="" scope="col">
+                                        <div class="slds-truncate" title="Risk Indicators">Risks</div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={accountsDecorated} for:item="account">
+                                    <tr key={account.accountId} class="account-row" data-id={account.accountId} onclick={handleAccountClick}>
+                                        <td data-label="Account Name">
+                                            <div class="slds-truncate" title={account.accountName}>
+                                                <a data-id={account.accountId} onclick={navigateToAccount}>{account.accountName}</a>
+                                            </div>
+                                        </td>
+                                        <td data-label="Health Score">
+                                            <span class={account.healthBadgeClass}>{account.healthScore}</span>
+                                        </td>
+                                        <td data-label="Last Activity">
+                                            <div class="slds-truncate">{account.daysSinceActivityText}</div>
+                                        </td>
+                                        <td data-label="Cases">
+                                            <template if:true={account.highPriorityCasesCount}>
+                                                <span class="slds-text-color_error">{account.openCasesCount} ({account.highPriorityCasesCount} high)</span>
+                                            </template>
+                                            <template if:false={account.highPriorityCasesCount}>
+                                                {account.openCasesCount}
+                                            </template>
+                                        </td>
+                                        <td data-label="Tasks">
+                                            <template if:true={account.hasOverdueTasks}>
+                                                <span class="slds-text-color_error">{account.overdueTasksCount} overdue</span>
+                                            </template>
+                                            <template if:false={account.hasOverdueTasks}>
+                                                0 overdue
+                                            </template>
+                                        </td>
+                                        <td data-label="Pipeline">
+                                            {account.pipelineFormatted}
+                                        </td>
+                                        <td data-label="Risks">
+                                            <template if:true={account.hasRiskIndicators}>
+                                                <div class="slds-grid slds-grid_align-spread">
+                                                    <template if:true={account.hasNoActivity}>
+                                                        <lightning-icon icon-name="utility:warning" size="x-small" variant="error" alternative-text="No activity"></lightning-icon>
+                                                    </template>
+                                                    <template if:true={account.hasOverdueTasks}>
+                                                        <lightning-icon icon-name="utility:clock" size="x-small" variant="error" alternative-text="Overdue tasks"></lightning-icon>
+                                                    </template>
+                                                    <template if:true={account.hasHighPriorityCases}>
+                                                        <lightning-icon icon-name="utility:priority" size="x-small" variant="warning" alternative-text="High priority cases"></lightning-icon>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+
+            <!-- No Accounts Message -->
+            <template if:false={hasAccounts}>
+                <div class="slds-text-align_center slds-m-top_large">
+                    <p class="slds-text-heading_small">No accounts found</p>
+                    <p class="slds-text-body_small slds-m-top_small">Try adjusting your filters</p>
+                </div>
+            </template>
+
+            <!-- Account Detail Modal -->
+            <template if:true={showAccountModal}>
+                <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
+                    <div class="slds-modal__container">
+                        <header class="slds-modal__header">
+                            <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseAccountModal}>
+                                <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                                <span class="slds-assistive-text">Close</span>
+                            </button>
+                            <h2 class="slds-text-heading_medium slds-hyphenate">Account Details</h2>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium">
+                            <c-customer-success-dashboard record-id={selectedAccountId}></c-customer-success-dashboard>
+                        </div>
+                        <footer class="slds-modal__footer">
+                            <lightning-button label="Close" onclick={handleCloseAccountModal}></lightning-button>
+                        </footer>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
+        </template>
+    </div>
+</template>

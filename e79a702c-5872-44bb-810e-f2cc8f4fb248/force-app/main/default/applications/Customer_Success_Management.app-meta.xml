@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+            <brand>
+                <headerColor>#0176D3</headerColor>
+                <shouldOverrideOrgTheme>false</shouldOverrideOrgTheme>
+            </brand>
+            <description>Customer Success Management application providing access to portfolio dashboard and account management tools</description>
+            <formFactors>Large</formFactors>
+            <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+            <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+            <label>Customer Success Management</label>
+            <navType>Standard</navType>
+            
+            <tabs>CSM_Portfolio_Dashboard</tabs>
+            
+            <uiType>Lightning</uiType>
+        </CustomApplication>

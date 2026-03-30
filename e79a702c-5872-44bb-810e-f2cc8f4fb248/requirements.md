@@ -8,6 +8,8 @@ The primary goal is to help CSMs quickly answer key questions: Is this account h
 
 This requirements document outlines an MVP-first approach, prioritizing the most essential features for immediate business value while establishing a foundation for future enhancements. The component will leverage standard Salesforce objects (Account, Case, Task, Event, Opportunity, Contact) and extend the Account object with custom fields to support health scoring, renewal tracking, and engagement metrics.
 
+The solution includes both an **account-level dashboard** (for viewing individual account details) and a **portfolio-level dashboard** (for CSMs to view and manage all their assigned accounts).
+
 ---
 
 ## 1. Data Model Setup
@@ -213,6 +215,119 @@ As a Customer Success Manager, I want to see key contacts and stakeholder covera
 
 ---
 
+## 9. Portfolio-Level Customer Success Dashboard
+
+**User Story:**
+As a Customer Success Manager, I want a portfolio-level dashboard that shows all accounts I manage so that I can prioritize my workload, identify at-risk accounts across my entire book of business, and drill down into individual account details without losing portfolio context.
+
+**Acceptance Criteria:**
+
+### Portfolio Summary KPIs
+- The portfolio dashboard displays a summary strip at the top with aggregated KPIs across all accounts where Primary_CSM__c = current user:
+  - **Total Accounts**: Count of all assigned accounts
+  - **At-Risk Accounts**: Count of accounts with Account_Health_Score__c = Red
+  - **Needs Attention Accounts**: Count of accounts with Account_Health_Score__c = Yellow
+  - **Healthy Accounts**: Count of accounts with Account_Health_Score__c = Green
+  - **Total Open Cases**: Sum of open cases across all assigned accounts
+  - **Total Overdue Tasks**: Sum of overdue tasks across all assigned accounts
+  - **Inactive Accounts**: Count of accounts with no activity in 30+ days
+  - **Total Open Pipeline**: Sum of open opportunity amounts across all assigned accounts
+- Each KPI is displayed as a card with clear label, value, and appropriate icon
+- KPIs with critical values (e.g., at-risk accounts > 0, overdue tasks > 0) are visually highlighted with warning colors
+- The summary strip is responsive and adapts to different screen sizes
+
+### Accounts Table
+- The portfolio dashboard displays a sortable, filterable table of all accounts where Primary_CSM__c = current user
+- The table displays the following columns for each account:
+  - **Account Name**: Clickable link that opens account drill-down modal
+  - **Health Score**: Visual indicator (🟢 Green, 🟡 Yellow, 🔴 Red) with color-coded badge
+  - **Days Since Last Activity**: Number of days since last completed Task or Event
+  - **Open Cases**: Count of open cases with breakdown of high priority cases
+  - **Overdue Tasks**: Count of overdue tasks
+  - **Next Activity**: Date of next planned Task or Event (or "No upcoming activity")
+  - **Open Pipeline**: Total amount of open Opportunities
+  - **Renewal Date**: Upcoming renewal date with days until renewal
+  - **Risk Indicators**: Visual badges/icons for risk factors (⚠️ no activity, overdue tasks, high priority cases)
+- Each column is sortable (ascending/descending)
+- The Account Name column is searchable with real-time filtering
+- The table implements pagination with configurable page size (default 25 records per page)
+- The table displays total record count and current page range (e.g., "Showing 1-25 of 87 accounts")
+
+### Quick Filters
+- The portfolio dashboard provides pre-configured filter buttons above the accounts table:
+  - **All Accounts**: Shows all assigned accounts (default view)
+  - **At Risk**: Filters to accounts with Health Score = Red
+  - **Needs Attention**: Filters to accounts with Health Score = Yellow OR overdue tasks > 0 OR no activity in 30+ days
+  - **Healthy**: Filters to accounts with Health Score = Green
+  - **Renewals This Quarter**: Filters to accounts with Renewal_Date__c within 90 days
+  - **Inactive**: Filters to accounts with no activity in 30+ days
+- Active filter button is visually highlighted
+- Filter selection updates the accounts table immediately
+- Filter selection persists during the user session
+
+### Suggested Actions Panel
+- The portfolio dashboard displays a collapsible "Suggested Actions" panel with dynamic recommendations:
+  - "X accounts need immediate attention" (Red health score)
+  - "X overdue tasks across Y accounts"
+  - "X renewals closing in 30 days with no activity"
+  - "X accounts with no touchpoint scheduled"
+- Each suggestion is clickable and applies the appropriate filter to the accounts table
+- The panel is collapsible to save space
+- The panel displays a count badge indicating total action items
+
+### Account Drill-Down Modal
+- Clicking an account row in the table opens a modal overlay displaying the account-level dashboard
+- The modal contains the existing `customerSuccessDashboard` Lightning Web Component with recordId set to the selected account
+- The modal displays the account name in the header
+- The modal includes "Previous" and "Next" navigation buttons to move between accounts in the current filtered list
+- The modal includes a "Close" button (X icon) to return to portfolio view
+- The modal is responsive and adapts to different screen sizes
+- On mobile devices, the modal may navigate to the Account record page instead of displaying an overlay
+- Closing the modal returns the user to the portfolio view with the same filter and scroll position preserved
+
+### Portfolio Trends (Optional/Future Enhancement)
+- The portfolio dashboard includes a collapsible "Portfolio Trends" section with visual charts:
+  - **Health Score Distribution**: Pie chart showing percentage of Green/Yellow/Red accounts
+  - **Activity Trend**: Line chart showing activities logged over last 6 months
+  - **Case Volume Trend**: Bar chart showing cases opened per month
+  - **Pipeline Trend**: Bar chart showing pipeline value by stage
+- Charts are interactive and clickable to filter the accounts table
+- The section is collapsible to save space
+
+### Navigation & Access
+- The portfolio dashboard is deployed as a Lightning App Page named "CSM Portfolio Dashboard"
+- A custom tab named "My Portfolio" or "CSM Portfolio" is created to access the app page
+- The custom tab uses an appropriate icon (e.g., `standard:work_capacity_usage` or `standard:dashboard`)
+- The custom tab is added to a custom application named "Customer Success Hub" (or existing app)
+- The portfolio dashboard is accessible from the App Launcher
+- Users with the `CSD_CS_Dashboard_Full_Access` permission set have access to the portfolio dashboard
+
+### Performance & Scalability
+- The portfolio dashboard loads within 3 seconds on standard network conditions
+- Apex controller methods use efficient aggregate SOQL queries (COUNT, SUM, MAX) for portfolio summary
+- Apex controller methods implement pagination with LIMIT/OFFSET for accounts table
+- Apex controller methods use selective filters (WHERE Primary_CSM__c = :userId) to minimize record retrieval
+- The portfolio dashboard handles CSMs with large portfolios (100+ accounts) without performance degradation
+- Data queries respect SOQL query limits (maximum 5 queries per component load)
+
+### User Experience & Design
+- The portfolio dashboard follows the same Apple/Airbnb-inspired premium design aesthetic as the account-level dashboard
+- The portfolio dashboard uses Salesforce Lightning Design System (SLDS) guidelines for consistent styling
+- The portfolio dashboard is responsive and functional on desktop, tablet, and mobile devices
+- Visual hierarchy clearly distinguishes between critical information (at-risk accounts, overdue items) and standard information
+- Color coding is consistent: Red = urgent/at risk, Yellow = caution, Green = healthy/on track
+- The portfolio dashboard includes loading spinners during data retrieval
+- Error messages are user-friendly and actionable (e.g., "Unable to load accounts. Please refresh the page.")
+
+### Security & Access Control
+- The portfolio dashboard respects Salesforce object-level security (OLS) and field-level security (FLS)
+- Users only see accounts where Primary_CSM__c = current user
+- Apex controller methods use `with sharing` to enforce record-level security
+- The portfolio dashboard respects sharing rules and role hierarchy
+- Users without appropriate permissions see a friendly error message
+
+---
+
 ## Special Requirements
 
 ### Performance & Scalability
@@ -255,6 +370,9 @@ As a Customer Success Manager, I want to see key contacts and stakeholder covera
 - **Renewal Date**: The date when the customer's contract or subscription is up for renewal
 - **Quick Actions**: One-click buttons that allow users to perform common tasks directly from the dashboard
 - **MVP**: Minimum Viable Product - the initial version of the component with core features only
+- **Portfolio Dashboard**: A dashboard view that shows all accounts assigned to a CSM, with aggregated metrics and drill-down capabilities
+- **Account-Level Dashboard**: A dashboard view that shows detailed information for a single account
+- **Drill-Down**: The ability to navigate from a summary view (portfolio) to a detailed view (individual account)
 
 ---
 

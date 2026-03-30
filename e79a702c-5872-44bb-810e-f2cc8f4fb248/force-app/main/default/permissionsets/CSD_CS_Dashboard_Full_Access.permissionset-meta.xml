@@ -46,9 +46,86 @@
                 <enabled>true</enabled>
             </classAccesses>
 
+            <classAccesses>
+                <apexClass>CSD_CSMPortfolioController</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+            <!-- Application Visibility - Grant access to Customer Success Management app -->
+            <applicationVisibilities>
+                <application>Customer_Success_Management</application>
+                <visible>true</visible>
+            </applicationVisibilities>
+
+            <!-- Custom Tab Visibility - Grant access to CSM Portfolio Dashboard tab -->
+            <tabSettings>
+                <tab>CSM_Portfolio_Dashboard</tab>
+                <visibility>Visible</visibility>
+            </tabSettings>
+
+            <!-- Standard Object Permissions - Grant read access to objects queried by the dashboard -->
+            <objectPermissions>
+                <allowCreate>false</allowCreate>
+                <allowDelete>false</allowDelete>
+                <allowEdit>false</allowEdit>
+                <allowRead>true</allowRead>
+                <object>Account</object>
+                <viewAllRecords>false</viewAllRecords>
+                <modifyAllRecords>false</modifyAllRecords>
+            </objectPermissions>
+
+            <objectPermissions>
+                <allowCreate>false</allowCreate>
+                <allowDelete>false</allowDelete>
+                <allowEdit>false</allowEdit>
+                <allowRead>true</allowRead>
+                <object>Case</object>
+                <viewAllRecords>false</viewAllRecords>
+                <modifyAllRecords>false</modifyAllRecords>
+            </objectPermissions>
+
+            <objectPermissions>
+                <allowCreate>false</allowCreate>
+                <allowDelete>false</allowDelete>
+                <allowEdit>false</allowEdit>
+                <allowRead>true</allowRead>
+                <object>Task</object>
+                <viewAllRecords>false</viewAllRecords>
+                <modifyAllRecords>false</modifyAllRecords>
+            </objectPermissions>
+
+            <objectPermissions>
+                <allowCreate>false</allowCreate>
+                <allowDelete>false</allowDelete>
+                <allowEdit>false</allowEdit>
+                <allowRead>true</allowRead>
+                <object>Event</object>
+                <viewAllRecords>false</viewAllRecords>
+                <modifyAllRecords>false</modifyAllRecords>
+            </objectPermissions>
+
+            <objectPermissions>
+                <allowCreate>false</allowCreate>
+                <allowDelete>false</allowDelete>
+                <allowEdit>false</allowEdit>
+                <allowRead>true</allowRead>
+                <object>Opportunity</object>
+                <viewAllRecords>false</viewAllRecords>
+                <modifyAllRecords>false</modifyAllRecords>
+            </objectPermissions>
+
+            <objectPermissions>
+                <allowCreate>false</allowCreate>
+                <allowDelete>false</allowDelete>
+                <allowEdit>false</allowEdit>
+                <allowRead>true</allowRead>
+                <object>Contact</object>
+                <viewAllRecords>false</viewAllRecords>
+                <modifyAllRecords>false</modifyAllRecords>
+            </objectPermissions>
 
             <!-- Run Flow Permission - Required when project has screen flows -->
-            
-            
+
+
             <hasActivationRequired>false</hasActivationRequired>
         </PermissionSet>

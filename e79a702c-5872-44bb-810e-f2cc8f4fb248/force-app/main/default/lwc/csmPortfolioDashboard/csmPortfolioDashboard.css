@@ -1,0 +1,82 @@
+.portfolio-dashboard {
+    padding: 1rem;
+}
+
+/* KPI Cards */
+.kpi-card-danger {
+    border-left: 4px solid #ea001e;
+}
+
+.kpi-card-warning {
+    border-left: 4px solid #ffb75d;
+}
+
+.kpi-card-success {
+    border-left: 4px solid #2e844a;
+}
+
+/* Health Badges */
+.health-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.health-badge--red {
+    background-color: #feded8;
+    color: #ba0517;
+}
+
+.health-badge--yellow {
+    background-color: #fef3cd;
+    color: #856404;
+}
+
+.health-badge--green {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.health-badge--gray {
+    background-color: #f3f3f3;
+    color: #706e6b;
+}
+
+/* Account Row */
+.account-row {
+    cursor: pointer;
+    transition: background-color 0.1s ease-in-out;
+}
+
+.account-row:hover {
+    background-color: #f3f3f3;
+}
+
+/* Responsive Table */
+@media (max-width: 48em) {
+    .slds-table_bordered thead {
+        display: none;
+    }
+
+    .slds-table_bordered tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dddbda;
+    }
+
+    .slds-table_bordered td {
+        display: block;
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+    }
+
+    .slds-table_bordered td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0.75rem;
+        font-weight: bold;
+        text-align: left;
+    }
+}

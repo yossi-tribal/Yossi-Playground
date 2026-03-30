@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexiPage xmlns="http://soap.sforce.com/2006/04/metadata">
+            <flexiPageRegions>
+                <itemInstances>
+                    <componentInstance>
+                        <identifier>csmPortfolioDashboard1</identifier>
+                        <componentName>csmPortfolioDashboard</componentName>
+                    </componentInstance>
+                </itemInstances>
+                <name>main</name>
+                <type>Region</type>
+            </flexiPageRegions>
+            <masterLabel>CSM Portfolio Dashboard</masterLabel>
+            <description>Portfolio-level dashboard for Customer Success Managers to view and manage all assigned accounts with summary KPIs, sortable/filterable table, quick filters, and drill-down capabilities</description>
+            <template>
+                <name>flexipage:defaultAppHomeTemplate</name>
+            </template>
+            <type>AppPage</type>
+        </FlexiPage>
