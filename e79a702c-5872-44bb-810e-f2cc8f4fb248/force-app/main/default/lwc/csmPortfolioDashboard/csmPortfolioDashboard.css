@@ -1343,9 +1343,12 @@
    MODAL
    ═══════════════════════════════════════════════════════════════ */
 
-.slds-modal__content {
+.portfolio-modal__content {
     overflow: auto;
     max-height: 80vh;
+}
+
+.portfolio-modal__content--flush {
     padding: 0 !important;
 }
 
