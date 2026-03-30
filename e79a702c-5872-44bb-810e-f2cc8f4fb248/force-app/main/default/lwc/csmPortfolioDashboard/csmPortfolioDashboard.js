@@ -4,6 +4,10 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getPortfolioSummary from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioSummary';
 import getPortfolioAccounts from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioAccounts';
 import getUpcomingRenewals from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingRenewals';
+import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
+import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
+import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
+import currentUserId from '@salesforce/user/Id';
 
 export default class CsmPortfolioDashboard extends NavigationMixin(LightningElement) {
     @track summary = null;
@@ -23,6 +27,24 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track showAccountModal = false;
     @track selectedAccountId = null;
     @track snapshotExpanded = false;
+
+    @track showActivityModal = false;
+    @track activityModalObjectApiName = '';
+    @track activityModalTitle = '';
+    @track activityModalIsLogCall = false;
+    @track activityModalSaving = false;
+    @track activityForm = {
+        Subject: '', WhoId: null, WhatId: null,
+        ActivityDate: null, Status: '', Priority: 'Normal', Type: '',
+        OwnerId: currentUserId, Description: '',
+        StartDateTime: null, EndDateTime: null,
+        IsAllDayEvent: false, Location: ''
+    };
+    @track whoIdObjectType = 'Contact';
+    @track whatIdObjectType = 'Account';
+    @track taskPicklistValues = null;
+    @track showWhoIdEntityMenu = false;
+    @track showWhatIdEntityMenu = false;
 
     connectedCallback() {
         this.loadPortfolioData();
@@ -549,5 +571,198 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             { label: 'Last Activity', value: this.getDaysSinceActivityText(acc.daysSinceLastActivity),
               class: 'expansion-metric-value' }
         ];
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // QUICK ACTIONS & ACTIVITY MODAL
+    // ══════════════════════════════════════════════════════════
+
+    get isTaskModal() {
+        return this.activityModalObjectApiName === 'Task';
+    }
+
+    get isEventModal() {
+        return this.activityModalObjectApiName === 'Event';
+    }
+
+    get taskStatusOptions() {
+        return this.taskPicklistValues?.statusValues?.map(v => ({ label: v.label, value: v.value })) || [];
+    }
+
+    get taskPriorityOptions() {
+        return this.taskPicklistValues?.priorityValues?.map(v => ({ label: v.label, value: v.value })) || [];
+    }
+
+    get taskTypeOptions() {
+        return this.taskPicklistValues?.typeValues?.map(v => ({ label: v.label, value: v.value })) || [];
+    }
+
+    get whoIdObjectOptions() {
+        return [
+            { label: 'Contact', value: 'Contact', iconName: 'standard:contact' },
+            { label: 'Lead', value: 'Lead', iconName: 'standard:lead' }
+        ];
+    }
+
+    get whatIdObjectOptions() {
+        return [
+            { label: 'Account', value: 'Account', iconName: 'standard:account' },
+            { label: 'Opportunity', value: 'Opportunity', iconName: 'standard:opportunity' },
+            { label: 'Case', value: 'Case', iconName: 'standard:case' }
+        ];
+    }
+
+    get whoIdIconName() {
+        return this.whoIdObjectType === 'Contact' ? 'standard:contact' : 'standard:lead';
+    }
+
+    get whatIdIconName() {
+        const iconMap = { Account: 'standard:account', Opportunity: 'standard:opportunity', Case: 'standard:case' };
+        return iconMap[this.whatIdObjectType] || 'standard:account';
+    }
+
+    get activitySaveDisabled() {
+        return this.activityModalSaving;
+    }
+
+    resetActivityForm(defaults = {}) {
+        this.activityForm = {
+            Subject: '', WhoId: null, WhatId: null,
+            ActivityDate: null, Status: defaults.Status || '', Priority: defaults.Priority || 'Normal',
+            Type: defaults.Type || '', OwnerId: currentUserId, Description: '',
+            StartDateTime: null, EndDateTime: null,
+            IsAllDayEvent: false, Location: ''
+        };
+        this.whoIdObjectType = 'Contact';
+        this.whatIdObjectType = 'Account';
+        this.activityModalSaving = false;
+    }
+
+    loadPicklistValuesIfNeeded() {
+        if (this.taskPicklistValues) return;
+        getTaskPicklistValues()
+            .then(result => { this.taskPicklistValues = result; })
+            .catch(() => { this.taskPicklistValues = { statusValues: [], priorityValues: [], typeValues: [] }; });
+    }
+
+    handleCreateTask() {
+        this.activityModalObjectApiName = 'Task';
+        this.activityModalTitle = 'New Task';
+        this.activityModalIsLogCall = false;
+        this.resetActivityForm();
+        this.loadPicklistValuesIfNeeded();
+        this.showActivityModal = true;
+    }
+
+    handleCreateEvent() {
+        this.activityModalObjectApiName = 'Event';
+        this.activityModalTitle = 'New Event';
+        this.activityModalIsLogCall = false;
+        this.resetActivityForm();
+        this.showActivityModal = true;
+    }
+
+    handleLogCall() {
+        this.activityModalObjectApiName = 'Task';
+        this.activityModalTitle = 'Log a Call';
+        this.activityModalIsLogCall = true;
+        this.resetActivityForm({ Status: 'Completed', Type: 'Call' });
+        this.loadPicklistValuesIfNeeded();
+        this.showActivityModal = true;
+    }
+
+    handleCreateCase() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Case',
+                actionName: 'new'
+            }
+        });
+    }
+
+    handleActivityModalCancel() {
+        this.showActivityModal = false;
+    }
+
+    handleActivityModalSubmit() {
+        if (!this.activityForm.Subject) {
+            this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: 'Subject is required.', variant: 'error' }));
+            return;
+        }
+        if (this.activityModalObjectApiName === 'Event' && !this.activityForm.IsAllDayEvent) {
+            if (!this.activityForm.StartDateTime || !this.activityForm.EndDateTime) {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: 'Start and End date/time are required.', variant: 'error' }));
+                return;
+            }
+        }
+
+        this.activityModalSaving = true;
+        const fields = { ...this.activityForm };
+
+        Object.keys(fields).forEach(k => {
+            if (fields[k] === null || fields[k] === '' || fields[k] === undefined) {
+                delete fields[k];
+            }
+        });
+
+        const apexCall = this.activityModalObjectApiName === 'Event'
+            ? createEvent({ fieldsJson: JSON.stringify(fields) })
+            : createTask({ fieldsJson: JSON.stringify(fields) });
+
+        const objectLabel = this.activityModalIsLogCall ? 'Call' : this.activityModalObjectApiName;
+
+        apexCall
+            .then(() => {
+                this.showActivityModal = false;
+                this.dispatchEvent(new ShowToastEvent({ title: 'Success', message: `${objectLabel} created successfully.`, variant: 'success' }));
+                this.handleRefresh();
+            })
+            .catch(error => {
+                const msg = error.body ? error.body.message : error.message;
+                this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: msg, variant: 'error' }));
+            })
+            .finally(() => { this.activityModalSaving = false; });
+    }
+
+    handleActivityFieldChange(event) {
+        const field = event.target.dataset.field;
+        if (!field) return;
+        const val = event.target.type === 'checkbox' ? event.target.checked : event.detail.value;
+        this.activityForm = { ...this.activityForm, [field]: val };
+    }
+
+    handleWhoIdChange(event) {
+        this.activityForm = { ...this.activityForm, WhoId: event.detail.recordId || null };
+    }
+
+    handleWhatIdChange(event) {
+        this.activityForm = { ...this.activityForm, WhatId: event.detail.recordId || null };
+    }
+
+    handleOwnerIdChange(event) {
+        this.activityForm = { ...this.activityForm, OwnerId: event.detail.recordId || null };
+    }
+
+    toggleWhoIdEntityMenu() {
+        this.showWhoIdEntityMenu = !this.showWhoIdEntityMenu;
+        this.showWhatIdEntityMenu = false;
+    }
+
+    toggleWhatIdEntityMenu() {
+        this.showWhatIdEntityMenu = !this.showWhatIdEntityMenu;
+        this.showWhoIdEntityMenu = false;
+    }
+
+    selectWhoIdObject(event) {
+        this.whoIdObjectType = event.currentTarget.dataset.value;
+        this.activityForm = { ...this.activityForm, WhoId: null };
+        this.showWhoIdEntityMenu = false;
+    }
+
+    selectWhatIdObject(event) {
+        this.whatIdObjectType = event.currentTarget.dataset.value;
+        this.activityForm = { ...this.activityForm, WhatId: null };
+        this.showWhatIdEntityMenu = false;
     }
 }

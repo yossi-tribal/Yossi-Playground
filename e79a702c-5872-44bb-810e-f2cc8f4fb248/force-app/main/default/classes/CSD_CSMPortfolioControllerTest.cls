@@ -33,7 +33,7 @@ private class CSD_CSMPortfolioControllerTest {
             // At-risk account
             Account acc1 = new Account(
                 Name = 'Test Account 1 - At Risk',
-                CSD_Account_Health_Score__c = 'Red',
+                CSD_Account_Health_Score__c = 'At Risk',
                 CSD_Primary_CSM__c = testUser.Id
             );
             accounts.add(acc1);
@@ -41,7 +41,7 @@ private class CSD_CSMPortfolioControllerTest {
             // Needs attention account
             Account acc2 = new Account(
                 Name = 'Test Account 2 - Needs Attention',
-                CSD_Account_Health_Score__c = 'Yellow',
+                CSD_Account_Health_Score__c = 'Needs Attention',
                 CSD_Primary_CSM__c = testUser.Id
             );
             accounts.add(acc2);
@@ -49,7 +49,7 @@ private class CSD_CSMPortfolioControllerTest {
             // Healthy account
             Account acc3 = new Account(
                 Name = 'Test Account 3 - Healthy',
-                CSD_Account_Health_Score__c = 'Green',
+                CSD_Account_Health_Score__c = 'Healthy',
                 CSD_Primary_CSM__c = testUser.Id
             );
             accounts.add(acc3);
@@ -57,7 +57,7 @@ private class CSD_CSMPortfolioControllerTest {
             // Account without CSM (should not appear in portfolio)
             Account acc4 = new Account(
                 Name = 'Test Account 4 - No CSM',
-                CSD_Account_Health_Score__c = 'Green'
+                CSD_Account_Health_Score__c = 'Healthy'
             );
             accounts.add(acc4);
 
@@ -199,7 +199,7 @@ private class CSD_CSMPortfolioControllerTest {
 
             // Assert only at-risk accounts returned
             System.assertEquals(1, accounts.size(), 'Should return 1 at-risk account');
-            System.assertEquals('Red', accounts[0].healthScore, 'Health score should be Red');
+            System.assertEquals('At Risk', accounts[0].healthScore, 'Health score should be At Risk');
             System.assertEquals('red', accounts[0].healthScoreColor, 'Health score color should be red');
             System.assertEquals(2, accounts[0].openCasesCount, 'Should have 2 open cases');
             System.assertEquals(1, accounts[0].highPriorityCasesCount, 'Should have 1 high priority case');
@@ -221,7 +221,7 @@ private class CSD_CSMPortfolioControllerTest {
 
             // Assert only needs-attention accounts returned
             System.assertEquals(1, accounts.size(), 'Should return 1 needs-attention account');
-            System.assertEquals('Yellow', accounts[0].healthScore, 'Health score should be Yellow');
+            System.assertEquals('Needs Attention', accounts[0].healthScore, 'Health score should be Needs Attention');
             System.assertEquals('yellow', accounts[0].healthScoreColor, 'Health score color should be yellow');
             System.assertEquals(1, accounts[0].overdueTasksCount, 'Should have 1 overdue task');
             System.assertEquals(true, accounts[0].hasOverdueTasks, 'Should have overdue tasks flag set');
@@ -243,7 +243,7 @@ private class CSD_CSMPortfolioControllerTest {
 
             // Assert only healthy accounts returned
             System.assertEquals(1, accounts.size(), 'Should return 1 healthy account');
-            System.assertEquals('Green', accounts[0].healthScore, 'Health score should be Green');
+            System.assertEquals('Healthy', accounts[0].healthScore, 'Health score should be Healthy');
             System.assertEquals('green', accounts[0].healthScoreColor, 'Health score color should be green');
         }
         Test.stopTest();

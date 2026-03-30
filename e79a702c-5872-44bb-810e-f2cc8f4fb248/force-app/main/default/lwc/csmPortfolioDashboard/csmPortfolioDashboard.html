@@ -128,6 +128,25 @@
                                     </div>
                                 </div>
                             </template>
+
+                            <div class="quick-actions-inline">
+                                <button type="button" class="quick-action-btn" onclick={handleLogCall} title="Log a Call">
+                                    <lightning-icon icon-name="utility:call" size="small"></lightning-icon>
+                                    <span class="quick-action-text">Log call</span>
+                                </button>
+                                <button type="button" class="quick-action-btn" onclick={handleCreateTask} title="Create Task">
+                                    <lightning-icon icon-name="utility:task" size="small"></lightning-icon>
+                                    <span class="quick-action-text">New task</span>
+                                </button>
+                                <button type="button" class="quick-action-btn" onclick={handleCreateEvent} title="Schedule Event">
+                                    <lightning-icon icon-name="utility:event" size="small"></lightning-icon>
+                                    <span class="quick-action-text">Event</span>
+                                </button>
+                                <button type="button" class="quick-action-btn" onclick={handleCreateCase} title="Create Case">
+                                    <lightning-icon icon-name="utility:case" size="small"></lightning-icon>
+                                    <span class="quick-action-text">Case</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -442,6 +461,205 @@
                         <button class="custom-btn custom-btn--secondary" onclick={handleCloseAccountModal} type="button">
                             Close
                         </button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Activity Creation Modal -->
+        <template if:true={showActivityModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_medium" aria-modal="true" aria-labelledby="portfolioActivityModalHeading">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleActivityModalCancel}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 id="portfolioActivityModalHeading" class="slds-modal__title slds-hyphenate">{activityModalTitle}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <div class="activity-modal-form">
+
+                            <!-- TASK FORM -->
+                            <template if:true={isTaskModal}>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-input label="Subject" value={activityForm.Subject} data-field="Subject" onchange={handleActivityFieldChange} required></lightning-input>
+                                    </div>
+                                </div>
+
+                                <div class="activity-section-header"><span>Additional Details</span></div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-input type="date" label="Due Date" value={activityForm.ActivityDate} data-field="ActivityDate" onchange={handleActivityFieldChange}></lightning-input>
+                                    </div>
+                                    <div class="activity-form-col">
+                                        <lightning-combobox label="Priority" value={activityForm.Priority} options={taskPriorityOptions} data-field="Priority" onchange={handleActivityFieldChange}></lightning-combobox>
+                                    </div>
+                                </div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-combobox label="Status" value={activityForm.Status} options={taskStatusOptions} data-field="Status" onchange={handleActivityFieldChange}></lightning-combobox>
+                                    </div>
+                                    <div class="activity-form-col">
+                                        <lightning-combobox label="Type" value={activityForm.Type} options={taskTypeOptions} data-field="Type" onchange={handleActivityFieldChange}></lightning-combobox>
+                                    </div>
+                                </div>
+
+                                <div class="activity-section-header"><span>Related Records</span></div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <label class="activity-field-label">Name</label>
+                                        <div class="activity-polymorphic-lookup">
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhoIdEntityMenu}>
+                                                    <lightning-icon icon-name={whoIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhoIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whoIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhoIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <lightning-record-picker label="Name" variant="label-hidden" object-api-name={whoIdObjectType} value={activityForm.WhoId} onchange={handleWhoIdChange} class="activity-record-picker"></lightning-record-picker>
+                                        </div>
+                                    </div>
+                                    <div class="activity-form-col">
+                                        <label class="activity-field-label">Related To</label>
+                                        <div class="activity-polymorphic-lookup">
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhatIdEntityMenu}>
+                                                    <lightning-icon icon-name={whatIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhatIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whatIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhatIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <lightning-record-picker label="Related To" variant="label-hidden" object-api-name={whatIdObjectType} value={activityForm.WhatId} onchange={handleWhatIdChange} class="activity-record-picker"></lightning-record-picker>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-record-picker label="Assigned To" object-api-name="User" value={activityForm.OwnerId} onchange={handleOwnerIdChange}></lightning-record-picker>
+                                    </div>
+                                </div>
+
+                                <div class="activity-section-header"><span>Notes</span></div>
+                                <div class="activity-form-row activity-notes-section">
+                                    <div class="activity-form-col">
+                                        <lightning-textarea label="Description" value={activityForm.Description} data-field="Description" onchange={handleActivityFieldChange}></lightning-textarea>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- EVENT FORM -->
+                            <template if:true={isEventModal}>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-input label="Subject" value={activityForm.Subject} data-field="Subject" onchange={handleActivityFieldChange} required></lightning-input>
+                                    </div>
+                                </div>
+
+                                <div class="activity-section-header"><span>Schedule</span></div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-input type="checkbox" label="All-Day Event" checked={activityForm.IsAllDayEvent} data-field="IsAllDayEvent" onchange={handleActivityFieldChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-input type="datetime" label="Start" value={activityForm.StartDateTime} data-field="StartDateTime" onchange={handleActivityFieldChange} required></lightning-input>
+                                    </div>
+                                    <div class="activity-form-col">
+                                        <lightning-input type="datetime" label="End" value={activityForm.EndDateTime} data-field="EndDateTime" onchange={handleActivityFieldChange} required></lightning-input>
+                                    </div>
+                                </div>
+
+                                <div class="activity-section-header"><span>Related Records</span></div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <label class="activity-field-label">Name</label>
+                                        <div class="activity-polymorphic-lookup">
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhoIdEntityMenu}>
+                                                    <lightning-icon icon-name={whoIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhoIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whoIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhoIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <lightning-record-picker label="Name" variant="label-hidden" object-api-name={whoIdObjectType} value={activityForm.WhoId} onchange={handleWhoIdChange} class="activity-record-picker"></lightning-record-picker>
+                                        </div>
+                                    </div>
+                                    <div class="activity-form-col">
+                                        <label class="activity-field-label">Related To</label>
+                                        <div class="activity-polymorphic-lookup">
+                                            <div class="activity-entity-switcher">
+                                                <button type="button" class="activity-entity-btn" onclick={toggleWhatIdEntityMenu}>
+                                                    <lightning-icon icon-name={whatIdIconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="activity-entity-chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={showWhatIdEntityMenu}>
+                                                    <div class="activity-entity-dropdown" role="listbox">
+                                                        <template for:each={whatIdObjectOptions} for:item="opt">
+                                                            <div key={opt.value} class="activity-entity-option" role="option" data-value={opt.value} onclick={selectWhatIdObject}>
+                                                                <lightning-icon icon-name={opt.iconName} size="x-small"></lightning-icon>
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <lightning-record-picker label="Related To" variant="label-hidden" object-api-name={whatIdObjectType} value={activityForm.WhatId} onchange={handleWhatIdChange} class="activity-record-picker"></lightning-record-picker>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="activity-form-row">
+                                    <div class="activity-form-col">
+                                        <lightning-input label="Location" value={activityForm.Location} data-field="Location" onchange={handleActivityFieldChange}></lightning-input>
+                                    </div>
+                                    <div class="activity-form-col">
+                                        <lightning-record-picker label="Assigned To" object-api-name="User" value={activityForm.OwnerId} onchange={handleOwnerIdChange}></lightning-record-picker>
+                                    </div>
+                                </div>
+
+                                <div class="activity-section-header"><span>Notes</span></div>
+                                <div class="activity-form-row activity-notes-section">
+                                    <div class="activity-form-col">
+                                        <lightning-textarea label="Description" value={activityForm.Description} data-field="Description" onchange={handleActivityFieldChange}></lightning-textarea>
+                                    </div>
+                                </div>
+                            </template>
+
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="slds-button slds-button_neutral" onclick={handleActivityModalCancel}>Cancel</button>
+                        <button class="slds-button slds-button_brand" onclick={handleActivityModalSubmit} disabled={activitySaveDisabled}>Save</button>
                     </footer>
                 </div>
             </section>

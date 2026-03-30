@@ -82,28 +82,28 @@ public with sharing class CSD_CSMPortfolioController {
                 WHERE CSD_Primary_CSM__c = :currentUserId
             ];
 
-            // At-risk accounts (Health Score = Red)
+            // At-risk accounts (Health Score = At Risk)
             summary.atRiskAccounts = [
                 SELECT COUNT()
                 FROM Account
                 WHERE CSD_Primary_CSM__c = :currentUserId
-                AND CSD_Account_Health_Score__c = 'Red'
+                AND CSD_Account_Health_Score__c = 'At Risk'
             ];
 
-            // Needs attention accounts (Health Score = Yellow)
+            // Needs attention accounts (Health Score = Needs Attention)
             summary.needsAttentionAccounts = [
                 SELECT COUNT()
                 FROM Account
                 WHERE CSD_Primary_CSM__c = :currentUserId
-                AND CSD_Account_Health_Score__c = 'Yellow'
+                AND CSD_Account_Health_Score__c = 'Needs Attention'
             ];
 
-            // Healthy accounts (Health Score = Green)
+            // Healthy accounts (Health Score = Healthy)
             summary.healthyAccounts = [
                 SELECT COUNT()
                 FROM Account
                 WHERE CSD_Primary_CSM__c = :currentUserId
-                AND CSD_Account_Health_Score__c = 'Green'
+                AND CSD_Account_Health_Score__c = 'Healthy'
             ];
 
             // Get all account IDs for current user
@@ -326,11 +326,11 @@ public with sharing class CSD_CSMPortfolioController {
 
             // Apply filter (values are validated against whitelist)
             if (filterType == 'at-risk') {
-                queryString += ' AND CSD_Account_Health_Score__c = \'Red\'';
+                queryString += ' AND CSD_Account_Health_Score__c = \'At Risk\'';
             } else if (filterType == 'needs-attention') {
-                queryString += ' AND CSD_Account_Health_Score__c = \'Yellow\'';
+                queryString += ' AND CSD_Account_Health_Score__c = \'Needs Attention\'';
             } else if (filterType == 'healthy') {
-                queryString += ' AND CSD_Account_Health_Score__c = \'Green\'';
+                queryString += ' AND CSD_Account_Health_Score__c = \'Healthy\'';
             }
 
             // Apply sorting (values are validated against whitelist)
@@ -718,11 +718,11 @@ public with sharing class CSD_CSMPortfolioController {
      * @return String color code (green, yellow, red, gray)
      */
     private static String getHealthScoreColor(String healthScore) {
-        if (healthScore == 'Green') {
+        if (healthScore == 'Healthy') {
             return 'green';
-        } else if (healthScore == 'Yellow') {
+        } else if (healthScore == 'Needs Attention') {
             return 'yellow';
-        } else if (healthScore == 'Red') {
+        } else if (healthScore == 'At Risk') {
             return 'red';
         } else {
             return 'gray';
