@@ -723,6 +723,8 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return this.summary !== null;
     }
 
+    get currentYear() { return new Date().getFullYear(); }
+
     get csmDisplayName() {
         if (!this.summary || !this.summary.csmName) {
             return 'Not assigned';

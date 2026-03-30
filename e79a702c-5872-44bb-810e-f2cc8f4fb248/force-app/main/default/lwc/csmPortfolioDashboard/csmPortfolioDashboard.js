@@ -626,6 +626,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     // ══════════════════════════════════════════════════════════
 
     get hasSummary() { return this.summary !== null; }
+    get currentYear() { return new Date().getFullYear(); }
     get hasAccounts() { return this.accounts && this.accounts.length > 0; }
     get hasRenewals() { return this.renewals && this.renewals.length > 0; }
 
