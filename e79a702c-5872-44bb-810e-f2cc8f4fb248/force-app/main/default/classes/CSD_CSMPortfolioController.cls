@@ -47,6 +47,30 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public String caseMonth4Label { get; set; }
         @AuraEnabled public String caseMonth5Label { get; set; }
         @AuraEnabled public String caseMonth6Label { get; set; }
+        @AuraEnabled public Decimal priorYearWonRevenue { get; set; }
+        @AuraEnabled public Decimal wonMonth1 { get; set; }
+        @AuraEnabled public Decimal wonMonth2 { get; set; }
+        @AuraEnabled public Decimal wonMonth3 { get; set; }
+        @AuraEnabled public Decimal wonMonth4 { get; set; }
+        @AuraEnabled public Decimal wonMonth5 { get; set; }
+        @AuraEnabled public Decimal wonMonth6 { get; set; }
+        @AuraEnabled public Decimal prevWonMonth1 { get; set; }
+        @AuraEnabled public Decimal prevWonMonth2 { get; set; }
+        @AuraEnabled public Decimal prevWonMonth3 { get; set; }
+        @AuraEnabled public Decimal prevWonMonth4 { get; set; }
+        @AuraEnabled public Decimal prevWonMonth5 { get; set; }
+        @AuraEnabled public Decimal prevWonMonth6 { get; set; }
+        @AuraEnabled public String wonMonth1Label { get; set; }
+        @AuraEnabled public String wonMonth2Label { get; set; }
+        @AuraEnabled public String wonMonth3Label { get; set; }
+        @AuraEnabled public String wonMonth4Label { get; set; }
+        @AuraEnabled public String wonMonth5Label { get; set; }
+        @AuraEnabled public String wonMonth6Label { get; set; }
+        @AuraEnabled public Integer casesOpenedLast90Days { get; set; }
+        @AuraEnabled public Integer escalatedCasesLast90Days { get; set; }
+        @AuraEnabled public Decimal caseResolutionMedianDays { get; set; }
+        @AuraEnabled public String caseResolutionTrend { get; set; }
+        @AuraEnabled public Integer openTasksCount { get; set; }
     }
 
     /**
@@ -149,6 +173,22 @@ public with sharing class CSD_CSMPortfolioController {
     }
 
     /**
+     * @description Wrapper for a portfolio-wide open task shown in the detail accordion and KPI modal.
+     */
+    public class PortfolioTaskRow {
+        @AuraEnabled public Id taskId { get; set; }
+        @AuraEnabled public String subject { get; set; }
+        @AuraEnabled public String dueDate { get; set; }
+        @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public String status { get; set; }
+        @AuraEnabled public String priority { get; set; }
+        @AuraEnabled public String accountName { get; set; }
+        @AuraEnabled public Id accountId { get; set; }
+        @AuraEnabled public Boolean isOverdue { get; set; }
+        @AuraEnabled public Integer daysOverdue { get; set; }
+    }
+
+    /**
      * @description Wrapper for a portfolio-wide open opportunity shown in the KPI modal.
      */
     public class PortfolioOpportunityRow {
@@ -223,6 +263,30 @@ public with sharing class CSD_CSMPortfolioController {
             summary.caseMonth4Label = '';
             summary.caseMonth5Label = '';
             summary.caseMonth6Label = '';
+            summary.priorYearWonRevenue = 0;
+            summary.wonMonth1 = 0;
+            summary.wonMonth2 = 0;
+            summary.wonMonth3 = 0;
+            summary.wonMonth4 = 0;
+            summary.wonMonth5 = 0;
+            summary.wonMonth6 = 0;
+            summary.prevWonMonth1 = 0;
+            summary.prevWonMonth2 = 0;
+            summary.prevWonMonth3 = 0;
+            summary.prevWonMonth4 = 0;
+            summary.prevWonMonth5 = 0;
+            summary.prevWonMonth6 = 0;
+            summary.wonMonth1Label = '';
+            summary.wonMonth2Label = '';
+            summary.wonMonth3Label = '';
+            summary.wonMonth4Label = '';
+            summary.wonMonth5Label = '';
+            summary.wonMonth6Label = '';
+            summary.casesOpenedLast90Days = 0;
+            summary.escalatedCasesLast90Days = 0;
+            summary.caseResolutionMedianDays = null;
+            summary.caseResolutionTrend = 'stable';
+            summary.openTasksCount = 0;
 
             // Total accounts assigned to current user
             summary.totalAccounts = [
@@ -412,6 +476,10 @@ public with sharing class CSD_CSMPortfolioController {
 
             populatePortfolioYtdCaseCount(accountIds, summary);
             populatePortfolioMonthlyCaseVolume(accountIds, summary);
+            populatePortfolioMonthlyRevenueVolume(accountIds, summary);
+            populatePortfolio90DayCaseMetrics(accountIds, summary);
+            populatePortfolioPriorYearRevenue(accountIds, summary);
+            populatePortfolioOpenTasksCount(accountIds, summary);
 
             return summary;
 
@@ -1379,5 +1447,267 @@ public with sharing class CSD_CSMPortfolioController {
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving open opportunities: ' + e.getMessage());
         }
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioTaskRow> getAllOpenTasksForPortfolio() {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioTaskRow> rows = new List<PortfolioTaskRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            for (Task t : [
+                SELECT Id, Subject, ActivityDate, Owner.Name, Status, Priority, What.Name, WhatId
+                FROM Task
+                WHERE WhatId IN :accountIds
+                AND IsClosed = false
+                ORDER BY ActivityDate ASC NULLS LAST
+                LIMIT 100
+            ]) {
+                PortfolioTaskRow row = new PortfolioTaskRow();
+                row.taskId = t.Id;
+                row.subject = t.Subject;
+                row.dueDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
+                row.ownerName = t.Owner.Name;
+                row.status = t.Status;
+                row.priority = t.Priority;
+                row.accountName = t.What.Name;
+                row.accountId = t.WhatId;
+                row.isOverdue = t.ActivityDate != null && t.ActivityDate < Date.today();
+                row.daysOverdue = (t.ActivityDate != null && t.ActivityDate < Date.today())
+                    ? t.ActivityDate.daysBetween(Date.today()) : 0;
+                rows.add(row);
+            }
+
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving open tasks: ' + e.getMessage());
+        }
+    }
+
+    private static void populatePortfolioMonthlyRevenueVolume(Set<Id> accountIds, PortfolioSummary summary) {
+        if (accountIds.isEmpty()) {
+            return;
+        }
+
+        Date today = Date.today();
+        Integer currentMonth = today.month();
+        Integer currentYear = today.year();
+        Integer startMonth = currentMonth - 5;
+        Integer startYear = currentYear;
+        if (startMonth < 1) {
+            startMonth += 12;
+            startYear--;
+        }
+
+        Date sixMonthsAgo = Date.newInstance(startYear, startMonth, 1);
+        Date priorSixMonthsAgo = Date.newInstance(startYear - 1, startMonth, 1);
+
+        Map<String, Decimal> monthAmounts = new Map<String, Decimal>();
+        Map<String, Decimal> prevMonthAmounts = new Map<String, Decimal>();
+        List<String> orderedKeys = new List<String>();
+
+        Integer monthCursor = startMonth;
+        Integer yearCursor = startYear;
+        for (Integer i = 0; i < 6; i++) {
+            String key = yearCursor + '-' + String.valueOf(monthCursor).leftPad(2, '0');
+            monthAmounts.put(key, 0);
+            orderedKeys.add(key);
+
+            String prevKey = (yearCursor - 1) + '-' + String.valueOf(monthCursor).leftPad(2, '0');
+            prevMonthAmounts.put(prevKey, 0);
+
+            monthCursor++;
+            if (monthCursor > 12) {
+                monthCursor = 1;
+                yearCursor++;
+            }
+        }
+
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CloseDate) mo, CALENDAR_YEAR(CloseDate) yr, SUM(Amount) totalAmount
+            FROM Opportunity
+            WHERE AccountId IN :accountIds
+            AND IsWon = true
+            AND CloseDate >= :sixMonthsAgo
+            GROUP BY CALENDAR_MONTH(CloseDate), CALENDAR_YEAR(CloseDate)
+            ORDER BY CALENDAR_YEAR(CloseDate), CALENDAR_MONTH(CloseDate)
+        ]) {
+            Integer resultMonth = (Integer) ar.get('mo');
+            Integer resultYear = (Integer) ar.get('yr');
+            String key = resultYear + '-' + String.valueOf(resultMonth).leftPad(2, '0');
+            if (monthAmounts.containsKey(key)) {
+                Decimal amt = (Decimal) ar.get('totalAmount');
+                monthAmounts.put(key, amt != null ? amt : 0);
+            }
+        }
+
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CloseDate) mo, CALENDAR_YEAR(CloseDate) yr, SUM(Amount) totalAmount
+            FROM Opportunity
+            WHERE AccountId IN :accountIds
+            AND IsWon = true
+            AND CloseDate >= :priorSixMonthsAgo
+            AND CloseDate < :sixMonthsAgo
+            GROUP BY CALENDAR_MONTH(CloseDate), CALENDAR_YEAR(CloseDate)
+            ORDER BY CALENDAR_YEAR(CloseDate), CALENDAR_MONTH(CloseDate)
+        ]) {
+            Integer resultMonth = (Integer) ar.get('mo');
+            Integer resultYear = (Integer) ar.get('yr');
+            String key = resultYear + '-' + String.valueOf(resultMonth).leftPad(2, '0');
+            if (prevMonthAmounts.containsKey(key)) {
+                Decimal amt = (Decimal) ar.get('totalAmount');
+                prevMonthAmounts.put(key, amt != null ? amt : 0);
+            }
+        }
+
+        List<Decimal> amounts = new List<Decimal>();
+        List<Decimal> prevAmounts = new List<Decimal>();
+        List<String> labels = new List<String>();
+        for (String key : orderedKeys) {
+            amounts.add(monthAmounts.get(key));
+
+            Integer monthValue = Integer.valueOf(key.substring(5));
+            Integer yearValue = Integer.valueOf(key.substring(0, 4));
+            String prevKey = (yearValue - 1) + '-' + String.valueOf(monthValue).leftPad(2, '0');
+            prevAmounts.add(prevMonthAmounts.containsKey(prevKey) ? prevMonthAmounts.get(prevKey) : 0);
+            labels.add(MONTH_ABBREVS[monthValue - 1]);
+        }
+
+        summary.wonMonth1 = amounts[0];
+        summary.wonMonth2 = amounts[1];
+        summary.wonMonth3 = amounts[2];
+        summary.wonMonth4 = amounts[3];
+        summary.wonMonth5 = amounts[4];
+        summary.wonMonth6 = amounts[5];
+        summary.prevWonMonth1 = prevAmounts[0];
+        summary.prevWonMonth2 = prevAmounts[1];
+        summary.prevWonMonth3 = prevAmounts[2];
+        summary.prevWonMonth4 = prevAmounts[3];
+        summary.prevWonMonth5 = prevAmounts[4];
+        summary.prevWonMonth6 = prevAmounts[5];
+        summary.wonMonth1Label = labels[0];
+        summary.wonMonth2Label = labels[1];
+        summary.wonMonth3Label = labels[2];
+        summary.wonMonth4Label = labels[3];
+        summary.wonMonth5Label = labels[4];
+        summary.wonMonth6Label = labels[5];
+    }
+
+    private static void populatePortfolio90DayCaseMetrics(Set<Id> accountIds, PortfolioSummary summary) {
+        if (accountIds.isEmpty()) {
+            return;
+        }
+
+        Date ninetyDaysAgo = Date.today().addDays(-90);
+        Date oneEightyDaysAgo = Date.today().addDays(-180);
+
+        summary.casesOpenedLast90Days = [
+            SELECT COUNT()
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND CreatedDate >= :ninetyDaysAgo
+        ];
+
+        summary.escalatedCasesLast90Days = [
+            SELECT COUNT()
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND CreatedDate >= :ninetyDaysAgo
+            AND IsEscalated = true
+        ];
+
+        List<Decimal> resolutionDays = new List<Decimal>();
+        for (Case c : [
+            SELECT CreatedDate, ClosedDate
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND IsClosed = true
+            AND ClosedDate >= :ninetyDaysAgo
+            AND CreatedDate != null
+            AND ClosedDate != null
+        ]) {
+            Integer days = c.CreatedDate.date().daysBetween(c.ClosedDate.date());
+            resolutionDays.add(days);
+        }
+
+        if (!resolutionDays.isEmpty()) {
+            resolutionDays.sort();
+            Integer mid = resolutionDays.size() / 2;
+            if (Math.mod(resolutionDays.size(), 2) == 0) {
+                summary.caseResolutionMedianDays = (resolutionDays[mid - 1] + resolutionDays[mid]) / 2;
+            } else {
+                summary.caseResolutionMedianDays = resolutionDays[mid];
+            }
+        }
+
+        List<Decimal> priorResolutionDays = new List<Decimal>();
+        for (Case c : [
+            SELECT CreatedDate, ClosedDate
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND IsClosed = true
+            AND ClosedDate >= :oneEightyDaysAgo
+            AND ClosedDate < :ninetyDaysAgo
+            AND CreatedDate != null
+            AND ClosedDate != null
+        ]) {
+            Integer days = c.CreatedDate.date().daysBetween(c.ClosedDate.date());
+            priorResolutionDays.add(days);
+        }
+
+        if (!resolutionDays.isEmpty() && !priorResolutionDays.isEmpty()) {
+            priorResolutionDays.sort();
+            Integer priorMid = priorResolutionDays.size() / 2;
+            Decimal priorMedian;
+            if (Math.mod(priorResolutionDays.size(), 2) == 0) {
+                priorMedian = (priorResolutionDays[priorMid - 1] + priorResolutionDays[priorMid]) / 2;
+            } else {
+                priorMedian = priorResolutionDays[priorMid];
+            }
+            if (summary.caseResolutionMedianDays < priorMedian) {
+                summary.caseResolutionTrend = 'improving';
+            } else if (summary.caseResolutionMedianDays > priorMedian) {
+                summary.caseResolutionTrend = 'worsening';
+            } else {
+                summary.caseResolutionTrend = 'stable';
+            }
+        }
+    }
+
+    private static void populatePortfolioPriorYearRevenue(Set<Id> accountIds, PortfolioSummary summary) {
+        if (accountIds.isEmpty()) {
+            return;
+        }
+
+        Integer priorYear = Date.today().year() - 1;
+        Date priorYearStart = Date.newInstance(priorYear, 1, 1);
+        Date priorYearEnd = Date.newInstance(priorYear, 12, 31);
+
+        for (AggregateResult ar : [
+            SELECT SUM(Amount) totalAmount
+            FROM Opportunity
+            WHERE AccountId IN :accountIds
+            AND IsWon = true
+            AND CloseDate >= :priorYearStart
+            AND CloseDate <= :priorYearEnd
+        ]) {
+            Decimal amt = (Decimal) ar.get('totalAmount');
+            summary.priorYearWonRevenue = amt != null ? amt : 0;
+        }
+    }
+
+    private static void populatePortfolioOpenTasksCount(Set<Id> accountIds, PortfolioSummary summary) {
+        if (accountIds.isEmpty()) {
+            return;
+        }
+        summary.openTasksCount = [
+            SELECT COUNT()
+            FROM Task
+            WHERE WhatId IN :accountIds
+            AND IsClosed = false
+        ];
     }
 }

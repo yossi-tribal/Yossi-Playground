@@ -199,68 +199,55 @@
 
                         <template if:true={snapshotExpanded}>
                             <div class="snapshot-body">
+
+                                <!-- REVENUE -->
                                 <div class="snapshot-section">
-                                    <span class="snapshot-section-header">Portfolio Health</span>
+                                    <span class="snapshot-section-header">Revenue</span>
                                     <div class="commercial-kpi-row">
-                                        <button type="button" class={atRiskSnapshotClass} data-filter="at-risk" onclick={handleSnapshotFilterClick}>
-                                            <span class="commercial-kpi-label">At Risk</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.atRiskAccounts}</span>
-                                            <span class="commercial-kpi-sub">{atRiskSnapshotSubtitle}</span>
-                                        </button>
-                                        <button type="button" class={needsAttentionSnapshotClass} data-filter="needs-attention" onclick={handleSnapshotFilterClick}>
-                                            <span class="commercial-kpi-label">Needs Attention</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.needsAttentionAccounts}</span>
-                                            <span class="commercial-kpi-sub">{needsAttentionSnapshotSubtitle}</span>
-                                        </button>
-                                        <button type="button" class={inactiveSnapshotClass} data-filter="inactive" onclick={handleSnapshotFilterClick}>
-                                            <span class="commercial-kpi-label">Inactive</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.inactiveAccounts}</span>
-                                            <span class="commercial-kpi-sub">{inactiveSnapshotSubtitle}</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="snapshot-section snapshot-section--border">
-                                    <span class="snapshot-section-header">Support &amp; Workload</span>
-                                    <div class="commercial-kpi-row">
-                                        <div class={openCasesSnapshotClass}>
-                                            <span class="commercial-kpi-label">Open Cases</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.totalOpenCases}</span>
-                                            <span class="commercial-kpi-sub">{openCasesSnapshotSubtitle}</span>
+                                        <div class="commercial-kpi">
+                                            <span class="commercial-kpi-label">Lifetime value</span>
+                                            <span class="commercial-kpi-value">
+                                                <lightning-formatted-number value={summary.totalClosedWonAmount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                            </span>
+                                            <span class="commercial-kpi-sub">Total closed-won across portfolio</span>
                                         </div>
-                                        <button type="button" class={highPriorityAccountsSnapshotClass} data-action-type="highpri" onclick={handleSnapshotActionClick}>
-                                            <span class="commercial-kpi-label">Priority Case Accounts</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.accountsWithHighPriCases}</span>
-                                            <span class="commercial-kpi-sub">{highPriorityAccountsSnapshotSubtitle}</span>
-                                        </button>
-                                        <div class={overdueTasksSnapshotClass}>
-                                            <span class="commercial-kpi-label">Overdue Tasks</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.totalOverdueTasks}</span>
-                                            <span class="commercial-kpi-sub">{overdueTasksSnapshotSubtitle}</span>
+                                        <div class="commercial-kpi">
+                                            <span class="commercial-kpi-label">Open pipeline</span>
+                                            <span class="commercial-kpi-value">
+                                                <lightning-formatted-number value={summary.totalOpenPipeline} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                            </span>
+                                            <span class="commercial-kpi-sub">Weighted: <lightning-formatted-number value={summary.totalWeightedPipeline} format-style="currency" currency-code="USD"></lightning-formatted-number></span>
                                         </div>
-                                        <button type="button" class={overdueAccountsSnapshotClass} data-action-type="overdue" onclick={handleSnapshotActionClick}>
-                                            <span class="commercial-kpi-label">Accounts With Overdue Tasks</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.accountsWithOverdueTasks}</span>
-                                            <span class="commercial-kpi-sub">{overdueAccountsSnapshotSubtitle}</span>
-                                        </button>
+                                        <template if:true={hasUpcomingRenewal}>
+                                            <button type="button" class={renewalCardClass} onclick={handleCommercialRenewalsClick}>
+                                                <span class="commercial-kpi-label">Upcoming renewals</span>
+                                                <span class="commercial-kpi-value">
+                                                    <lightning-formatted-number value={nearestRenewalAmount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                </span>
+                                                <span class={renewalDaysClass}>{renewalSubtitle}</span>
+                                            </button>
+                                        </template>
+                                        <template if:false={hasUpcomingRenewal}>
+                                            <div class="commercial-kpi">
+                                                <span class="commercial-kpi-label">Upcoming renewals</span>
+                                                <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
+                                                <span class="commercial-kpi-sub">{renewalSubtitle}</span>
+                                            </div>
+                                        </template>
                                     </div>
-
-                                    <template if:false={hasSupportRisk}>
-                                        <div class="snapshot-empty snapshot-empty--good">No active support risk across the portfolio right now.</div>
-                                    </template>
-
                                     <div class="snapshot-visuals">
                                         <div class="snapshot-left-card">
-                                            <div class={supportCasesYearCardClass}>
-                                                <span class="commercial-kpi-label">Cases This Year</span>
-                                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
-                                                <span class="commercial-kpi-sub">{supportCasesYearSubtitle}</span>
+                                            <div class="commercial-kpi">
+                                                <span class="commercial-kpi-label">Won this year</span>
+                                                <span class="commercial-kpi-value">
+                                                    <lightning-formatted-number value={summary.totalYtdClosedWon} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                </span>
+                                                <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code="USD"></lightning-formatted-number></span>
                                             </div>
                                         </div>
-
                                         <div class="trend-chart-wrap">
                                             <div class="trend-chart-header">
-                                                <span class="trend-chart-title">Cases opened (6 months)</span>
+                                                <span class="trend-chart-title">Closed won per month</span>
                                                 <div class="trend-chart-legend">
                                                     <span class="trend-chart-legend-item">
                                                         <span class="trend-chart-legend-dot trend-chart-legend-dot--current"></span>
@@ -272,66 +259,30 @@
                                                     </span>
                                                 </div>
                                             </div>
-
-                                            <template if:true={hasCaseMonthData}>
+                                            <template if:true={hasRevenueMonthData}>
                                                 <div class="trend-chart">
-                                                    <template for:each={caseTrendBars} for:item="cb">
-                                                        <div key={cb.key} class="trend-chart-col" aria-label={cb.ariaLabel}>
+                                                    <template for:each={revenueMonthBars} for:item="rb">
+                                                        <div key={rb.key} class="trend-chart-col" aria-label={rb.ariaLabel}>
                                                             <div class="trend-chart-pair">
                                                                 <div class="trend-chart-bar-track">
-                                                                    <template if:true={cb.hasPrevBar}>
-                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={cb.prevBarStyle}></div>
+                                                                    <template if:true={rb.hasPrevBar}>
+                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={rb.prevBarStyle}></div>
                                                                     </template>
                                                                 </div>
                                                                 <div class="trend-chart-bar-track">
-                                                                    <template if:true={cb.hasCurrentBar}>
-                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={cb.currentBarStyle}></div>
+                                                                    <template if:true={rb.hasCurrentBar}>
+                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={rb.currentBarStyle}></div>
                                                                     </template>
                                                                 </div>
                                                             </div>
-                                                            <span class="case-trend-label">{cb.label}</span>
+                                                            <span class="case-trend-label">{rb.label}</span>
                                                         </div>
                                                     </template>
                                                 </div>
                                             </template>
-                                            <template if:false={hasCaseMonthData}>
-                                                <div class="snapshot-empty">No case trend data in the last 6 months yet.</div>
+                                            <template if:false={hasRevenueMonthData}>
+                                                <div class="case-resolution-empty">No closed-won opportunities in the last 6 months</div>
                                             </template>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="snapshot-section snapshot-section--border">
-                                    <span class="snapshot-section-header">Commercial Context</span>
-                                    <div class="commercial-kpi-row">
-                                        <template if:true={hasRenewals}>
-                                            <button type="button" class={upcomingRenewalsSnapshotClass} data-action-type="renewals" onclick={handleSnapshotActionClick}>
-                                                <span class="commercial-kpi-label">Upcoming Renewals</span>
-                                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.upcomingRenewalsCount}</span>
-                                                <span class="commercial-kpi-sub">{upcomingRenewalsSnapshotSubtitle}</span>
-                                            </button>
-                                        </template>
-                                        <template if:false={hasRenewals}>
-                                            <div class={upcomingRenewalsSnapshotClass}>
-                                                <span class="commercial-kpi-label">Upcoming Renewals</span>
-                                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.upcomingRenewalsCount}</span>
-                                                <span class="commercial-kpi-sub">{upcomingRenewalsSnapshotSubtitle}</span>
-                                            </div>
-                                        </template>
-                                        <div class={commercialPipelineSnapshotClass}>
-                                            <span class="commercial-kpi-label">Open Pipeline</span>
-                                            <span class="commercial-kpi-value">{openPipelineFormatted}</span>
-                                            <span class="commercial-kpi-sub">Across the portfolio</span>
-                                        </div>
-                                        <div class={commercialWeightedPipelineSnapshotClass}>
-                                            <span class="commercial-kpi-label">Weighted Pipeline</span>
-                                            <span class="commercial-kpi-value">{weightedPipelineFormatted}</span>
-                                            <span class="commercial-kpi-sub">Probability adjusted</span>
-                                        </div>
-                                        <div class={commercialYtdWonSnapshotClass}>
-                                            <span class="commercial-kpi-label">YTD Closed-Won</span>
-                                            <span class="commercial-kpi-value">{ytdWonFormatted}</span>
-                                            <span class="commercial-kpi-sub">Booked this year</span>
                                         </div>
                                     </div>
 
@@ -357,13 +308,302 @@
                                             </template>
                                         </div>
                                     </template>
-                                    <template if:false={hasRenewals}>
-                                        <div class="snapshot-empty">No renewals due in the next 90 days.</div>
-                                    </template>
                                 </div>
+
+                                <!-- SUPPORT -->
+                                <div class="snapshot-section snapshot-section--border">
+                                    <span class="snapshot-section-header">Support</span>
+                                    <div class="commercial-kpi-row">
+                                        <div class="commercial-kpi">
+                                            <span class="commercial-kpi-label">Cases (90 days)</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
+                                            <span class="commercial-kpi-sub">Opened across portfolio</span>
+                                        </div>
+                                        <div class="commercial-kpi">
+                                            <span class="commercial-kpi-label">Escalated (90 days)</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.escalatedCasesLast90Days}</span>
+                                            <span class="commercial-kpi-sub">of {summary.casesOpenedLast90Days} cases</span>
+                                        </div>
+                                        <template if:true={hasCaseResolutionData}>
+                                            <div class="commercial-kpi">
+                                                <span class="commercial-kpi-label">Avg resolution</span>
+                                                <span class="commercial-kpi-value">
+                                                    {caseResolutionMedianDays}
+                                                    <span class="commercial-kpi-value-unit">days</span>
+                                                </span>
+                                                <span class="commercial-kpi-sub">
+                                                    <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>{resolutionTrendIcon} {resolutionTrendText}</span>
+                                                </span>
+                                            </div>
+                                        </template>
+                                        <template if:false={hasCaseResolutionData}>
+                                            <div class="commercial-kpi">
+                                                <span class="commercial-kpi-label">Avg resolution</span>
+                                                <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
+                                                <span class="commercial-kpi-sub">No closed cases (90 days)</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="snapshot-visuals">
+                                        <div class="snapshot-left-card">
+                                            <div class={supportCasesYearCardClass}>
+                                                <span class="commercial-kpi-label">Cases this year</span>
+                                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
+                                                <span class="commercial-kpi-sub">Prior year: {summary.priorYearCaseCount}</span>
+                                            </div>
+                                        </div>
+                                        <div class="trend-chart-wrap">
+                                            <div class="trend-chart-header">
+                                                <span class="trend-chart-title">Cases opened (6 months)</span>
+                                                <div class="trend-chart-legend">
+                                                    <span class="trend-chart-legend-item">
+                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--current"></span>
+                                                        This year
+                                                    </span>
+                                                    <span class="trend-chart-legend-item">
+                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--prev"></span>
+                                                        Last year
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <template if:true={hasCaseMonthData}>
+                                                <div class="trend-chart">
+                                                    <template for:each={caseTrendBars} for:item="cb">
+                                                        <div key={cb.key} class="trend-chart-col" aria-label={cb.ariaLabel}>
+                                                            <div class="trend-chart-pair">
+                                                                <div class="trend-chart-bar-track">
+                                                                    <template if:true={cb.hasPrevBar}>
+                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={cb.prevBarStyle}></div>
+                                                                    </template>
+                                                                </div>
+                                                                <div class="trend-chart-bar-track">
+                                                                    <template if:true={cb.hasCurrentBar}>
+                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={cb.currentBarStyle}></div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                            <span class="case-trend-label">{cb.label}</span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template if:false={hasCaseMonthData}>
+                                                <div class="case-resolution-empty">No cases opened in the last 6 months</div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </template>
                     </div>
+                </template>
+
+                <!-- Detail Sections (Accordion) -->
+                <template if:true={hasSummary}>
+                <div class="detail-sections">
+
+                    <!-- Open Tasks -->
+                    <div class={openTasksAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="openTasks" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:task" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Open tasks</span>
+                            <span class="section-accordion-count">({openTasksCount})</span>
+                            <template if:true={hasOverdueTasks}>
+                                <span class="section-accordion-badge section-accordion-badge--danger">{summary.totalOverdueTasks} overdue</span>
+                            </template>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secOpenTasks}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasOpenTasksList}>
+                                    <div class="section-accordion-actions">
+                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllTasks}>View all</button>
+                                    </div>
+                                    <div class="activity-list">
+                                        <template for:each={openTasksDecorated} for:item="task">
+                                            <div key={task.taskId} data-id={task.taskId} onclick={handleDetailRecordClick} class={task.rowClass}>
+                                                <div class="activity-icon-wrapper">
+                                                    <lightning-icon icon-name="standard:task" size="small"></lightning-icon>
+                                                </div>
+                                                <div class="activity-content">
+                                                    <div class="activity-subject">{task.subject}</div>
+                                                    <div class="activity-meta">
+                                                        <span>{task.accountName}</span>
+                                                        <span class="meta-separator">•</span>
+                                                        <span>{task.ownerName}</span>
+                                                        <template if:true={task.showUrgencyIndicator}>
+                                                            <span class="meta-separator">•</span>
+                                                            <span class="task-urgency-label">{task.urgencyLabel}</span>
+                                                        </template>
+                                                        <span class="meta-separator">•</span>
+                                                        <span class={task.dateMetaClass}>{task.dateMeta}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasOpenTasksList}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No open tasks</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Open Cases -->
+                    <div class={casesAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="cases" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:case" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Open support cases</span>
+                            <span class="section-accordion-count">({openCasesCountDisplay})</span>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secCases}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasOpenCasesList}>
+                                    <div class="section-accordion-actions">
+                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllCases}>View all</button>
+                                    </div>
+                                    <div class="table-container table-container--plain data-table-desktop">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Case #</th>
+                                                    <th>Account</th>
+                                                    <th>Subject</th>
+                                                    <th>Status</th>
+                                                    <th>Priority</th>
+                                                    <th class="data-table-col-age">Age</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={openCasesDecorated} for:item="caseItem">
+                                                    <tr key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleDetailRecordClick} class="table-row">
+                                                        <td>
+                                                            <span class="case-number">{caseItem.caseNumber}</span>
+                                                            <template if:true={caseItem.isEscalated}>
+                                                                <lightning-icon icon-name="utility:warning" size="xx-small" class="escalated-icon"></lightning-icon>
+                                                            </template>
+                                                        </td>
+                                                        <td>{caseItem.accountName}</td>
+                                                        <td class="subject-cell">{caseItem.subject}</td>
+                                                        <td>
+                                                            <span class="cell-status-wrap">
+                                                                <span class="status-dot"></span>
+                                                                <span class="status-text">{caseItem.status}</span>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="cell-priority-wrap">
+                                                                <span class={caseItem.priorityDotClass}></span>
+                                                                <span class="priority-text">{caseItem.priority}</span>
+                                                            </span>
+                                                        </td>
+                                                        <td class="data-table-col-age">{caseItem.age} days</td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mobile-card-list">
+                                        <template for:each={openCasesDecorated} for:item="caseItem">
+                                            <div key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleDetailRecordClick} class="mobile-record-card">
+                                                <div class="mobile-record-card-title">{caseItem.subject}</div>
+                                                <div class="mobile-record-card-meta">
+                                                    <span class="case-number">{caseItem.caseNumber}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{caseItem.accountName}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{caseItem.status}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{caseItem.age} days</span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasOpenCasesList}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:success" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No open cases across the portfolio</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Open Opportunities -->
+                    <div class={opportunitiesAccordionClass}>
+                        <button type="button" class="section-accordion-header" data-section="opportunities" onclick={handleToggleSection}>
+                            <lightning-icon icon-name="standard:opportunity" size="small" class="section-accordion-icon"></lightning-icon>
+                            <span class="section-accordion-title">Open opportunities</span>
+                            <span class="section-accordion-count">({openOpportunitiesCount})</span>
+                            <lightning-icon icon-name="utility:chevronright" size="small" class="section-accordion-chevron"></lightning-icon>
+                        </button>
+                        <template if:true={secOpportunities}>
+                            <div class="section-accordion-body">
+                                <template if:true={hasOpenOpportunitiesList}>
+                                    <div class="section-accordion-actions">
+                                        <button class="custom-btn custom-btn--link" onclick={handleViewAllOpportunities}>View all</button>
+                                    </div>
+                                    <div class="table-container table-container--plain data-table-desktop">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Account</th>
+                                                    <th>Stage</th>
+                                                    <th>Close date</th>
+                                                    <th>Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={openOpportunitiesDecorated} for:item="opp">
+                                                    <tr key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleDetailRecordClick} class="table-row">
+                                                        <td class="subject-cell">{opp.name}</td>
+                                                        <td>{opp.accountName}</td>
+                                                        <td><span class="status-badge">{opp.stageName}</span></td>
+                                                        <td>{opp.closeDate}</td>
+                                                        <td>
+                                                            <template if:true={opp.amount}>
+                                                                <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                            </template>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mobile-card-list">
+                                        <template for:each={openOpportunitiesDecorated} for:item="opp">
+                                            <div key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleDetailRecordClick} class="mobile-record-card">
+                                                <div class="mobile-record-card-title">{opp.name}</div>
+                                                <div class="mobile-record-card-meta">
+                                                    <span>{opp.accountName}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{opp.stageName}</span>
+                                                    <span class="meta-separator">•</span>
+                                                    <span>{opp.closeDate}</span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template if:false={hasOpenOpportunitiesList}>
+                                    <div class="empty-state empty-state--compact">
+                                        <lightning-icon icon-name="utility:info" size="small" class="empty-icon"></lightning-icon>
+                                        <p class="empty-text">No open opportunities</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
                 </template>
 
                 <!-- Account Table Section -->

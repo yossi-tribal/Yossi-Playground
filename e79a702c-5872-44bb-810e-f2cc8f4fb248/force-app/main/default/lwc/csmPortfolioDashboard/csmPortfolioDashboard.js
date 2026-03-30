@@ -9,6 +9,7 @@ import getOverdueTasksForPortfolio from '@salesforce/apex/CSD_CSMPortfolioContro
 import getHighPriorityCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getHighPriorityCasesForPortfolio';
 import getAllOpenCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenCasesForPortfolio';
 import getAllOpenOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenOpportunitiesForPortfolio';
+import getAllOpenTasksForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenTasksForPortfolio';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
@@ -67,6 +68,14 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track suggestedActionModalType = '';
     @track suggestedActionModalLoading = false;
 
+    @track secOpenTasks = false;
+    @track secCases = false;
+    @track secOpportunities = false;
+    @track openTasksList = [];
+    @track openCasesList = [];
+    @track openOpportunitiesList = [];
+    @track detailListsLoaded = false;
+
     connectedCallback() {
         this.loadPortfolioData();
     }
@@ -84,7 +93,9 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
             getUpcomingRenewals({ daysAhead: 90 })
                 .then(result => { this.renewals = result || []; })
-                .catch(err => this.handleError('Failed to load renewals', err))
+                .catch(err => this.handleError('Failed to load renewals', err)),
+
+            this.loadDetailLists()
         ];
 
         Promise.all(promises).then(() => { this.isLoading = false; });
@@ -105,6 +116,52 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             .catch(err => {
                 this.handleError('Failed to load accounts', err);
             });
+    }
+
+    loadDetailLists() {
+        return Promise.all([
+            getAllOpenTasksForPortfolio()
+                .then(result => { this.openTasksList = result || []; })
+                .catch(err => this.handleError('Failed to load open tasks', err)),
+
+            getAllOpenCasesForPortfolio()
+                .then(result => { this.openCasesList = result || []; })
+                .catch(err => this.handleError('Failed to load open cases', err)),
+
+            getAllOpenOpportunitiesForPortfolio()
+                .then(result => { this.openOpportunitiesList = result || []; })
+                .catch(err => this.handleError('Failed to load open opportunities', err))
+        ]).then(() => { this.detailListsLoaded = true; });
+    }
+
+    handleToggleSection(event) {
+        const section = event.currentTarget.dataset.section;
+        if (section === 'openTasks') {
+            this.secOpenTasks = !this.secOpenTasks;
+        } else if (section === 'cases') {
+            this.secCases = !this.secCases;
+        } else if (section === 'opportunities') {
+            this.secOpportunities = !this.secOpportunities;
+        }
+    }
+
+    handleViewAllTasks() {
+        this.handleOpenTasksClick();
+    }
+
+    handleViewAllCases() {
+        this.handleOpenCasesClick();
+    }
+
+    handleViewAllOpportunities() {
+        this.handleOpenPipelineClick();
+    }
+
+    handleDetailRecordClick(event) {
+        const recordId = event.currentTarget.dataset.id;
+        if (recordId) {
+            this.navigateToRecord(recordId);
+        }
     }
 
     // ── Filter Handlers ──
@@ -864,6 +921,210 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             this.summary.caseMonth1Prev, this.summary.caseMonth2Prev, this.summary.caseMonth3Prev,
             this.summary.caseMonth4Prev, this.summary.caseMonth5Prev, this.summary.caseMonth6Prev
         ].some((value) => Number(value || 0) > 0);
+    }
+
+    // ── Revenue Snapshot ──
+
+    get hasUpcomingRenewal() {
+        return this.renewals && this.renewals.length > 0;
+    }
+
+    get nearestRenewalAmount() {
+        if (!this.renewals || this.renewals.length === 0) return 0;
+        return this.renewals[0].amount || 0;
+    }
+
+    get renewalSubtitle() {
+        if (!this.renewals || this.renewals.length === 0) return 'No renewals in next 90 days';
+        const count = this.renewals.length;
+        const days = this.renewals[0].daysUntilClose;
+        if (count === 1) {
+            return days <= 14 ? `In ${days} days — urgent` : `In ${days} days`;
+        }
+        return `${count} renewals in next 90 days`;
+    }
+
+    get renewalCardClass() {
+        if (!this.renewals || this.renewals.length === 0) return 'commercial-kpi';
+        const days = this.renewals[0].daysUntilClose;
+        if (days <= 14) return 'commercial-kpi commercial-kpi--click commercial-kpi--danger';
+        if (days <= 30) return 'commercial-kpi commercial-kpi--click commercial-kpi--warning';
+        return 'commercial-kpi commercial-kpi--click';
+    }
+
+    get renewalDaysClass() {
+        if (!this.renewals || this.renewals.length === 0) return 'commercial-kpi-sub';
+        const days = this.renewals[0].daysUntilClose;
+        if (days <= 14) return 'commercial-kpi-sub commercial-kpi-sub--danger';
+        if (days <= 30) return 'commercial-kpi-sub commercial-kpi-sub--warning';
+        return 'commercial-kpi-sub';
+    }
+
+    get revenueMonthBars() {
+        if (!this.summary) return [];
+        const raw = [
+            { label: this.summary.wonMonth1Label, current: Number(this.summary.wonMonth1 || 0), prev: Number(this.summary.prevWonMonth1 || 0) },
+            { label: this.summary.wonMonth2Label, current: Number(this.summary.wonMonth2 || 0), prev: Number(this.summary.prevWonMonth2 || 0) },
+            { label: this.summary.wonMonth3Label, current: Number(this.summary.wonMonth3 || 0), prev: Number(this.summary.prevWonMonth3 || 0) },
+            { label: this.summary.wonMonth4Label, current: Number(this.summary.wonMonth4 || 0), prev: Number(this.summary.prevWonMonth4 || 0) },
+            { label: this.summary.wonMonth5Label, current: Number(this.summary.wonMonth5 || 0), prev: Number(this.summary.prevWonMonth5 || 0) },
+            { label: this.summary.wonMonth6Label, current: Number(this.summary.wonMonth6 || 0), prev: Number(this.summary.prevWonMonth6 || 0) }
+        ];
+        const max = Math.max(...raw.flatMap(e => [e.current, e.prev]), 1);
+        return raw.map((entry, index) => {
+            const currentPct = entry.current === 0 ? 0 : Math.max(6, Math.round((entry.current / max) * 100));
+            const prevPct = entry.prev === 0 ? 0 : Math.max(6, Math.round((entry.prev / max) * 100));
+            return {
+                key: `prm-${index}`,
+                label: entry.label || '—',
+                currentBarStyle: `height: ${currentPct}%;`,
+                prevBarStyle: `height: ${prevPct}%;`,
+                hasCurrentBar: entry.current > 0,
+                hasPrevBar: entry.prev > 0,
+                ariaLabel: `${entry.label || ''}: this year ${this.formatCurrencyShort(entry.current)}, last year ${this.formatCurrencyShort(entry.prev)}`
+            };
+        });
+    }
+
+    get hasRevenueMonthData() {
+        if (!this.summary) return false;
+        return [
+            this.summary.wonMonth1, this.summary.wonMonth2, this.summary.wonMonth3,
+            this.summary.wonMonth4, this.summary.wonMonth5, this.summary.wonMonth6,
+            this.summary.prevWonMonth1, this.summary.prevWonMonth2, this.summary.prevWonMonth3,
+            this.summary.prevWonMonth4, this.summary.prevWonMonth5, this.summary.prevWonMonth6
+        ].some(v => Number(v || 0) > 0);
+    }
+
+    handleCommercialRenewalsClick() {
+        if (this.renewals && this.renewals.length === 1) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: { recordId: this.renewals[0].opportunityId, objectApiName: 'Opportunity', actionName: 'view' }
+            });
+        } else {
+            this.openSuggestedAction('renewals');
+        }
+    }
+
+    // ── Support Snapshot ──
+
+    get hasCaseResolutionData() {
+        return this.summary && this.summary.caseResolutionMedianDays != null;
+    }
+
+    get caseResolutionMedianDays() {
+        if (!this.summary || this.summary.caseResolutionMedianDays == null) return '—';
+        return Math.round(this.summary.caseResolutionMedianDays);
+    }
+
+    get resolutionTrendIcon() {
+        if (!this.summary) return '';
+        const trend = this.summary.caseResolutionTrend;
+        if (trend === 'improving') return '↓';
+        if (trend === 'worsening') return '↑';
+        return '→';
+    }
+
+    get resolutionTrendText() {
+        if (!this.summary) return '';
+        const trend = this.summary.caseResolutionTrend;
+        if (trend === 'improving') return 'Improving';
+        if (trend === 'worsening') return 'Getting slower';
+        return 'Stable';
+    }
+
+    get resolutionTrendClass() {
+        if (!this.summary) return 'trend-value';
+        const trend = this.summary.caseResolutionTrend;
+        if (trend === 'improving') return 'trend-value trend-value--good';
+        if (trend === 'worsening') return 'trend-value trend-value--bad';
+        return 'trend-value';
+    }
+
+    get resolutionTrendAriaLabel() {
+        return `Resolution trend: ${this.resolutionTrendText}`;
+    }
+
+    // ── Detail Accordion Sections ──
+
+    get openTasksAccordionClass() {
+        return this.secOpenTasks ? 'section-accordion section-accordion--expanded' : 'section-accordion';
+    }
+
+    get casesAccordionClass() {
+        return this.secCases ? 'section-accordion section-accordion--expanded' : 'section-accordion';
+    }
+
+    get opportunitiesAccordionClass() {
+        return this.secOpportunities ? 'section-accordion section-accordion--expanded' : 'section-accordion';
+    }
+
+    get hasOpenTasksList() {
+        return this.openTasksList && this.openTasksList.length > 0;
+    }
+
+    get hasOpenCasesList() {
+        return this.openCasesList && this.openCasesList.length > 0;
+    }
+
+    get hasOpenOpportunitiesList() {
+        return this.openOpportunitiesList && this.openOpportunitiesList.length > 0;
+    }
+
+    get openTasksCount() {
+        return this.summary?.openTasksCount || 0;
+    }
+
+    get openCasesCountDisplay() {
+        return this.summary?.totalOpenCases || 0;
+    }
+
+    get openOpportunitiesCount() {
+        return this.openOpportunitiesList ? this.openOpportunitiesList.length : 0;
+    }
+
+    get hasOverdueTasks() {
+        return (this.summary?.totalOverdueTasks || 0) > 0;
+    }
+
+    get openTasksDecorated() {
+        if (!this.openTasksList) return [];
+        return this.openTasksList.slice(0, 10).map(task => {
+            const isOverdue = task.isOverdue;
+            const isDueToday = task.dueDate && !isOverdue &&
+                new Date(task.dueDate).toDateString() === new Date().toDateString();
+            let rowClass = 'activity-item';
+            if (isOverdue) rowClass = 'activity-item activity-item--overdue';
+            else if (isDueToday) rowClass = 'activity-item activity-item--due-today';
+
+            let urgencyLabel = '';
+            if (isOverdue && task.daysOverdue > 0) urgencyLabel = `${task.daysOverdue}d overdue`;
+            else if (isDueToday) urgencyLabel = 'Due today';
+
+            return {
+                ...task,
+                rowClass,
+                urgencyLabel,
+                showUrgencyIndicator: isOverdue || isDueToday,
+                dateMeta: task.dueDate || 'No due date',
+                dateMetaClass: isOverdue ? 'activity-meta-date activity-meta-date--overdue' : 'activity-meta-date'
+            };
+        });
+    }
+
+    get openCasesDecorated() {
+        if (!this.openCasesList) return [];
+        return this.openCasesList.slice(0, 10).map(c => ({
+            ...c,
+            priorityDotClass: c.priority === 'High' ? 'priority-dot priority-dot--high' :
+                (c.priority === 'Medium' ? 'priority-dot priority-dot--medium' : 'priority-dot priority-dot--low')
+        }));
+    }
+
+    get openOpportunitiesDecorated() {
+        if (!this.openOpportunitiesList) return [];
+        return this.openOpportunitiesList.slice(0, 10);
     }
 
     get upcomingRenewalsSnapshotClass() {
