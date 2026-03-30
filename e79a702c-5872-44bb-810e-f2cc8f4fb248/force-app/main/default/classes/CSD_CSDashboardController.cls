@@ -64,52 +64,101 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public Integer closedCasesLast90Days { get; set; }
         @AuraEnabled public String caseResolutionTrend { get; set; }
 
-        /** Monthly case volume (last 6 months, oldest first) */
+        /** Monthly case volume (trailing 12 months, oldest first) */
         @AuraEnabled public Integer caseMonth1 { get; set; }
         @AuraEnabled public Integer caseMonth2 { get; set; }
         @AuraEnabled public Integer caseMonth3 { get; set; }
         @AuraEnabled public Integer caseMonth4 { get; set; }
         @AuraEnabled public Integer caseMonth5 { get; set; }
         @AuraEnabled public Integer caseMonth6 { get; set; }
+        @AuraEnabled public Integer caseMonth7 { get; set; }
+        @AuraEnabled public Integer caseMonth8 { get; set; }
+        @AuraEnabled public Integer caseMonth9 { get; set; }
+        @AuraEnabled public Integer caseMonth10 { get; set; }
+        @AuraEnabled public Integer caseMonth11 { get; set; }
+        @AuraEnabled public Integer caseMonth12 { get; set; }
         @AuraEnabled public String caseMonth1Label { get; set; }
         @AuraEnabled public String caseMonth2Label { get; set; }
         @AuraEnabled public String caseMonth3Label { get; set; }
         @AuraEnabled public String caseMonth4Label { get; set; }
         @AuraEnabled public String caseMonth5Label { get; set; }
         @AuraEnabled public String caseMonth6Label { get; set; }
-        /** Same 6 months, prior year (for paired bar chart) */
+        @AuraEnabled public String caseMonth7Label { get; set; }
+        @AuraEnabled public String caseMonth8Label { get; set; }
+        @AuraEnabled public String caseMonth9Label { get; set; }
+        @AuraEnabled public String caseMonth10Label { get; set; }
+        @AuraEnabled public String caseMonth11Label { get; set; }
+        @AuraEnabled public String caseMonth12Label { get; set; }
+        /** Same 12 months, prior year (for tooltip comparison) */
         @AuraEnabled public Integer caseMonth1Prev { get; set; }
         @AuraEnabled public Integer caseMonth2Prev { get; set; }
         @AuraEnabled public Integer caseMonth3Prev { get; set; }
         @AuraEnabled public Integer caseMonth4Prev { get; set; }
         @AuraEnabled public Integer caseMonth5Prev { get; set; }
         @AuraEnabled public Integer caseMonth6Prev { get; set; }
+        @AuraEnabled public Integer caseMonth7Prev { get; set; }
+        @AuraEnabled public Integer caseMonth8Prev { get; set; }
+        @AuraEnabled public Integer caseMonth9Prev { get; set; }
+        @AuraEnabled public Integer caseMonth10Prev { get; set; }
+        @AuraEnabled public Integer caseMonth11Prev { get; set; }
+        @AuraEnabled public Integer caseMonth12Prev { get; set; }
+        /** Avg days to close per month (for case tooltip) */
+        @AuraEnabled public Decimal caseMonth1AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth2AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth3AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth4AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth5AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth6AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth7AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth8AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth9AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth10AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth11AvgClose { get; set; }
+        @AuraEnabled public Decimal caseMonth12AvgClose { get; set; }
         /** YTD case count and prior year case count */
         @AuraEnabled public Integer ytdCaseCount { get; set; }
         @AuraEnabled public Integer priorYearCaseCount { get; set; }
         /** Escalated cases in the last 90 days */
         @AuraEnabled public Integer escalatedCasesLast90Days { get; set; }
 
-        /** Monthly closed-won revenue (last 6 months, current year, oldest first) */
+        /** Monthly closed-won revenue (trailing 12 months, oldest first) */
         @AuraEnabled public Decimal wonMonth1 { get; set; }
         @AuraEnabled public Decimal wonMonth2 { get; set; }
         @AuraEnabled public Decimal wonMonth3 { get; set; }
         @AuraEnabled public Decimal wonMonth4 { get; set; }
         @AuraEnabled public Decimal wonMonth5 { get; set; }
         @AuraEnabled public Decimal wonMonth6 { get; set; }
-        /** Same months, prior year */
+        @AuraEnabled public Decimal wonMonth7 { get; set; }
+        @AuraEnabled public Decimal wonMonth8 { get; set; }
+        @AuraEnabled public Decimal wonMonth9 { get; set; }
+        @AuraEnabled public Decimal wonMonth10 { get; set; }
+        @AuraEnabled public Decimal wonMonth11 { get; set; }
+        @AuraEnabled public Decimal wonMonth12 { get; set; }
+        /** Same months, prior year (for tooltip comparison) */
         @AuraEnabled public Decimal wonMonth1Prev { get; set; }
         @AuraEnabled public Decimal wonMonth2Prev { get; set; }
         @AuraEnabled public Decimal wonMonth3Prev { get; set; }
         @AuraEnabled public Decimal wonMonth4Prev { get; set; }
         @AuraEnabled public Decimal wonMonth5Prev { get; set; }
         @AuraEnabled public Decimal wonMonth6Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth7Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth8Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth9Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth10Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth11Prev { get; set; }
+        @AuraEnabled public Decimal wonMonth12Prev { get; set; }
         @AuraEnabled public String wonMonth1Label { get; set; }
         @AuraEnabled public String wonMonth2Label { get; set; }
         @AuraEnabled public String wonMonth3Label { get; set; }
         @AuraEnabled public String wonMonth4Label { get; set; }
         @AuraEnabled public String wonMonth5Label { get; set; }
         @AuraEnabled public String wonMonth6Label { get; set; }
+        @AuraEnabled public String wonMonth7Label { get; set; }
+        @AuraEnabled public String wonMonth8Label { get; set; }
+        @AuraEnabled public String wonMonth9Label { get; set; }
+        @AuraEnabled public String wonMonth10Label { get; set; }
+        @AuraEnabled public String wonMonth11Label { get; set; }
+        @AuraEnabled public String wonMonth12Label { get; set; }
 
         /** Nearest renewal (from open Opportunity with Type='Renewal') */
         @AuraEnabled public Integer nearestRenewalDays { get; set; }
@@ -478,46 +527,38 @@ public with sharing class CSD_CSDashboardController {
         summary.closedCasesLast90Days = 0;
         summary.caseResolutionTrend = 'stable';
 
-        summary.caseMonth1 = 0;
-        summary.caseMonth2 = 0;
-        summary.caseMonth3 = 0;
-        summary.caseMonth4 = 0;
-        summary.caseMonth5 = 0;
-        summary.caseMonth6 = 0;
-        summary.caseMonth1Label = '';
-        summary.caseMonth2Label = '';
-        summary.caseMonth3Label = '';
-        summary.caseMonth4Label = '';
-        summary.caseMonth5Label = '';
-        summary.caseMonth6Label = '';
-        summary.caseMonth1Prev = 0;
-        summary.caseMonth2Prev = 0;
-        summary.caseMonth3Prev = 0;
-        summary.caseMonth4Prev = 0;
-        summary.caseMonth5Prev = 0;
-        summary.caseMonth6Prev = 0;
+        summary.caseMonth1 = 0; summary.caseMonth2 = 0; summary.caseMonth3 = 0;
+        summary.caseMonth4 = 0; summary.caseMonth5 = 0; summary.caseMonth6 = 0;
+        summary.caseMonth7 = 0; summary.caseMonth8 = 0; summary.caseMonth9 = 0;
+        summary.caseMonth10 = 0; summary.caseMonth11 = 0; summary.caseMonth12 = 0;
+        summary.caseMonth1Label = ''; summary.caseMonth2Label = ''; summary.caseMonth3Label = '';
+        summary.caseMonth4Label = ''; summary.caseMonth5Label = ''; summary.caseMonth6Label = '';
+        summary.caseMonth7Label = ''; summary.caseMonth8Label = ''; summary.caseMonth9Label = '';
+        summary.caseMonth10Label = ''; summary.caseMonth11Label = ''; summary.caseMonth12Label = '';
+        summary.caseMonth1Prev = 0; summary.caseMonth2Prev = 0; summary.caseMonth3Prev = 0;
+        summary.caseMonth4Prev = 0; summary.caseMonth5Prev = 0; summary.caseMonth6Prev = 0;
+        summary.caseMonth7Prev = 0; summary.caseMonth8Prev = 0; summary.caseMonth9Prev = 0;
+        summary.caseMonth10Prev = 0; summary.caseMonth11Prev = 0; summary.caseMonth12Prev = 0;
+        summary.caseMonth1AvgClose = null; summary.caseMonth2AvgClose = null; summary.caseMonth3AvgClose = null;
+        summary.caseMonth4AvgClose = null; summary.caseMonth5AvgClose = null; summary.caseMonth6AvgClose = null;
+        summary.caseMonth7AvgClose = null; summary.caseMonth8AvgClose = null; summary.caseMonth9AvgClose = null;
+        summary.caseMonth10AvgClose = null; summary.caseMonth11AvgClose = null; summary.caseMonth12AvgClose = null;
         summary.ytdCaseCount = 0;
         summary.priorYearCaseCount = 0;
         summary.escalatedCasesLast90Days = 0;
 
-        summary.wonMonth1 = 0;
-        summary.wonMonth2 = 0;
-        summary.wonMonth3 = 0;
-        summary.wonMonth4 = 0;
-        summary.wonMonth5 = 0;
-        summary.wonMonth6 = 0;
-        summary.wonMonth1Prev = 0;
-        summary.wonMonth2Prev = 0;
-        summary.wonMonth3Prev = 0;
-        summary.wonMonth4Prev = 0;
-        summary.wonMonth5Prev = 0;
-        summary.wonMonth6Prev = 0;
-        summary.wonMonth1Label = '';
-        summary.wonMonth2Label = '';
-        summary.wonMonth3Label = '';
-        summary.wonMonth4Label = '';
-        summary.wonMonth5Label = '';
-        summary.wonMonth6Label = '';
+        summary.wonMonth1 = 0; summary.wonMonth2 = 0; summary.wonMonth3 = 0;
+        summary.wonMonth4 = 0; summary.wonMonth5 = 0; summary.wonMonth6 = 0;
+        summary.wonMonth7 = 0; summary.wonMonth8 = 0; summary.wonMonth9 = 0;
+        summary.wonMonth10 = 0; summary.wonMonth11 = 0; summary.wonMonth12 = 0;
+        summary.wonMonth1Prev = 0; summary.wonMonth2Prev = 0; summary.wonMonth3Prev = 0;
+        summary.wonMonth4Prev = 0; summary.wonMonth5Prev = 0; summary.wonMonth6Prev = 0;
+        summary.wonMonth7Prev = 0; summary.wonMonth8Prev = 0; summary.wonMonth9Prev = 0;
+        summary.wonMonth10Prev = 0; summary.wonMonth11Prev = 0; summary.wonMonth12Prev = 0;
+        summary.wonMonth1Label = ''; summary.wonMonth2Label = ''; summary.wonMonth3Label = '';
+        summary.wonMonth4Label = ''; summary.wonMonth5Label = ''; summary.wonMonth6Label = '';
+        summary.wonMonth7Label = ''; summary.wonMonth8Label = ''; summary.wonMonth9Label = '';
+        summary.wonMonth10Label = ''; summary.wonMonth11Label = ''; summary.wonMonth12Label = '';
 
         summary.nearestRenewalDays = 0;
         summary.nearestRenewalAmount = 0;
@@ -783,14 +824,14 @@ public with sharing class CSD_CSDashboardController {
         Integer currentMonth = today.month();
         Integer currentYear = today.year();
 
-        Integer startMonth = currentMonth - 5;
+        Integer startMonth = currentMonth - 11;
         Integer startYear = currentYear;
-        if (startMonth < 1) {
+        while (startMonth < 1) {
             startMonth += 12;
             startYear--;
         }
-        Date sixMonthsAgo = Date.newInstance(startYear, startMonth, 1);
-        Date priorSixMonthsAgo = Date.newInstance(startYear - 1, startMonth, 1);
+        Date twelveMonthsAgo = Date.newInstance(startYear, startMonth, 1);
+        Date priorTwelveMonthsAgo = Date.newInstance(startYear - 1, startMonth, 1);
 
         Map<String, Integer> monthCounts = new Map<String, Integer>();
         Map<String, Integer> prevMonthCounts = new Map<String, Integer>();
@@ -798,24 +839,21 @@ public with sharing class CSD_CSDashboardController {
 
         Integer m = startMonth;
         Integer yr = startYear;
-        for (Integer i = 0; i < 6; i++) {
+        for (Integer i = 0; i < 12; i++) {
             String key = yr + '-' + String.valueOf(m).leftPad(2, '0');
             monthCounts.put(key, 0);
             orderedKeys.add(key);
             String prevKey = (yr - 1) + '-' + String.valueOf(m).leftPad(2, '0');
             prevMonthCounts.put(prevKey, 0);
             m++;
-            if (m > 12) {
-                m = 1;
-                yr++;
-            }
+            if (m > 12) { m = 1; yr++; }
         }
 
         for (AggregateResult ar : [
             SELECT CALENDAR_MONTH(CreatedDate) mo, CALENDAR_YEAR(CreatedDate) yr, COUNT(Id) cnt
             FROM Case
             WHERE AccountId = :accountId
-            AND CreatedDate >= :sixMonthsAgo
+            AND CreatedDate >= :twelveMonthsAgo
             GROUP BY CALENDAR_MONTH(CreatedDate), CALENDAR_YEAR(CreatedDate)
             ORDER BY CALENDAR_YEAR(CreatedDate), CALENDAR_MONTH(CreatedDate)
         ]) {
@@ -831,8 +869,8 @@ public with sharing class CSD_CSDashboardController {
             SELECT CALENDAR_MONTH(CreatedDate) mo, CALENDAR_YEAR(CreatedDate) yr, COUNT(Id) cnt
             FROM Case
             WHERE AccountId = :accountId
-            AND CreatedDate >= :priorSixMonthsAgo
-            AND CreatedDate < :sixMonthsAgo
+            AND CreatedDate >= :priorTwelveMonthsAgo
+            AND CreatedDate < :twelveMonthsAgo
             GROUP BY CALENDAR_MONTH(CreatedDate), CALENDAR_YEAR(CreatedDate)
             ORDER BY CALENDAR_YEAR(CreatedDate), CALENDAR_MONTH(CreatedDate)
         ]) {
@@ -844,9 +882,30 @@ public with sharing class CSD_CSDashboardController {
             }
         }
 
+        Map<String, Decimal> avgCloseByMonth = new Map<String, Decimal>();
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(ClosedDate) mo, CALENDAR_YEAR(ClosedDate) yr,
+                   AVG(CSD_Days_To_Close__c) avgDays
+            FROM Case
+            WHERE AccountId = :accountId
+            AND IsClosed = true
+            AND ClosedDate >= :twelveMonthsAgo
+            AND CSD_Days_To_Close__c != null
+            GROUP BY CALENDAR_MONTH(ClosedDate), CALENDAR_YEAR(ClosedDate)
+        ]) {
+            Integer arMonth = (Integer) ar.get('mo');
+            Integer arYear = (Integer) ar.get('yr');
+            String key = arYear + '-' + String.valueOf(arMonth).leftPad(2, '0');
+            Decimal avg = (Decimal) ar.get('avgDays');
+            if (avg != null) {
+                avgCloseByMonth.put(key, avg.setScale(1, System.RoundingMode.HALF_UP));
+            }
+        }
+
         List<Integer> counts = new List<Integer>();
         List<Integer> prevCounts = new List<Integer>();
         List<String> labels = new List<String>();
+        List<Decimal> avgCloses = new List<Decimal>();
         for (String key : orderedKeys) {
             counts.add(monthCounts.get(key));
             Integer mo = Integer.valueOf(key.substring(5));
@@ -854,26 +913,25 @@ public with sharing class CSD_CSDashboardController {
             String prevKey = (y - 1) + '-' + String.valueOf(mo).leftPad(2, '0');
             prevCounts.add(prevMonthCounts.containsKey(prevKey) ? prevMonthCounts.get(prevKey) : 0);
             labels.add(MONTH_ABBREVS[mo - 1]);
+            avgCloses.add(avgCloseByMonth.containsKey(key) ? avgCloseByMonth.get(key) : null);
         }
 
-        summary.caseMonth1 = counts[0];
-        summary.caseMonth2 = counts[1];
-        summary.caseMonth3 = counts[2];
-        summary.caseMonth4 = counts[3];
-        summary.caseMonth5 = counts[4];
-        summary.caseMonth6 = counts[5];
-        summary.caseMonth1Prev = prevCounts[0];
-        summary.caseMonth2Prev = prevCounts[1];
-        summary.caseMonth3Prev = prevCounts[2];
-        summary.caseMonth4Prev = prevCounts[3];
-        summary.caseMonth5Prev = prevCounts[4];
-        summary.caseMonth6Prev = prevCounts[5];
-        summary.caseMonth1Label = labels[0];
-        summary.caseMonth2Label = labels[1];
-        summary.caseMonth3Label = labels[2];
-        summary.caseMonth4Label = labels[3];
-        summary.caseMonth5Label = labels[4];
-        summary.caseMonth6Label = labels[5];
+        summary.caseMonth1 = counts[0]; summary.caseMonth2 = counts[1]; summary.caseMonth3 = counts[2];
+        summary.caseMonth4 = counts[3]; summary.caseMonth5 = counts[4]; summary.caseMonth6 = counts[5];
+        summary.caseMonth7 = counts[6]; summary.caseMonth8 = counts[7]; summary.caseMonth9 = counts[8];
+        summary.caseMonth10 = counts[9]; summary.caseMonth11 = counts[10]; summary.caseMonth12 = counts[11];
+        summary.caseMonth1Prev = prevCounts[0]; summary.caseMonth2Prev = prevCounts[1]; summary.caseMonth3Prev = prevCounts[2];
+        summary.caseMonth4Prev = prevCounts[3]; summary.caseMonth5Prev = prevCounts[4]; summary.caseMonth6Prev = prevCounts[5];
+        summary.caseMonth7Prev = prevCounts[6]; summary.caseMonth8Prev = prevCounts[7]; summary.caseMonth9Prev = prevCounts[8];
+        summary.caseMonth10Prev = prevCounts[9]; summary.caseMonth11Prev = prevCounts[10]; summary.caseMonth12Prev = prevCounts[11];
+        summary.caseMonth1Label = labels[0]; summary.caseMonth2Label = labels[1]; summary.caseMonth3Label = labels[2];
+        summary.caseMonth4Label = labels[3]; summary.caseMonth5Label = labels[4]; summary.caseMonth6Label = labels[5];
+        summary.caseMonth7Label = labels[6]; summary.caseMonth8Label = labels[7]; summary.caseMonth9Label = labels[8];
+        summary.caseMonth10Label = labels[9]; summary.caseMonth11Label = labels[10]; summary.caseMonth12Label = labels[11];
+        summary.caseMonth1AvgClose = avgCloses[0]; summary.caseMonth2AvgClose = avgCloses[1]; summary.caseMonth3AvgClose = avgCloses[2];
+        summary.caseMonth4AvgClose = avgCloses[3]; summary.caseMonth5AvgClose = avgCloses[4]; summary.caseMonth6AvgClose = avgCloses[5];
+        summary.caseMonth7AvgClose = avgCloses[6]; summary.caseMonth8AvgClose = avgCloses[7]; summary.caseMonth9AvgClose = avgCloses[8];
+        summary.caseMonth10AvgClose = avgCloses[9]; summary.caseMonth11AvgClose = avgCloses[10]; summary.caseMonth12AvgClose = avgCloses[11];
     }
 
     private static void populateYtdCaseCount(Id accountId, DashboardSummary summary) {
@@ -923,11 +981,10 @@ public with sharing class CSD_CSDashboardController {
         Date today = Date.today();
         Integer currentMonth = today.month();
         Integer currentYear = today.year();
-        Integer priorYear = currentYear - 1;
 
-        Integer startMonth = currentMonth - 5;
+        Integer startMonth = currentMonth - 11;
         Integer startYear = currentYear;
-        if (startMonth < 1) {
+        while (startMonth < 1) {
             startMonth += 12;
             startYear--;
         }
@@ -937,7 +994,7 @@ public with sharing class CSD_CSDashboardController {
         List<String> orderedKeys = new List<String>();
         Integer m = startMonth;
         Integer yr = startYear;
-        for (Integer i = 0; i < 6; i++) {
+        for (Integer i = 0; i < 12; i++) {
             orderedKeys.add(yr + '-' + String.valueOf(m).leftPad(2, '0'));
             m++;
             if (m > 12) { m = 1; yr++; }
@@ -1006,10 +1063,16 @@ public with sharing class CSD_CSDashboardController {
 
         summary.wonMonth1 = curr[0]; summary.wonMonth2 = curr[1]; summary.wonMonth3 = curr[2];
         summary.wonMonth4 = curr[3]; summary.wonMonth5 = curr[4]; summary.wonMonth6 = curr[5];
+        summary.wonMonth7 = curr[6]; summary.wonMonth8 = curr[7]; summary.wonMonth9 = curr[8];
+        summary.wonMonth10 = curr[9]; summary.wonMonth11 = curr[10]; summary.wonMonth12 = curr[11];
         summary.wonMonth1Prev = prev[0]; summary.wonMonth2Prev = prev[1]; summary.wonMonth3Prev = prev[2];
         summary.wonMonth4Prev = prev[3]; summary.wonMonth5Prev = prev[4]; summary.wonMonth6Prev = prev[5];
+        summary.wonMonth7Prev = prev[6]; summary.wonMonth8Prev = prev[7]; summary.wonMonth9Prev = prev[8];
+        summary.wonMonth10Prev = prev[9]; summary.wonMonth11Prev = prev[10]; summary.wonMonth12Prev = prev[11];
         summary.wonMonth1Label = labels[0]; summary.wonMonth2Label = labels[1]; summary.wonMonth3Label = labels[2];
         summary.wonMonth4Label = labels[3]; summary.wonMonth5Label = labels[4]; summary.wonMonth6Label = labels[5];
+        summary.wonMonth7Label = labels[6]; summary.wonMonth8Label = labels[7]; summary.wonMonth9Label = labels[8];
+        summary.wonMonth10Label = labels[9]; summary.wonMonth11Label = labels[10]; summary.wonMonth12Label = labels[11];
     }
 
     /**

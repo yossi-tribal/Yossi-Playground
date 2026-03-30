@@ -247,33 +247,30 @@
                                         </div>
                                         <div class="trend-chart-wrap">
                                             <div class="trend-chart-header">
-                                                <span class="trend-chart-title">Closed won per month</span>
-                                                <div class="trend-chart-legend">
-                                                    <span class="trend-chart-legend-item">
-                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--current"></span>
-                                                        This year
-                                                    </span>
-                                                    <span class="trend-chart-legend-item">
-                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--prev"></span>
-                                                        Last year
-                                                    </span>
-                                                </div>
+                                                <span class="trend-chart-title">Closed won (12 months)</span>
                                             </div>
                                             <template if:true={hasRevenueMonthData}>
                                                 <div class="trend-chart">
                                                     <template for:each={revenueMonthBars} for:item="rb">
-                                                        <div key={rb.key} class="trend-chart-col" aria-label={rb.ariaLabel}>
-                                                            <div class="trend-chart-pair">
-                                                                <div class="trend-chart-bar-track">
-                                                                    <template if:true={rb.hasPrevBar}>
-                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={rb.prevBarStyle}></div>
-                                                                    </template>
+                                                        <div key={rb.key} class="trend-chart-col" data-key={rb.key}
+                                                             aria-label={rb.ariaLabel} tabindex="0"
+                                                             onmouseenter={handleBarMouseEnter}
+                                                             onmouseleave={handleBarMouseLeave}
+                                                             onfocus={handleBarMouseEnter}
+                                                             onblur={handleBarMouseLeave}
+                                                             ontouchstart={handleBarTouchStart}
+                                                             ontouchend={handleBarTouchEnd}>
+                                                            <template if:true={rb.isTooltipActive}>
+                                                                <div class="trend-chart-tooltip">
+                                                                    <span class="trend-chart-tooltip-month">{rb.fullLabel}</span>
+                                                                    <span class="trend-chart-tooltip-value">{rb.tooltipAmount}</span>
+                                                                    <span class="trend-chart-tooltip-sub">{rb.tooltipPrevAmount}</span>
                                                                 </div>
-                                                                <div class="trend-chart-bar-track">
-                                                                    <template if:true={rb.hasCurrentBar}>
-                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={rb.currentBarStyle}></div>
-                                                                    </template>
-                                                                </div>
+                                                            </template>
+                                                            <div class="trend-chart-bar-track">
+                                                                <template if:true={rb.hasCurrentBar}>
+                                                                    <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={rb.currentBarStyle}></div>
+                                                                </template>
                                                             </div>
                                                             <span class="case-trend-label">{rb.label}</span>
                                                         </div>
@@ -281,7 +278,7 @@
                                                 </div>
                                             </template>
                                             <template if:false={hasRevenueMonthData}>
-                                                <div class="case-resolution-empty">No closed-won opportunities in the last 6 months</div>
+                                                <div class="case-resolution-empty">No closed-won opportunities in the last 12 months</div>
                                             </template>
                                         </div>
                                     </div>
@@ -332,33 +329,30 @@
                                         </div>
                                         <div class="trend-chart-wrap">
                                             <div class="trend-chart-header">
-                                                <span class="trend-chart-title">Cases opened (6 months)</span>
-                                                <div class="trend-chart-legend">
-                                                    <span class="trend-chart-legend-item">
-                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--current"></span>
-                                                        This year
-                                                    </span>
-                                                    <span class="trend-chart-legend-item">
-                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--prev"></span>
-                                                        Last year
-                                                    </span>
-                                                </div>
+                                                <span class="trend-chart-title">Cases opened (12 months)</span>
                                             </div>
                                             <template if:true={hasCaseMonthData}>
                                                 <div class="trend-chart">
                                                     <template for:each={caseTrendBars} for:item="cb">
-                                                        <div key={cb.key} class="trend-chart-col" aria-label={cb.ariaLabel}>
-                                                            <div class="trend-chart-pair">
-                                                                <div class="trend-chart-bar-track">
-                                                                    <template if:true={cb.hasPrevBar}>
-                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={cb.prevBarStyle}></div>
-                                                                    </template>
+                                                        <div key={cb.key} class="trend-chart-col" data-key={cb.key}
+                                                             aria-label={cb.ariaLabel} tabindex="0"
+                                                             onmouseenter={handleBarMouseEnter}
+                                                             onmouseleave={handleBarMouseLeave}
+                                                             onfocus={handleBarMouseEnter}
+                                                             onblur={handleBarMouseLeave}
+                                                             ontouchstart={handleBarTouchStart}
+                                                             ontouchend={handleBarTouchEnd}>
+                                                            <template if:true={cb.isTooltipActive}>
+                                                                <div class="trend-chart-tooltip">
+                                                                    <span class="trend-chart-tooltip-month">{cb.fullLabel}</span>
+                                                                    <span class="trend-chart-tooltip-value">{cb.tooltipCaseCount}</span>
+                                                                    <span class="trend-chart-tooltip-sub">{cb.tooltipAvgClose}</span>
                                                                 </div>
-                                                                <div class="trend-chart-bar-track">
-                                                                    <template if:true={cb.hasCurrentBar}>
-                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={cb.currentBarStyle}></div>
-                                                                    </template>
-                                                                </div>
+                                                            </template>
+                                                            <div class="trend-chart-bar-track">
+                                                                <template if:true={cb.hasCurrentBar}>
+                                                                    <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={cb.currentBarStyle}></div>
+                                                                </template>
                                                             </div>
                                                             <span class="case-trend-label">{cb.label}</span>
                                                         </div>
@@ -366,7 +360,7 @@
                                                 </div>
                                             </template>
                                             <template if:false={hasCaseMonthData}>
-                                                <div class="case-resolution-empty">No cases opened in the last 6 months</div>
+                                                <div class="case-resolution-empty">No cases opened in the last 12 months</div>
                                             </template>
                                         </div>
                                     </div>

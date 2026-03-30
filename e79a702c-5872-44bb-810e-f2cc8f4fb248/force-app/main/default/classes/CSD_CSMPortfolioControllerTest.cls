@@ -207,15 +207,24 @@ private class CSD_CSMPortfolioControllerTest {
 
             Integer currentWindowTotal =
                 summary.caseMonth1 + summary.caseMonth2 + summary.caseMonth3 +
-                summary.caseMonth4 + summary.caseMonth5 + summary.caseMonth6;
+                summary.caseMonth4 + summary.caseMonth5 + summary.caseMonth6 +
+                summary.caseMonth7 + summary.caseMonth8 + summary.caseMonth9 +
+                summary.caseMonth10 + summary.caseMonth11 + summary.caseMonth12;
             Integer priorWindowTotal =
                 summary.caseMonth1Prev + summary.caseMonth2Prev + summary.caseMonth3Prev +
-                summary.caseMonth4Prev + summary.caseMonth5Prev + summary.caseMonth6Prev;
+                summary.caseMonth4Prev + summary.caseMonth5Prev + summary.caseMonth6Prev +
+                summary.caseMonth7Prev + summary.caseMonth8Prev + summary.caseMonth9Prev +
+                summary.caseMonth10Prev + summary.caseMonth11Prev + summary.caseMonth12Prev;
 
             System.assert(currentWindowTotal > 0, 'Current portfolio case trend should include recent cases');
             System.assert(priorWindowTotal > 0, 'Prior-year portfolio case trend should include comparison data');
             System.assertNotEquals('', summary.caseMonth1Label, 'Case trend labels should be populated');
-            System.assertNotEquals('', summary.caseMonth6Label, 'Case trend labels should be populated');
+            System.assertNotEquals('', summary.caseMonth12Label, 'Month 12 case trend label should be populated');
+            System.assertNotEquals('', summary.caseMonth7Label, 'Month 7 case trend label should be populated');
+
+            System.assertNotEquals('', summary.wonMonth12Label, 'Month 12 revenue label should be populated');
+            System.assert(summary.wonMonth12 >= 0, 'Current month revenue should be non-negative');
+            System.assert(summary.prevWonMonth12 >= 0, 'Prior year current month revenue should be non-negative');
         }
         Test.stopTest();
     }

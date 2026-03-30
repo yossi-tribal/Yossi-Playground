@@ -36,6 +36,9 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track selectedAccountName = '';
     @track snapshotExpanded = true;
 
+    @track _activeTooltipKey = null;
+    _touchTimer = null;
+
     @track showActivityModal = false;
     @track activityModalObjectApiName = '';
     @track activityModalTitle = '';
@@ -408,6 +411,27 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     handleSnapshotToggle() {
         this.snapshotExpanded = !this.snapshotExpanded;
+    }
+
+    handleBarMouseEnter(event) {
+        this._activeTooltipKey = event.currentTarget.dataset.key;
+    }
+
+    handleBarMouseLeave() {
+        this._activeTooltipKey = null;
+    }
+
+    handleBarTouchStart(event) {
+        event.preventDefault();
+        const key = event.currentTarget.dataset.key;
+        this._touchTimer = setTimeout(() => {
+            this._activeTooltipKey = key;
+        }, 200);
+    }
+
+    handleBarTouchEnd() {
+        clearTimeout(this._touchTimer);
+        this._activeTooltipKey = null;
     }
 
     // ── Health Breakdown Modal ──
@@ -891,42 +915,43 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     get caseTrendBars() {
         if (!this.summary) return [];
-
-        const raw = [
-            { label: this.summary.caseMonth1Label, current: Number(this.summary.caseMonth1 || 0), prev: Number(this.summary.caseMonth1Prev || 0) },
-            { label: this.summary.caseMonth2Label, current: Number(this.summary.caseMonth2 || 0), prev: Number(this.summary.caseMonth2Prev || 0) },
-            { label: this.summary.caseMonth3Label, current: Number(this.summary.caseMonth3 || 0), prev: Number(this.summary.caseMonth3Prev || 0) },
-            { label: this.summary.caseMonth4Label, current: Number(this.summary.caseMonth4 || 0), prev: Number(this.summary.caseMonth4Prev || 0) },
-            { label: this.summary.caseMonth5Label, current: Number(this.summary.caseMonth5 || 0), prev: Number(this.summary.caseMonth5Prev || 0) },
-            { label: this.summary.caseMonth6Label, current: Number(this.summary.caseMonth6 || 0), prev: Number(this.summary.caseMonth6Prev || 0) }
-        ];
-        const max = Math.max(...raw.flatMap((entry) => [entry.current, entry.prev]), 1);
-
-        return raw.map((entry, index) => {
-            const currentPct = entry.current === 0 ? 0 : Math.max(6, Math.round((entry.current / max) * 100));
-            const prevPct = entry.prev === 0 ? 0 : Math.max(6, Math.round((entry.prev / max) * 100));
+        const s = this.summary;
+        const raw = [];
+        for (let i = 1; i <= 12; i++) {
+            raw.push({
+                label: s[`caseMonth${i}Label`] || '',
+                current: Number(s[`caseMonth${i}`] || 0),
+                avgClose: s[`caseMonth${i}AvgClose`],
+                prev: Number(s[`caseMonth${i}Prev`] || 0)
+            });
+        }
+        const max = Math.max(...raw.map((r) => r.current), 1);
+        return raw.map((r, index) => {
+            const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
+            const displayLabel = index % 2 === 0 ? r.label : '\u00b7';
+            const avgCloseText = r.avgClose != null ? `${r.avgClose} days` : '\u2014';
             return {
                 key: `pcm-${index}`,
-                label: entry.label || '—',
-                currentCount: entry.current,
-                prevCount: entry.prev,
-                currentBarStyle: `height: ${currentPct}%;`,
-                prevBarStyle: `height: ${prevPct}%;`,
-                hasCurrentBar: entry.current > 0,
-                hasPrevBar: entry.prev > 0,
-                ariaLabel: `${entry.label || ''}: this year ${entry.current}, last year ${entry.prev}`
+                label: displayLabel,
+                fullLabel: r.label || '\u2014',
+                currentCount: r.current,
+                avgCloseTime: avgCloseText,
+                currentBarStyle: `height: ${curPct}%;`,
+                hasCurrentBar: r.current > 0,
+                isTooltipActive: this._activeTooltipKey === `pcm-${index}`,
+                tooltipCaseCount: `${r.current} case${r.current !== 1 ? 's' : ''}`,
+                tooltipAvgClose: r.current === 0 ? 'No closed cases' : `Avg close: ${avgCloseText}`,
+                ariaLabel: `${r.label || ''}: ${r.current} cases, avg close ${avgCloseText}`
             };
         });
     }
 
     get hasCaseMonthData() {
         if (!this.summary) return false;
-        return [
-            this.summary.caseMonth1, this.summary.caseMonth2, this.summary.caseMonth3,
-            this.summary.caseMonth4, this.summary.caseMonth5, this.summary.caseMonth6,
-            this.summary.caseMonth1Prev, this.summary.caseMonth2Prev, this.summary.caseMonth3Prev,
-            this.summary.caseMonth4Prev, this.summary.caseMonth5Prev, this.summary.caseMonth6Prev
-        ].some((value) => Number(value || 0) > 0);
+        for (let i = 1; i <= 12; i++) {
+            if (Number(this.summary[`caseMonth${i}`] || 0) > 0) return true;
+        }
+        return false;
     }
 
     // ── Revenue Snapshot ──
@@ -964,38 +989,41 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     get revenueMonthBars() {
         if (!this.summary) return [];
-        const raw = [
-            { label: this.summary.wonMonth1Label, current: Number(this.summary.wonMonth1 || 0), prev: Number(this.summary.prevWonMonth1 || 0) },
-            { label: this.summary.wonMonth2Label, current: Number(this.summary.wonMonth2 || 0), prev: Number(this.summary.prevWonMonth2 || 0) },
-            { label: this.summary.wonMonth3Label, current: Number(this.summary.wonMonth3 || 0), prev: Number(this.summary.prevWonMonth3 || 0) },
-            { label: this.summary.wonMonth4Label, current: Number(this.summary.wonMonth4 || 0), prev: Number(this.summary.prevWonMonth4 || 0) },
-            { label: this.summary.wonMonth5Label, current: Number(this.summary.wonMonth5 || 0), prev: Number(this.summary.prevWonMonth5 || 0) },
-            { label: this.summary.wonMonth6Label, current: Number(this.summary.wonMonth6 || 0), prev: Number(this.summary.prevWonMonth6 || 0) }
-        ];
-        const max = Math.max(...raw.flatMap(e => [e.current, e.prev]), 1);
-        return raw.map((entry, index) => {
-            const currentPct = entry.current === 0 ? 0 : Math.max(6, Math.round((entry.current / max) * 100));
-            const prevPct = entry.prev === 0 ? 0 : Math.max(6, Math.round((entry.prev / max) * 100));
+        const s = this.summary;
+        const raw = [];
+        for (let i = 1; i <= 12; i++) {
+            raw.push({
+                label: s[`wonMonth${i}Label`] || '',
+                current: Number(s[`wonMonth${i}`] || 0),
+                prev: Number(s[`prevWonMonth${i}`] || 0)
+            });
+        }
+        const max = Math.max(...raw.map((r) => r.current), 1);
+        return raw.map((r, index) => {
+            const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
+            const displayLabel = index % 2 === 0 ? r.label : '\u00b7';
             return {
                 key: `prm-${index}`,
-                label: entry.label || '—',
-                currentBarStyle: `height: ${currentPct}%;`,
-                prevBarStyle: `height: ${prevPct}%;`,
-                hasCurrentBar: entry.current > 0,
-                hasPrevBar: entry.prev > 0,
-                ariaLabel: `${entry.label || ''}: this year ${this.formatCurrencyShort(entry.current)}, last year ${this.formatCurrencyShort(entry.prev)}`
+                label: displayLabel,
+                fullLabel: r.label || '\u2014',
+                currentAmount: r.current,
+                prevAmount: r.prev,
+                currentBarStyle: `height: ${curPct}%;`,
+                hasCurrentBar: r.current > 0,
+                isTooltipActive: this._activeTooltipKey === `prm-${index}`,
+                tooltipAmount: this.formatCurrencyShort(r.current),
+                tooltipPrevAmount: `Last year: ${this.formatCurrencyShort(r.prev)}`,
+                ariaLabel: `${r.label || ''}: ${this.formatCurrencyShort(r.current)}, last year ${this.formatCurrencyShort(r.prev)}`
             };
         });
     }
 
     get hasRevenueMonthData() {
         if (!this.summary) return false;
-        return [
-            this.summary.wonMonth1, this.summary.wonMonth2, this.summary.wonMonth3,
-            this.summary.wonMonth4, this.summary.wonMonth5, this.summary.wonMonth6,
-            this.summary.prevWonMonth1, this.summary.prevWonMonth2, this.summary.prevWonMonth3,
-            this.summary.prevWonMonth4, this.summary.prevWonMonth5, this.summary.prevWonMonth6
-        ].some(v => Number(v || 0) > 0);
+        for (let i = 1; i <= 12; i++) {
+            if (Number(this.summary[`wonMonth${i}`] || 0) > 0) return true;
+        }
+        return false;
     }
 
     handleCommercialRenewalsClick() {

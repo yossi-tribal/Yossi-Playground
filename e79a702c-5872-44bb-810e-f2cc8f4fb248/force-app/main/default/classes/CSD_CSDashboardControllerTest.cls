@@ -219,14 +219,17 @@ private class CSD_CSDashboardControllerTest {
         System.assertNotEquals(null, summary.currencyCode, 'Currency code should be set');
         System.assertNotEquals(null, summary.wonQuarter1Label, 'Quarter labels should be populated');
 
-        System.assertNotEquals(null, summary.wonMonth6Label, 'Monthly won labels should be populated');
-        System.assert(summary.wonMonth6 >= 0, 'Current month won amount should be non-negative');
-        System.assert(summary.wonMonth6Prev >= 0, 'Prior year month won amount should be non-negative');
-        System.assert(summary.wonMonth6 == 5000, 'Current month should include the Closed Won YTD opp');
+        System.assertNotEquals(null, summary.wonMonth12Label, 'Monthly won labels should be populated');
+        System.assert(summary.wonMonth12 >= 0, 'Current month won amount should be non-negative');
+        System.assert(summary.wonMonth12Prev >= 0, 'Prior year month won amount should be non-negative');
+        System.assert(summary.wonMonth12 == 5000, 'Current month should include the Closed Won YTD opp');
+        System.assertNotEquals(null, summary.wonMonth7Label, 'Month 7 won label should be populated');
 
         System.assert(summary.ytdCaseCount >= 3, 'YTD case count should include cases created this year');
         System.assertEquals(2, summary.priorYearCaseCount, 'Prior year case count should include backdated prior-year cases');
         System.assert(summary.caseMonth1Prev >= 0, 'Prior year monthly case count should be non-negative');
+        System.assert(summary.caseMonth12 >= 0, 'Current month case count should be non-negative');
+        System.assertNotEquals(null, summary.caseMonth7Label, 'Month 7 case label should be populated');
     }
 
     /**
@@ -275,9 +278,15 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals(0, summary.wonMonth1, 'Monthly won should be 0 for empty account');
         System.assertEquals(0, summary.wonMonth1Prev, 'Prior year monthly won should be 0 for empty account');
         System.assertNotEquals(null, summary.wonMonth1Label, 'Monthly won label should be set even for empty account');
+        System.assertEquals(0, summary.wonMonth12, 'Month 12 won should be 0 for empty account');
+        System.assertEquals(0, summary.wonMonth12Prev, 'Month 12 prior year won should be 0 for empty account');
+        System.assertNotEquals(null, summary.wonMonth12Label, 'Month 12 won label should be set');
         System.assertEquals(0, summary.ytdCaseCount, 'YTD case count should be 0 for empty account');
         System.assertEquals(0, summary.priorYearCaseCount, 'Prior year case count should be 0 for empty account');
         System.assertEquals(0, summary.caseMonth1Prev, 'Prior year monthly case count should be 0 for empty account');
+        System.assertEquals(0, summary.caseMonth12, 'Month 12 case count should be 0 for empty account');
+        System.assertEquals(null, summary.caseMonth1AvgClose, 'Avg close should be null for empty account');
+        System.assertEquals(null, summary.caseMonth12AvgClose, 'Month 12 avg close should be null for empty account');
     }
 
     /**
