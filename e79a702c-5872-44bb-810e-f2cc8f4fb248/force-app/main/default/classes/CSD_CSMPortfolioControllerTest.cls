@@ -579,6 +579,7 @@ private class CSD_CSMPortfolioControllerTest {
             CSD_CSMPortfolioController.OverdueTaskRow task = tasks[0];
             System.assertEquals('Overdue Task', task.subject, 'Should match task subject');
             System.assert(task.daysOverdue > 0, 'Days overdue should be positive');
+            System.assertEquals('Not Started', task.status, 'Task status should be included for KPI modal rows');
             System.assertNotEquals(null, task.taskId, 'Task ID should not be null');
             System.assertNotEquals(null, task.accountName, 'Account name should not be null');
             System.assertNotEquals(null, task.accountId, 'Account ID should not be null');
@@ -606,6 +607,60 @@ private class CSD_CSMPortfolioControllerTest {
             System.assertNotEquals(null, c.caseId, 'Case ID should not be null');
             System.assertNotEquals(null, c.caseNumber, 'Case number should not be null');
             System.assertNotEquals(null, c.accountName, 'Account name should not be null');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Test getAllOpenCasesForPortfolio returns portfolio KPI modal rows
+     */
+    @isTest
+    static void testGetAllOpenCasesForPortfolio() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            List<CSD_CSMPortfolioController.PortfolioCaseRow> cases =
+                CSD_CSMPortfolioController.getAllOpenCasesForPortfolio();
+
+            System.assertNotEquals(null, cases, 'Cases list should not be null');
+            System.assertEquals(2, cases.size(), 'Should return every open case across the portfolio');
+
+            CSD_CSMPortfolioController.PortfolioCaseRow firstCase = cases[0];
+            System.assertNotEquals(null, firstCase.caseId, 'Case ID should be populated');
+            System.assertNotEquals('', firstCase.caseNumber, 'Case number should be populated');
+            System.assertNotEquals('', firstCase.accountName, 'Account name should be populated');
+            System.assertNotEquals('', firstCase.ownerName, 'Owner name should be populated');
+            System.assert(firstCase.age >= 0, 'Case age should be non-negative');
+            System.assertEquals('Test Account 1 - At Risk', firstCase.accountName,
+                'Open case rows should stay scoped to assigned portfolio accounts');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Test getAllOpenOpportunitiesForPortfolio returns portfolio KPI modal rows
+     */
+    @isTest
+    static void testGetAllOpenOpportunitiesForPortfolio() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            List<CSD_CSMPortfolioController.PortfolioOpportunityRow> opportunities =
+                CSD_CSMPortfolioController.getAllOpenOpportunitiesForPortfolio();
+
+            System.assertNotEquals(null, opportunities, 'Opportunities list should not be null');
+            System.assertEquals(2, opportunities.size(), 'Should return all open opportunities across the portfolio');
+
+            CSD_CSMPortfolioController.PortfolioOpportunityRow firstOpportunity = opportunities[0];
+            System.assertNotEquals(null, firstOpportunity.opportunityId, 'Opportunity ID should be populated');
+            System.assertNotEquals('', firstOpportunity.name, 'Opportunity name should be populated');
+            System.assertNotEquals('', firstOpportunity.accountName, 'Account name should be populated');
+            System.assertNotEquals('', firstOpportunity.ownerName, 'Owner name should be populated');
+            System.assert(firstOpportunity.amount > 0, 'Opportunity amount should be populated');
+            System.assertEquals('Test Account 1 - At Risk', firstOpportunity.accountName,
+                'Opportunities should stay scoped to assigned portfolio accounts');
         }
         Test.stopTest();
     }

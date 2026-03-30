@@ -113,6 +113,7 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public String dueDate { get; set; }
         @AuraEnabled public Integer daysOverdue { get; set; }
         @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public String status { get; set; }
         @AuraEnabled public String accountName { get; set; }
         @AuraEnabled public Id accountId { get; set; }
     }
@@ -126,6 +127,37 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public String subject { get; set; }
         @AuraEnabled public String priority { get; set; }
         @AuraEnabled public String status { get; set; }
+        @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public String accountName { get; set; }
+        @AuraEnabled public Id accountId { get; set; }
+    }
+
+    /**
+     * @description Wrapper for a portfolio-wide open case shown in the KPI modal.
+     */
+    public class PortfolioCaseRow {
+        @AuraEnabled public Id caseId { get; set; }
+        @AuraEnabled public String caseNumber { get; set; }
+        @AuraEnabled public String subject { get; set; }
+        @AuraEnabled public String status { get; set; }
+        @AuraEnabled public String priority { get; set; }
+        @AuraEnabled public String ownerName { get; set; }
+        @AuraEnabled public Integer age { get; set; }
+        @AuraEnabled public String accountName { get; set; }
+        @AuraEnabled public Id accountId { get; set; }
+        @AuraEnabled public Boolean isEscalated { get; set; }
+    }
+
+    /**
+     * @description Wrapper for a portfolio-wide open opportunity shown in the KPI modal.
+     */
+    public class PortfolioOpportunityRow {
+        @AuraEnabled public Id opportunityId { get; set; }
+        @AuraEnabled public String name { get; set; }
+        @AuraEnabled public String stageName { get; set; }
+        @AuraEnabled public String closeDate { get; set; }
+        @AuraEnabled public Decimal amount { get; set; }
+        @AuraEnabled public Decimal probability { get; set; }
         @AuraEnabled public String ownerName { get; set; }
         @AuraEnabled public String accountName { get; set; }
         @AuraEnabled public Id accountId { get; set; }
@@ -149,6 +181,18 @@ public with sharing class CSD_CSMPortfolioController {
         'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     };
+
+    private static Set<Id> getPortfolioAccountIds(Id currentUserId) {
+        Set<Id> accountIds = new Set<Id>();
+        for (Account a : [
+            SELECT Id
+            FROM Account
+            WHERE CSD_Primary_CSM__c = :currentUserId
+        ]) {
+            accountIds.add(a.Id);
+        }
+        return accountIds;
+    }
 
     /**
      * @description Retrieves portfolio summary KPIs for the current user
@@ -1179,10 +1223,7 @@ public with sharing class CSD_CSMPortfolioController {
         try {
             Id currentUserId = UserInfo.getUserId();
 
-            Set<Id> accountIds = new Set<Id>();
-            for (Account a : [SELECT Id FROM Account WHERE CSD_Primary_CSM__c = :currentUserId]) {
-                accountIds.add(a.Id);
-            }
+            Set<Id> accountIds = getPortfolioAccountIds(currentUserId);
 
             List<OverdueTaskRow> rows = new List<OverdueTaskRow>();
             if (accountIds.isEmpty()) {
@@ -1190,7 +1231,7 @@ public with sharing class CSD_CSMPortfolioController {
             }
 
             for (Task t : [
-                SELECT Id, Subject, ActivityDate, Owner.Name, What.Name, WhatId
+                SELECT Id, Subject, ActivityDate, Owner.Name, Status, What.Name, WhatId
                 FROM Task
                 WHERE WhatId IN :accountIds
                 AND IsClosed = false
@@ -1204,6 +1245,7 @@ public with sharing class CSD_CSMPortfolioController {
                 row.dueDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
                 row.daysOverdue = t.ActivityDate != null ? t.ActivityDate.daysBetween(Date.today()) : 0;
                 row.ownerName = t.Owner.Name;
+                row.status = t.Status;
                 row.accountName = t.What.Name;
                 row.accountId = t.WhatId;
                 rows.add(row);
@@ -1225,10 +1267,7 @@ public with sharing class CSD_CSMPortfolioController {
         try {
             Id currentUserId = UserInfo.getUserId();
 
-            Set<Id> accountIds = new Set<Id>();
-            for (Account a : [SELECT Id FROM Account WHERE CSD_Primary_CSM__c = :currentUserId]) {
-                accountIds.add(a.Id);
-            }
+            Set<Id> accountIds = getPortfolioAccountIds(currentUserId);
 
             List<HighPriorityCaseRow> rows = new List<HighPriorityCaseRow>();
             if (accountIds.isEmpty()) {
@@ -1260,6 +1299,85 @@ public with sharing class CSD_CSMPortfolioController {
 
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving high-priority cases: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Retrieves all open cases across all portfolio accounts for the KPI modal.
+     * @return List of PortfolioCaseRow objects
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioCaseRow> getAllOpenCasesForPortfolio() {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioCaseRow> rows = new List<PortfolioCaseRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            for (Case c : [
+                SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, Account.Name, AccountId, IsEscalated, CreatedDate
+                FROM Case
+                WHERE AccountId IN :accountIds
+                AND IsClosed = false
+                ORDER BY Account.Name ASC, CreatedDate ASC, CaseNumber ASC
+            ]) {
+                PortfolioCaseRow row = new PortfolioCaseRow();
+                row.caseId = c.Id;
+                row.caseNumber = c.CaseNumber;
+                row.subject = c.Subject;
+                row.status = c.Status;
+                row.priority = c.Priority;
+                row.ownerName = c.Owner.Name;
+                row.age = c.CreatedDate != null ? c.CreatedDate.date().daysBetween(Date.today()) : 0;
+                row.accountName = c.Account != null ? c.Account.Name : '';
+                row.accountId = c.AccountId;
+                row.isEscalated = c.IsEscalated;
+                rows.add(row);
+            }
+
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving open cases: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Retrieves all open opportunities across all portfolio accounts for the KPI modal.
+     * @return List of PortfolioOpportunityRow objects
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioOpportunityRow> getAllOpenOpportunitiesForPortfolio() {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioOpportunityRow> rows = new List<PortfolioOpportunityRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            for (Opportunity opp : [
+                SELECT Id, Name, StageName, CloseDate, Amount, Probability, Owner.Name, Account.Name, AccountId
+                FROM Opportunity
+                WHERE AccountId IN :accountIds
+                AND IsClosed = false
+                ORDER BY Account.Name ASC, Amount DESC, CloseDate ASC
+            ]) {
+                PortfolioOpportunityRow row = new PortfolioOpportunityRow();
+                row.opportunityId = opp.Id;
+                row.name = opp.Name;
+                row.stageName = opp.StageName;
+                row.closeDate = opp.CloseDate != null ? opp.CloseDate.format() : '';
+                row.amount = opp.Amount != null ? opp.Amount : 0;
+                row.probability = opp.Probability != null ? opp.Probability : 0;
+                row.ownerName = opp.Owner.Name;
+                row.accountName = opp.Account != null ? opp.Account.Name : '';
+                row.accountId = opp.AccountId;
+                rows.add(row);
+            }
+
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving open opportunities: ' + e.getMessage());
         }
     }
 }

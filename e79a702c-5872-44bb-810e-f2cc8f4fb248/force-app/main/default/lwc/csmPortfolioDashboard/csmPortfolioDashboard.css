@@ -377,14 +377,24 @@
     background: none;
     border: none;
     font: inherit;
-    cursor: pointer;
+    cursor: default;
     width: 100%;
+}
+
+.stat-item--clickable {
+    cursor: pointer;
     border-radius: var(--csd-radius-sm);
+    padding: var(--csd-space-3);
     transition: background-color 0.15s ease;
 }
 
-.stat-item:hover {
+.stat-item--clickable:hover {
     background: var(--csd-gray-50);
+}
+
+.stat-item--clickable:focus-visible {
+    outline: 2px solid var(--csd-blue);
+    outline-offset: 2px;
 }
 
 .stat-dot {
@@ -1073,6 +1083,14 @@
     transition: background-color 0.12s ease;
 }
 
+.table-row {
+    cursor: pointer;
+}
+
+.table-row:hover {
+    background: var(--csd-gray-100);
+}
+
 .account-row {
     cursor: pointer;
 }
@@ -1089,6 +1107,37 @@
     padding: var(--csd-space-2) var(--csd-space-3);
     color: var(--csd-gray-700);
     vertical-align: middle;
+}
+
+.case-number {
+    font-weight: 600;
+    color: var(--csd-blue);
+}
+
+.subject-cell {
+    font-weight: 500;
+    color: var(--csd-text-primary);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: break-word;
+}
+
+.status-badge,
+.priority-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--csd-gray-100);
+    color: var(--csd-gray-600);
+}
+
+.escalated-icon {
+    color: var(--csd-red-dark);
+    margin-left: 6px;
 }
 
 .account-name-link {
@@ -1331,6 +1380,60 @@
     color: var(--csd-text-secondary);
     margin: 0;
     font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KPI MODAL STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+.kpi-modal-table-container {
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--csd-border);
+    max-width: 100%;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.kpi-modal-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.empty-state-icon {
+    color: var(--csd-green);
+    margin-bottom: 16px;
+}
+
+.empty-state-message {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--csd-gray-700);
+    margin: 0;
+}
+
+.overdue-badge {
+    background: var(--csd-red-50);
+    color: var(--csd-red-dark);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.due-today-badge {
+    background: var(--csd-amber-50);
+    color: var(--csd-amber-dark);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .empty-hint {

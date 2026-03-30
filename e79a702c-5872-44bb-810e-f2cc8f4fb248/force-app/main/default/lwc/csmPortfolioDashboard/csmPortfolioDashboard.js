@@ -7,6 +7,8 @@ import getUpcomingRenewals from '@salesforce/apex/CSD_CSMPortfolioController.get
 import getPortfolioHealthBreakdown from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioHealthBreakdown';
 import getOverdueTasksForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getOverdueTasksForPortfolio';
 import getHighPriorityCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getHighPriorityCasesForPortfolio';
+import getAllOpenCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenCasesForPortfolio';
+import getAllOpenOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenOpportunitiesForPortfolio';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
@@ -52,6 +54,12 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     @track showHealthBreakdownModal = false;
     @track healthBreakdown = null;
+
+    @track showKpiModal = false;
+    @track kpiModalTitle = '';
+    @track kpiModalData = [];
+    @track kpiModalType = '';
+    @track kpiModalEmptyMessage = '';
 
     @track showSuggestedActionModal = false;
     @track suggestedActionModalTitle = '';
@@ -357,9 +365,77 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     handleStatClick(event) {
         const stat = event.currentTarget.dataset.stat;
         if (!stat) return;
-        const filterMap = { cases: 'all', tasks: 'all', pipeline: 'all' };
-        const sortMap = { cases: 'accountName', tasks: 'accountName', pipeline: 'accountName' };
-        this.applyAccountFocus(filterMap[stat], sortMap[stat], 'desc');
+        if (stat === 'cases') {
+            this.handleOpenCasesClick();
+        } else if (stat === 'tasks') {
+            this.handleOpenTasksClick();
+        } else if (stat === 'pipeline') {
+            this.handleOpenPipelineClick();
+        }
+    }
+
+    handleOpenCasesClick() {
+        this.kpiModalTitle = 'Open Cases';
+        this.kpiModalType = 'cases';
+        this.kpiModalEmptyMessage = 'Great job! No open cases.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getAllOpenCasesForPortfolio()
+            .then(result => {
+                this.kpiModalData = this.sortPortfolioCases(result || []);
+            })
+            .catch(error => {
+                this.handleError('Failed to load cases', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleOpenTasksClick() {
+        this.kpiModalTitle = 'Overdue Tasks';
+        this.kpiModalType = 'tasks';
+        this.kpiModalEmptyMessage = 'No overdue tasks. Nice work.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getOverdueTasksForPortfolio()
+            .then(result => {
+                this.kpiModalData = this.sortPortfolioTasks(result || []);
+            })
+            .catch(error => {
+                this.handleError('Failed to load overdue tasks', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleOpenPipelineClick() {
+        this.kpiModalTitle = 'Open Pipeline';
+        this.kpiModalType = 'opportunities';
+        this.kpiModalEmptyMessage = 'No open opportunities.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getAllOpenOpportunitiesForPortfolio()
+            .then(result => {
+                this.kpiModalData = this.sortPortfolioOpportunities(result || []);
+            })
+            .catch(error => {
+                this.handleError('Failed to load opportunities', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleCloseKpiModal() {
+        this.showKpiModal = false;
+        this.kpiModalData = [];
+        this.kpiModalType = '';
+    }
+
+    handleKpiRecordClick(event) {
+        const recordId = event.currentTarget.dataset.id;
+        if (recordId) {
+            this.navigateToRecord(recordId);
+        }
     }
 
     // ── Renewal Click ──
@@ -386,6 +462,16 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         this.dispatchEvent(
             new ShowToastEvent({ title, message: errorMessage, variant: 'error' })
         );
+    }
+
+    navigateToRecord(recordId) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId,
+                actionName: 'view'
+            }
+        });
     }
 
     // ══════════════════════════════════════════════════════════
@@ -594,6 +680,10 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     get hasSuggestedActions() { return this.suggestedActions.length > 0; }
     get hasSuggestedActionModalItems() { return this.suggestedActionModalItems && this.suggestedActionModalItems.length > 0; }
+    get hasKpiModalData() { return this.kpiModalData && this.kpiModalData.length > 0; }
+    get showCasesModal() { return this.showKpiModal && this.kpiModalType === 'cases'; }
+    get showTasksModal() { return this.showKpiModal && this.kpiModalType === 'tasks'; }
+    get showOpportunitiesModal() { return this.showKpiModal && this.kpiModalType === 'opportunities'; }
 
     // ── Stat Bar ──
 
@@ -898,6 +988,63 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
         if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
         return `$${value.toFixed(0)}`;
+    }
+
+    compareText(left, right) {
+        return (left || '').localeCompare(right || '', undefined, { sensitivity: 'base' });
+    }
+
+    getCaseSeverityRank(record) {
+        if (record?.isEscalated) return 0;
+
+        const priority = (record?.priority || '').toLowerCase();
+        if (priority === 'critical') return 1;
+        if (priority === 'high') return 2;
+        if (priority === 'medium') return 3;
+        if (priority === 'low') return 4;
+        return 5;
+    }
+
+    sortPortfolioCases(records) {
+        return [...records].sort((left, right) => {
+            const accountCompare = this.compareText(left.accountName, right.accountName);
+            if (accountCompare !== 0) return accountCompare;
+
+            const severityCompare = this.getCaseSeverityRank(left) - this.getCaseSeverityRank(right);
+            if (severityCompare !== 0) return severityCompare;
+
+            const ageCompare = (right.age || 0) - (left.age || 0);
+            if (ageCompare !== 0) return ageCompare;
+
+            return this.compareText(left.caseNumber, right.caseNumber);
+        });
+    }
+
+    sortPortfolioTasks(records) {
+        return [...records].sort((left, right) => {
+            const accountCompare = this.compareText(left.accountName, right.accountName);
+            if (accountCompare !== 0) return accountCompare;
+
+            const overdueCompare = (right.daysOverdue || 0) - (left.daysOverdue || 0);
+            if (overdueCompare !== 0) return overdueCompare;
+
+            return this.compareText(left.subject, right.subject);
+        });
+    }
+
+    sortPortfolioOpportunities(records) {
+        return [...records].sort((left, right) => {
+            const accountCompare = this.compareText(left.accountName, right.accountName);
+            if (accountCompare !== 0) return accountCompare;
+
+            const amountCompare = (right.amount || 0) - (left.amount || 0);
+            if (amountCompare !== 0) return amountCompare;
+
+            const probabilityCompare = (right.probability || 0) - (left.probability || 0);
+            if (probabilityCompare !== 0) return probabilityCompare;
+
+            return this.compareText(left.name, right.name);
+        });
     }
 
     getSnapshotCardClass(tone, clickable = false) {
