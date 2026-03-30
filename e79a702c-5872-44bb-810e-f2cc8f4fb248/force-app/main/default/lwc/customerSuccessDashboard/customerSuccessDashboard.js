@@ -1363,7 +1363,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 key: `cm-${index}`,
                 monthIndex: index,
                 label: displayLabel,
-                fullLabel: r.label || '\u2014',
+                fullLabel: this._formatMonthTitle(index),
                 currentCount: r.current,
                 avgCloseTime: avgCloseText,
                 currentBarStyle: `height: ${curPct}%;`,
@@ -1404,14 +1404,14 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 key: `wm-${index}`,
                 monthIndex: index,
                 label: displayLabel,
-                fullLabel: r.label || '\u2014',
+                fullLabel: this._formatMonthTitle(index),
                 currentAmount: r.current,
                 prevAmount: r.prev,
                 currentBarStyle: `height: ${curPct}%;`,
                 hasCurrentBar: r.current > 0,
                 isTooltipActive: this._activeTooltipKey === `wm-${index}`,
                 tooltipAmount: this.formatCompactCurrency(r.current),
-                tooltipPrevAmount: `Prior yr: ${this.formatCompactCurrency(r.prev)}`,
+                tooltipPrevAmount: `Last year: ${this.formatCompactCurrency(r.prev)}`,
                 ariaLabel: `${r.label || ''}: ${this.formatCompactCurrency(r.current)}, last year ${this.formatCompactCurrency(r.prev)}`
             };
         });

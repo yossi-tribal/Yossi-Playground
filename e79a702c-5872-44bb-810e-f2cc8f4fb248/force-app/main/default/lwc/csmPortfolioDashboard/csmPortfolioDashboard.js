@@ -1006,7 +1006,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
                 key: `pcm-${index}`,
                 monthIndex: index,
                 label: displayLabel,
-                fullLabel: r.label || '\u2014',
+                fullLabel: this._formatMonthTitle(index),
                 currentCount: r.current,
                 avgCloseTime: avgCloseText,
                 currentBarStyle: `height: ${curPct}%;`,
@@ -1079,14 +1079,14 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
                 key: `prm-${index}`,
                 monthIndex: index,
                 label: displayLabel,
-                fullLabel: r.label || '\u2014',
+                fullLabel: this._formatMonthTitle(index),
                 currentAmount: r.current,
                 prevAmount: r.prev,
                 currentBarStyle: `height: ${curPct}%;`,
                 hasCurrentBar: r.current > 0,
                 isTooltipActive: this._activeTooltipKey === `prm-${index}`,
                 tooltipAmount: this.formatCurrencyShort(r.current),
-                tooltipPrevAmount: `Prior yr: ${this.formatCurrencyShort(r.prev)}`,
+                tooltipPrevAmount: `Last year: ${this.formatCurrencyShort(r.prev)}`,
                 ariaLabel: `${r.label || ''}: ${this.formatCurrencyShort(r.current)}, last year ${this.formatCurrencyShort(r.prev)}`
             };
         });
