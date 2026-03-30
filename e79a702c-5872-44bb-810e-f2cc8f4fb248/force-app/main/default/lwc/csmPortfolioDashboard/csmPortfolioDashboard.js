@@ -29,7 +29,8 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track expandedAccountId = null;
     @track showAccountModal = false;
     @track selectedAccountId = null;
-    @track snapshotExpanded = false;
+    @track selectedAccountName = '';
+    @track snapshotExpanded = true;
 
     @track showActivityModal = false;
     @track activityModalObjectApiName = '';
@@ -103,10 +104,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     handleFilterClick(event) {
         const filter = event.currentTarget.dataset.filter;
         if (filter && filter !== this.currentFilter) {
-            this.currentFilter = filter;
-            this.currentPage = 1;
-            this.isLoading = true;
-            this.loadAccounts().then(() => { this.isLoading = false; });
+            this.applyAccountFocus(filter);
         }
     }
 
@@ -116,17 +114,17 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         const filterMap = { green: 'healthy', yellow: 'needs-attention', red: 'at-risk', gray: 'all' };
         const newFilter = filterMap[segment] || 'all';
         if (newFilter !== this.currentFilter) {
-            this.currentFilter = newFilter;
-            this.currentPage = 1;
-            this.isLoading = true;
-            this.loadAccounts().then(() => { this.isLoading = false; });
+            this.applyAccountFocus(newFilter);
         }
     }
 
     handleSuggestedActionClick(event) {
         const actionType = event.currentTarget.dataset.actionType;
         if (!actionType) return;
+        this.openSuggestedAction(actionType);
+    }
 
+    openSuggestedAction(actionType) {
         if (actionType === 'overdue') {
             this.suggestedActionModalTitle = 'Overdue Tasks Across Portfolio';
             this.suggestedActionModalType = 'task';
@@ -208,10 +206,21 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             }
 
         } else if (actionType === 'inactive') {
-            this.currentFilter = 'inactive';
-            this.currentPage = 1;
-            this.isLoading = true;
-            this.loadAccounts().then(() => { this.isLoading = false; });
+            this.applyAccountFocus('inactive');
+        }
+    }
+
+    handleSnapshotFilterClick(event) {
+        const filter = event.currentTarget.dataset.filter;
+        if (filter) {
+            this.applyAccountFocus(filter);
+        }
+    }
+
+    handleSnapshotActionClick(event) {
+        const actionType = event.currentTarget.dataset.actionType;
+        if (actionType) {
+            this.openSuggestedAction(actionType);
         }
     }
 
@@ -283,7 +292,9 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         event.stopPropagation();
         const accountId = event.currentTarget.dataset.id;
         if (accountId) {
+            const selectedAccount = this.accounts.find(account => account.accountId === accountId);
             this.selectedAccountId = accountId;
+            this.selectedAccountName = selectedAccount?.accountName || '';
             this.showAccountModal = true;
         }
     }
@@ -291,6 +302,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     handleCloseAccountModal() {
         this.showAccountModal = false;
         this.selectedAccountId = null;
+        this.selectedAccountName = '';
     }
 
     handleGoToAccount(event) {
@@ -347,12 +359,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         if (!stat) return;
         const filterMap = { cases: 'all', tasks: 'all', pipeline: 'all' };
         const sortMap = { cases: 'accountName', tasks: 'accountName', pipeline: 'accountName' };
-        this.currentFilter = filterMap[stat];
-        this.sortField = sortMap[stat];
-        this.sortDirection = 'desc';
-        this.currentPage = 1;
-        this.isLoading = true;
-        this.loadAccounts().then(() => { this.isLoading = false; });
+        this.applyAccountFocus(filterMap[stat], sortMap[stat], 'desc');
     }
 
     // ── Renewal Click ──
@@ -453,6 +460,81 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return `${this.summary.totalAccounts} account${this.summary.totalAccounts !== 1 ? 's' : ''} in portfolio`;
     }
 
+    get portfolioStatusSummary() {
+        if (!this.summary) return [];
+
+        const items = [
+            {
+                key: 'healthy',
+                label: 'Healthy',
+                value: this.summary.healthyAccounts || 0,
+                valueClass: 'portfolio-summary-value portfolio-summary-value--good'
+            },
+            {
+                key: 'needs-attention',
+                label: 'Needs Attention',
+                value: this.summary.needsAttentionAccounts || 0,
+                valueClass: 'portfolio-summary-value portfolio-summary-value--warning'
+            },
+            {
+                key: 'at-risk',
+                label: 'At Risk',
+                value: this.summary.atRiskAccounts || 0,
+                valueClass: 'portfolio-summary-value portfolio-summary-value--danger'
+            }
+        ];
+
+        if (this.unassessedCount > 0) {
+            items.push({
+                key: 'unassessed',
+                label: 'Unassessed',
+                value: this.unassessedCount,
+                valueClass: 'portfolio-summary-value portfolio-summary-value--muted'
+            });
+        }
+
+        return items;
+    }
+
+    get portfolioBreakdownFactors() {
+        if (!this.healthBreakdown) return [];
+
+        return [
+            this.buildPortfolioBreakdownFactor(
+                'activity',
+                'Activity Recency',
+                this.healthBreakdown.accountsInactiveGreen,
+                this.healthBreakdown.accountsInactiveYellow,
+                this.healthBreakdown.accountsInactiveRed,
+                '<15d healthy, 15-29d warning, 30+d at risk'
+            ),
+            this.buildPortfolioBreakdownFactor(
+                'overdue',
+                'Overdue Tasks',
+                this.healthBreakdown.accountsOverdueGreen,
+                this.healthBreakdown.accountsOverdueYellow,
+                this.healthBreakdown.accountsOverdueRed,
+                '0 healthy, 1-2 warning, 3+ at risk'
+            ),
+            this.buildPortfolioBreakdownFactor(
+                'highpri',
+                'High-Priority Cases',
+                this.healthBreakdown.accountsHighPriGreen,
+                this.healthBreakdown.accountsHighPriYellow,
+                this.healthBreakdown.accountsHighPriRed,
+                '0 healthy, 1 warning, 2+ at risk'
+            ),
+            this.buildPortfolioBreakdownFactor(
+                'cases',
+                'Total Open Cases',
+                this.healthBreakdown.accountsCasesGreen,
+                this.healthBreakdown.accountsCasesYellow,
+                this.healthBreakdown.accountsCasesRed,
+                '0-2 healthy, 3-4 warning, 5+ at risk'
+            )
+        ];
+    }
+
     // ── Suggested Actions ──
 
     get suggestedActions() {
@@ -551,10 +633,169 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             : 'commercial-snapshot commercial-snapshot--collapsed';
     }
 
-    get ltvFormatted() { return this.formatCurrencyShort(this.summary?.totalClosedWonAmount || 0); }
     get weightedPipelineFormatted() { return this.formatCurrencyShort(this.summary?.totalWeightedPipeline || 0); }
     get ytdWonFormatted() { return this.formatCurrencyShort(this.summary?.totalYtdClosedWon || 0); }
     get openPipelineFormatted() { return this.formatCurrencyShort(this.summary?.totalOpenPipeline || 0); }
+
+    get atRiskSnapshotClass() {
+        return this.getSnapshotCardClass((this.summary?.atRiskAccounts || 0) > 0 ? 'danger' : 'good', true);
+    }
+
+    get needsAttentionSnapshotClass() {
+        return this.getSnapshotCardClass((this.summary?.needsAttentionAccounts || 0) > 0 ? 'warning' : 'good', true);
+    }
+
+    get inactiveSnapshotClass() {
+        return this.getSnapshotCardClass((this.summary?.inactiveAccounts || 0) > 0 ? 'warning' : 'good', true);
+    }
+
+    get atRiskSnapshotSubtitle() {
+        const count = this.summary?.atRiskAccounts || 0;
+        return count > 0 ? 'Filter to the accounts needing immediate attention' : 'No at-risk accounts right now';
+    }
+
+    get needsAttentionSnapshotSubtitle() {
+        const count = this.summary?.needsAttentionAccounts || 0;
+        return count > 0 ? 'Filter to accounts showing early risk signals' : 'No accounts in caution status';
+    }
+
+    get inactiveSnapshotSubtitle() {
+        const count = this.summary?.inactiveAccounts || 0;
+        return count > 0 ? 'Filter to accounts without activity in 30+ days' : 'No inactive accounts right now';
+    }
+
+    get openCasesSnapshotClass() {
+        const highPri = this.summary?.accountsWithHighPriCases || 0;
+        const openCases = this.summary?.totalOpenCases || 0;
+        if (highPri > 0) {
+            return this.getSnapshotCardClass('danger');
+        }
+        if (openCases > 0) {
+            return this.getSnapshotCardClass('warning');
+        }
+        return this.getSnapshotCardClass('good');
+    }
+
+    get highPriorityAccountsSnapshotClass() {
+        return this.getSnapshotCardClass((this.summary?.accountsWithHighPriCases || 0) > 0 ? 'danger' : 'good', true);
+    }
+
+    get overdueTasksSnapshotClass() {
+        return this.getSnapshotCardClass((this.summary?.totalOverdueTasks || 0) > 0 ? 'danger' : 'good');
+    }
+
+    get overdueAccountsSnapshotClass() {
+        return this.getSnapshotCardClass((this.summary?.accountsWithOverdueTasks || 0) > 0 ? 'danger' : 'good', true);
+    }
+
+    get openCasesSnapshotSubtitle() {
+        const highPri = this.summary?.accountsWithHighPriCases || 0;
+        const openCases = this.summary?.totalOpenCases || 0;
+        if (highPri > 0) {
+            return `${highPri} account${highPri !== 1 ? 's' : ''} ${highPri === 1 ? 'has' : 'have'} priority cases`;
+        }
+        return openCases > 0 ? 'Across the full portfolio' : 'No active cases right now';
+    }
+
+    get highPriorityAccountsSnapshotSubtitle() {
+        const count = this.summary?.accountsWithHighPriCases || 0;
+        return count > 0 ? 'Open the priority-case list' : 'No high-priority case hotspots';
+    }
+
+    get overdueTasksSnapshotSubtitle() {
+        const overdueTasks = this.summary?.totalOverdueTasks || 0;
+        const overdueAccounts = this.summary?.accountsWithOverdueTasks || 0;
+        if (overdueTasks > 0) {
+            return `Across ${overdueAccounts} account${overdueAccounts !== 1 ? 's' : ''}`;
+        }
+        return 'Nothing is overdue right now';
+    }
+
+    get overdueAccountsSnapshotSubtitle() {
+        const count = this.summary?.accountsWithOverdueTasks || 0;
+        return count > 0 ? 'Open the overdue-task list' : 'No overdue-task hotspots';
+    }
+
+    get hasSupportRisk() {
+        return (this.summary?.totalOpenCases || 0) > 0 ||
+            (this.summary?.accountsWithHighPriCases || 0) > 0 ||
+            (this.summary?.totalOverdueTasks || 0) > 0 ||
+            (this.summary?.accountsWithOverdueTasks || 0) > 0;
+    }
+
+    get supportCasesYearSubtitle() {
+        return `Prior year: ${this.summary?.priorYearCaseCount || 0}`;
+    }
+
+    get supportCasesYearCardClass() {
+        const current = this.summary?.ytdCaseCount || 0;
+        const prior = this.summary?.priorYearCaseCount || 0;
+        if (current === 0 && prior === 0) {
+            return this.getSnapshotCardClass('neutral');
+        }
+        return this.getSnapshotCardClass(current > prior ? 'warning' : 'good');
+    }
+
+    get caseTrendBars() {
+        if (!this.summary) return [];
+
+        const raw = [
+            { label: this.summary.caseMonth1Label, current: Number(this.summary.caseMonth1 || 0), prev: Number(this.summary.caseMonth1Prev || 0) },
+            { label: this.summary.caseMonth2Label, current: Number(this.summary.caseMonth2 || 0), prev: Number(this.summary.caseMonth2Prev || 0) },
+            { label: this.summary.caseMonth3Label, current: Number(this.summary.caseMonth3 || 0), prev: Number(this.summary.caseMonth3Prev || 0) },
+            { label: this.summary.caseMonth4Label, current: Number(this.summary.caseMonth4 || 0), prev: Number(this.summary.caseMonth4Prev || 0) },
+            { label: this.summary.caseMonth5Label, current: Number(this.summary.caseMonth5 || 0), prev: Number(this.summary.caseMonth5Prev || 0) },
+            { label: this.summary.caseMonth6Label, current: Number(this.summary.caseMonth6 || 0), prev: Number(this.summary.caseMonth6Prev || 0) }
+        ];
+        const max = Math.max(...raw.flatMap((entry) => [entry.current, entry.prev]), 1);
+
+        return raw.map((entry, index) => {
+            const currentPct = entry.current === 0 ? 0 : Math.max(6, Math.round((entry.current / max) * 100));
+            const prevPct = entry.prev === 0 ? 0 : Math.max(6, Math.round((entry.prev / max) * 100));
+            return {
+                key: `pcm-${index}`,
+                label: entry.label || '—',
+                currentCount: entry.current,
+                prevCount: entry.prev,
+                currentBarStyle: `height: ${currentPct}%;`,
+                prevBarStyle: `height: ${prevPct}%;`,
+                hasCurrentBar: entry.current > 0,
+                hasPrevBar: entry.prev > 0,
+                ariaLabel: `${entry.label || ''}: this year ${entry.current}, last year ${entry.prev}`
+            };
+        });
+    }
+
+    get hasCaseMonthData() {
+        if (!this.summary) return false;
+        return [
+            this.summary.caseMonth1, this.summary.caseMonth2, this.summary.caseMonth3,
+            this.summary.caseMonth4, this.summary.caseMonth5, this.summary.caseMonth6,
+            this.summary.caseMonth1Prev, this.summary.caseMonth2Prev, this.summary.caseMonth3Prev,
+            this.summary.caseMonth4Prev, this.summary.caseMonth5Prev, this.summary.caseMonth6Prev
+        ].some((value) => Number(value || 0) > 0);
+    }
+
+    get upcomingRenewalsSnapshotClass() {
+        return this.getSnapshotCardClass((this.summary?.upcomingRenewalsCount || 0) > 0 ? 'brand' : 'neutral', this.hasRenewals);
+    }
+
+    get commercialPipelineSnapshotClass() {
+        return this.getSnapshotCardClass('brand');
+    }
+
+    get commercialWeightedPipelineSnapshotClass() {
+        return this.getSnapshotCardClass('neutral');
+    }
+
+    get commercialYtdWonSnapshotClass() {
+        return this.getSnapshotCardClass('good');
+    }
+
+    get upcomingRenewalsSnapshotSubtitle() {
+        const count = this.summary?.upcomingRenewalsCount || 0;
+        return count > 0 ? 'Open renewals closing in the next 90 days' : 'No renewals due in the next 90 days';
+    }
 
     get renewalsDecorated() {
         if (!this.renewals) return [];
@@ -611,6 +852,10 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         });
     }
 
+    get selectedAccountModalTitle() {
+        return this.selectedAccountName || 'Account Dashboard';
+    }
+
     get sortIndicatorName() {
         return this.sortDirection === 'asc' ? '▲' : '▼';
     }
@@ -639,11 +884,65 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     // HELPER METHODS
     // ══════════════════════════════════════════════════════════
 
+    applyAccountFocus(filter, sortField = this.sortField, sortDirection = this.sortDirection) {
+        this.currentFilter = filter;
+        this.sortField = sortField;
+        this.sortDirection = sortDirection;
+        this.currentPage = 1;
+        this.isLoading = true;
+        this.loadAccounts().then(() => { this.isLoading = false; });
+    }
+
     formatCurrencyShort(value) {
         if (value == null || value === 0) return '$0';
         if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
         if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
         return `$${value.toFixed(0)}`;
+    }
+
+    getSnapshotCardClass(tone, clickable = false) {
+        return `commercial-kpi commercial-kpi--${tone}${clickable ? ' commercial-kpi--click' : ''}`;
+    }
+
+    buildPortfolioBreakdownFactor(key, label, healthy, warning, danger, thresholds) {
+        const headlineCount = danger > 0 ? danger : (warning > 0 ? warning : healthy);
+        const headlineClass = danger > 0
+            ? 'factor-value factor-value--danger'
+            : (warning > 0 ? 'factor-value factor-value--warning' : 'factor-value factor-value--good');
+        const headlineText = danger > 0
+            ? `${danger} account${danger !== 1 ? 's' : ''} at risk`
+            : (warning > 0
+                ? `${warning} account${warning !== 1 ? 's' : ''} ${warning === 1 ? 'needs' : 'need'} attention`
+                : `${healthy} account${healthy !== 1 ? 's' : ''} healthy`);
+
+        return {
+            key,
+            label,
+            headlineCount,
+            headlineClass,
+            headlineText,
+            thresholds,
+            stats: [
+                {
+                    key: `${key}-healthy`,
+                    label: 'Healthy',
+                    value: healthy,
+                    className: 'portfolio-factor-pill portfolio-factor-pill--good'
+                },
+                {
+                    key: `${key}-warning`,
+                    label: 'Needs Attention',
+                    value: warning,
+                    className: 'portfolio-factor-pill portfolio-factor-pill--warning'
+                },
+                {
+                    key: `${key}-danger`,
+                    label: 'At Risk',
+                    value: danger,
+                    className: 'portfolio-factor-pill portfolio-factor-pill--danger'
+                }
+            ]
+        };
     }
 
     getDaysSinceActivityText(days) {

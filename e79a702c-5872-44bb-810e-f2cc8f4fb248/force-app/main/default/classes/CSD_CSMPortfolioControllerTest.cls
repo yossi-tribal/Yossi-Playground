@@ -6,6 +6,10 @@
 @isTest
 private class CSD_CSMPortfolioControllerTest {
 
+    private static Datetime midday(Date dateValue) {
+        return Datetime.newInstance(dateValue, Time.newInstance(12, 0, 0, 0));
+    }
+
     /**
      * @description Setup test data
      */
@@ -78,6 +82,32 @@ private class CSD_CSMPortfolioControllerTest {
                 Status = 'Working'
             ));
             insert cases;
+
+            // Create additional cases with backdated CreatedDates for portfolio trend coverage
+            List<Case> trendCases = new List<Case>();
+            trendCases.add(new Case(
+                AccountId = acc1.Id,
+                Subject = 'Trend Case Current Year 1',
+                Priority = 'Low',
+                Status = 'Closed'
+            ));
+            trendCases.add(new Case(
+                AccountId = acc2.Id,
+                Subject = 'Trend Case Current Year 2',
+                Priority = 'Low',
+                Status = 'Closed'
+            ));
+            trendCases.add(new Case(
+                AccountId = acc3.Id,
+                Subject = 'Trend Case Prior Year',
+                Priority = 'Low',
+                Status = 'Closed'
+            ));
+            insert trendCases;
+
+            Test.setCreatedDate(trendCases[0].Id, midday(Date.today().addMonths(-2)));
+            Test.setCreatedDate(trendCases[1].Id, midday(Date.today().addMonths(-1)));
+            Test.setCreatedDate(trendCases[2].Id, midday(Date.today().addMonths(-1).addYears(-1)));
 
             // Create test tasks for Account 2
             List<Task> tasks = new List<Task>();
@@ -158,6 +188,34 @@ private class CSD_CSMPortfolioControllerTest {
             System.assertEquals(2, summary.totalOpenCases, 'Should have 2 open cases');
             System.assertEquals(1, summary.totalOverdueTasks, 'Should have 1 overdue task');
             System.assertEquals(125000, summary.totalOpenPipeline, 'Should have total pipeline of 125000');
+            System.assert(summary.ytdCaseCount >= 4, 'Should include current-year portfolio cases in the summary');
+            System.assertEquals(1, summary.priorYearCaseCount, 'Should include prior-year portfolio case count');
+        }
+        Test.stopTest();
+    }
+
+    /**
+     * @description Test portfolio case trend aggregates are populated for the snapshot
+     */
+    @isTest
+    static void testGetPortfolioSummaryCaseTrends() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            CSD_CSMPortfolioController.PortfolioSummary summary = CSD_CSMPortfolioController.getPortfolioSummary();
+
+            Integer currentWindowTotal =
+                summary.caseMonth1 + summary.caseMonth2 + summary.caseMonth3 +
+                summary.caseMonth4 + summary.caseMonth5 + summary.caseMonth6;
+            Integer priorWindowTotal =
+                summary.caseMonth1Prev + summary.caseMonth2Prev + summary.caseMonth3Prev +
+                summary.caseMonth4Prev + summary.caseMonth5Prev + summary.caseMonth6Prev;
+
+            System.assert(currentWindowTotal > 0, 'Current portfolio case trend should include recent cases');
+            System.assert(priorWindowTotal > 0, 'Prior-year portfolio case trend should include comparison data');
+            System.assertNotEquals('', summary.caseMonth1Label, 'Case trend labels should be populated');
+            System.assertNotEquals('', summary.caseMonth6Label, 'Case trend labels should be populated');
         }
         Test.stopTest();
     }
@@ -369,6 +427,8 @@ private class CSD_CSMPortfolioControllerTest {
             CSD_CSMPortfolioController.PortfolioSummary summary2 =
                 CSD_CSMPortfolioController.getPortfolioSummary();
             System.assertEquals(0, summary2.totalAccounts, 'User 2 should see 0 accounts');
+            System.assertEquals(0, summary2.ytdCaseCount, 'User 2 should have no current-year case counts');
+            System.assertEquals(0, summary2.caseMonth1, 'User 2 should have empty trend counts');
         }
 
         Test.stopTest();

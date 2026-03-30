@@ -182,13 +182,13 @@
                     </div>
                 </template>
 
-                <!-- Commercial Snapshot -->
+                <!-- Customer Success Snapshot -->
                 <template if:true={hasSummary}>
                     <div class={snapshotClass}>
                         <button class="snapshot-toggle" onclick={handleSnapshotToggle} type="button">
                             <div class="snapshot-toggle-left">
-                                <span class="snapshot-title">PORTFOLIO COMMERCIAL SNAPSHOT</span>
-                                <span class="snapshot-hint">Revenue, pipeline, and upcoming renewals</span>
+                                <span class="snapshot-title">Portfolio Customer Success Snapshot</span>
+                                <span class="snapshot-hint">Health signals first, support workload second, and commercial context third</span>
                             </div>
                             <lightning-icon
                                 icon-name="utility:chevronright"
@@ -199,52 +199,168 @@
 
                         <template if:true={snapshotExpanded}>
                             <div class="snapshot-body">
-                                <div class="commercial-kpi-row">
-                                    <div class="commercial-kpi">
-                                        <span class="commercial-kpi-label">LIFETIME VALUE</span>
-                                        <span class="commercial-kpi-value">{ltvFormatted}</span>
-                                        <span class="commercial-kpi-sub">All closed-won</span>
-                                    </div>
-                                    <div class="commercial-kpi">
-                                        <span class="commercial-kpi-label">OPEN PIPELINE</span>
-                                        <span class="commercial-kpi-value">{openPipelineFormatted}</span>
-                                        <span class="commercial-kpi-sub">Active opportunities</span>
-                                    </div>
-                                    <div class="commercial-kpi">
-                                        <span class="commercial-kpi-label">WEIGHTED PIPELINE</span>
-                                        <span class="commercial-kpi-value">{weightedPipelineFormatted}</span>
-                                        <span class="commercial-kpi-sub">By probability</span>
-                                    </div>
-                                    <div class="commercial-kpi">
-                                        <span class="commercial-kpi-label">YTD CLOSED-WON</span>
-                                        <span class="commercial-kpi-value">{ytdWonFormatted}</span>
-                                        <span class="commercial-kpi-sub">This year</span>
+                                <div class="snapshot-section">
+                                    <span class="snapshot-section-header">Portfolio Health</span>
+                                    <div class="commercial-kpi-row">
+                                        <button type="button" class={atRiskSnapshotClass} data-filter="at-risk" onclick={handleSnapshotFilterClick}>
+                                            <span class="commercial-kpi-label">At Risk</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.atRiskAccounts}</span>
+                                            <span class="commercial-kpi-sub">{atRiskSnapshotSubtitle}</span>
+                                        </button>
+                                        <button type="button" class={needsAttentionSnapshotClass} data-filter="needs-attention" onclick={handleSnapshotFilterClick}>
+                                            <span class="commercial-kpi-label">Needs Attention</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.needsAttentionAccounts}</span>
+                                            <span class="commercial-kpi-sub">{needsAttentionSnapshotSubtitle}</span>
+                                        </button>
+                                        <button type="button" class={inactiveSnapshotClass} data-filter="inactive" onclick={handleSnapshotFilterClick}>
+                                            <span class="commercial-kpi-label">Inactive</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.inactiveAccounts}</span>
+                                            <span class="commercial-kpi-sub">{inactiveSnapshotSubtitle}</span>
+                                        </button>
                                     </div>
                                 </div>
 
-                                <!-- Upcoming Renewals -->
-                                <template if:true={hasRenewals}>
-                                    <div class="renewals-section">
-                                        <div class="renewals-title">Upcoming Renewals</div>
-                                        <template for:each={renewalsDecorated} for:item="renewal">
-                                            <a key={renewal.opportunityId}
-                                               class="renewal-link"
-                                               data-id={renewal.opportunityId}
-                                               onclick={handleRenewalClick}
-                                               title="Open opportunity">
-                                                <div class="renewal-link-left">
-                                                    <span class="renewal-account">{renewal.accountName}</span>
-                                                    <span class="renewal-opp">{renewal.opportunityName}</span>
-                                                </div>
-                                                <div class="renewal-link-right">
-                                                    <span class="renewal-amount">{renewal.amountFormatted}</span>
-                                                    <span class={renewal.daysClass}>{renewal.daysText}</span>
-                                                </div>
-                                                <lightning-icon icon-name="utility:new_window" size="xx-small" class="renewal-nav-icon"></lightning-icon>
-                                            </a>
-                                        </template>
+                                <div class="snapshot-section snapshot-section--border">
+                                    <span class="snapshot-section-header">Support &amp; Workload</span>
+                                    <div class="commercial-kpi-row">
+                                        <div class={openCasesSnapshotClass}>
+                                            <span class="commercial-kpi-label">Open Cases</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.totalOpenCases}</span>
+                                            <span class="commercial-kpi-sub">{openCasesSnapshotSubtitle}</span>
+                                        </div>
+                                        <button type="button" class={highPriorityAccountsSnapshotClass} data-action-type="highpri" onclick={handleSnapshotActionClick}>
+                                            <span class="commercial-kpi-label">Priority Case Accounts</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.accountsWithHighPriCases}</span>
+                                            <span class="commercial-kpi-sub">{highPriorityAccountsSnapshotSubtitle}</span>
+                                        </button>
+                                        <div class={overdueTasksSnapshotClass}>
+                                            <span class="commercial-kpi-label">Overdue Tasks</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.totalOverdueTasks}</span>
+                                            <span class="commercial-kpi-sub">{overdueTasksSnapshotSubtitle}</span>
+                                        </div>
+                                        <button type="button" class={overdueAccountsSnapshotClass} data-action-type="overdue" onclick={handleSnapshotActionClick}>
+                                            <span class="commercial-kpi-label">Accounts With Overdue Tasks</span>
+                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.accountsWithOverdueTasks}</span>
+                                            <span class="commercial-kpi-sub">{overdueAccountsSnapshotSubtitle}</span>
+                                        </button>
                                     </div>
-                                </template>
+
+                                    <template if:false={hasSupportRisk}>
+                                        <div class="snapshot-empty snapshot-empty--good">No active support risk across the portfolio right now.</div>
+                                    </template>
+
+                                    <div class="snapshot-visuals">
+                                        <div class="snapshot-left-card">
+                                            <div class={supportCasesYearCardClass}>
+                                                <span class="commercial-kpi-label">Cases This Year</span>
+                                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
+                                                <span class="commercial-kpi-sub">{supportCasesYearSubtitle}</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="trend-chart-wrap">
+                                            <div class="trend-chart-header">
+                                                <span class="trend-chart-title">Cases opened (6 months)</span>
+                                                <div class="trend-chart-legend">
+                                                    <span class="trend-chart-legend-item">
+                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--current"></span>
+                                                        This year
+                                                    </span>
+                                                    <span class="trend-chart-legend-item">
+                                                        <span class="trend-chart-legend-dot trend-chart-legend-dot--prev"></span>
+                                                        Last year
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <template if:true={hasCaseMonthData}>
+                                                <div class="trend-chart">
+                                                    <template for:each={caseTrendBars} for:item="cb">
+                                                        <div key={cb.key} class="trend-chart-col" aria-label={cb.ariaLabel}>
+                                                            <div class="trend-chart-pair">
+                                                                <div class="trend-chart-bar-track">
+                                                                    <template if:true={cb.hasPrevBar}>
+                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--prev" style={cb.prevBarStyle}></div>
+                                                                    </template>
+                                                                </div>
+                                                                <div class="trend-chart-bar-track">
+                                                                    <template if:true={cb.hasCurrentBar}>
+                                                                        <div class="trend-chart-bar-fill trend-chart-bar-fill--current" style={cb.currentBarStyle}></div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                            <span class="case-trend-label">{cb.label}</span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template if:false={hasCaseMonthData}>
+                                                <div class="snapshot-empty">No case trend data in the last 6 months yet.</div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="snapshot-section snapshot-section--border">
+                                    <span class="snapshot-section-header">Commercial Context</span>
+                                    <div class="commercial-kpi-row">
+                                        <template if:true={hasRenewals}>
+                                            <button type="button" class={upcomingRenewalsSnapshotClass} data-action-type="renewals" onclick={handleSnapshotActionClick}>
+                                                <span class="commercial-kpi-label">Upcoming Renewals</span>
+                                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.upcomingRenewalsCount}</span>
+                                                <span class="commercial-kpi-sub">{upcomingRenewalsSnapshotSubtitle}</span>
+                                            </button>
+                                        </template>
+                                        <template if:false={hasRenewals}>
+                                            <div class={upcomingRenewalsSnapshotClass}>
+                                                <span class="commercial-kpi-label">Upcoming Renewals</span>
+                                                <span class="commercial-kpi-value commercial-kpi-value--num">{summary.upcomingRenewalsCount}</span>
+                                                <span class="commercial-kpi-sub">{upcomingRenewalsSnapshotSubtitle}</span>
+                                            </div>
+                                        </template>
+                                        <div class={commercialPipelineSnapshotClass}>
+                                            <span class="commercial-kpi-label">Open Pipeline</span>
+                                            <span class="commercial-kpi-value">{openPipelineFormatted}</span>
+                                            <span class="commercial-kpi-sub">Across the portfolio</span>
+                                        </div>
+                                        <div class={commercialWeightedPipelineSnapshotClass}>
+                                            <span class="commercial-kpi-label">Weighted Pipeline</span>
+                                            <span class="commercial-kpi-value">{weightedPipelineFormatted}</span>
+                                            <span class="commercial-kpi-sub">Probability adjusted</span>
+                                        </div>
+                                        <div class={commercialYtdWonSnapshotClass}>
+                                            <span class="commercial-kpi-label">YTD Closed-Won</span>
+                                            <span class="commercial-kpi-value">{ytdWonFormatted}</span>
+                                            <span class="commercial-kpi-sub">Booked this year</span>
+                                        </div>
+                                    </div>
+
+                                    <template if:true={hasRenewals}>
+                                        <div class="renewals-section">
+                                            <div class="renewals-title">Upcoming Renewals</div>
+                                            <template for:each={renewalsDecorated} for:item="renewal">
+                                                <a key={renewal.opportunityId}
+                                                   class="renewal-link"
+                                                   data-id={renewal.opportunityId}
+                                                   onclick={handleRenewalClick}
+                                                   title="Open opportunity">
+                                                    <div class="renewal-link-left">
+                                                        <span class="renewal-account">{renewal.accountName}</span>
+                                                        <span class="renewal-opp">{renewal.opportunityName}</span>
+                                                    </div>
+                                                    <div class="renewal-link-right">
+                                                        <span class="renewal-amount">{renewal.amountFormatted}</span>
+                                                        <span class={renewal.daysClass}>{renewal.daysText}</span>
+                                                    </div>
+                                                    <lightning-icon icon-name="utility:new_window" size="xx-small" class="renewal-nav-icon"></lightning-icon>
+                                                </a>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template if:false={hasRenewals}>
+                                        <div class="snapshot-empty">No renewals due in the next 90 days.</div>
+                                    </template>
+                                </div>
                             </div>
                         </template>
                     </div>
@@ -502,7 +618,7 @@
                             <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
                             <span class="slds-assistive-text">Close</span>
                         </button>
-                        <h2 class="slds-text-heading_medium slds-hyphenate">Account Dashboard</h2>
+                        <h2 class="slds-text-heading_medium slds-hyphenate">{selectedAccountModalTitle}</h2>
                     </header>
                     <div class="slds-modal__content slds-p-around_none">
                         <c-customer-success-dashboard record-id={selectedAccountId}></c-customer-success-dashboard>
@@ -735,7 +851,7 @@
                             <div class="health-breakdown-content">
                                 <div class="breakdown-section">
                                     <div class="breakdown-header">
-                                        <h3 class="breakdown-title">Portfolio Health Score</h3>
+                                        <h3 class="breakdown-title">Overall Health Score</h3>
                                         <div class={heroHealthBadgeClass}>{heroScoreValue}%</div>
                                     </div>
                                     <div class="breakdown-description">
@@ -744,59 +860,39 @@
                                 </div>
 
                                 <div class="breakdown-section">
+                                    <h3 class="breakdown-title">Portfolio Snapshot</h3>
+                                    <div class="portfolio-summary-grid">
+                                        <template for:each={portfolioStatusSummary} for:item="item">
+                                            <div key={item.key} class="portfolio-summary-card">
+                                                <span class="portfolio-summary-label">{item.label}</span>
+                                                <span class={item.valueClass}>{item.value}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <p class="breakdown-text">This is the current health distribution across the entire portfolio.</p>
+                                </div>
+
+                                <div class="breakdown-section">
                                     <h3 class="breakdown-title">Contributing Factors</h3>
+                                    <template for:each={portfolioBreakdownFactors} for:item="factor">
+                                        <div key={factor.key} class="breakdown-factor">
+                                            <div class="factor-row">
+                                                <span class="factor-label">{factor.label}</span>
+                                                <span class={factor.headlineClass}>{factor.headlineCount}</span>
+                                            </div>
+                                            <p class="factor-note">{factor.headlineText}</p>
+                                            <div class="portfolio-factor-pills">
+                                                <template for:each={factor.stats} for:item="stat">
+                                                    <span key={stat.key} class={stat.className}>{stat.label}: {stat.value}</span>
+                                                </template>
+                                            </div>
+                                            <p class="breakdown-text">Thresholds: {factor.thresholds}</p>
+                                        </div>
+                                    </template>
+                                </div>
 
-                                    <div class="breakdown-factor">
-                                        <div class="factor-row">
-                                            <span class="factor-label">Activity Recency</span>
-                                            <span class="factor-value">{healthBreakdown.accountsInactiveRed} at risk</span>
-                                        </div>
-                                        <div class="factor-distribution">
-                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsInactiveGreen}</span>
-                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsInactiveYellow}</span>
-                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsInactiveRed}</span>
-                                        </div>
-                                        <p class="factor-note">Thresholds: &lt;15d healthy, 15-29d warning, 30+d at risk</p>
-                                    </div>
-
-                                    <div class="breakdown-factor">
-                                        <div class="factor-row">
-                                            <span class="factor-label">Overdue Tasks</span>
-                                            <span class="factor-value">{healthBreakdown.accountsOverdueRed} at risk</span>
-                                        </div>
-                                        <div class="factor-distribution">
-                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsOverdueGreen}</span>
-                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsOverdueYellow}</span>
-                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsOverdueRed}</span>
-                                        </div>
-                                        <p class="factor-note">Thresholds: 0 healthy, 1-2 warning, 3+ at risk</p>
-                                    </div>
-
-                                    <div class="breakdown-factor">
-                                        <div class="factor-row">
-                                            <span class="factor-label">High-Priority Cases</span>
-                                            <span class="factor-value">{healthBreakdown.accountsHighPriRed} at risk</span>
-                                        </div>
-                                        <div class="factor-distribution">
-                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsHighPriGreen}</span>
-                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsHighPriYellow}</span>
-                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsHighPriRed}</span>
-                                        </div>
-                                        <p class="factor-note">Thresholds: 0 healthy, 1 warning, 2+ at risk</p>
-                                    </div>
-
-                                    <div class="breakdown-factor">
-                                        <div class="factor-row">
-                                            <span class="factor-label">Total Open Cases</span>
-                                            <span class="factor-value">{healthBreakdown.accountsCasesRed} at risk</span>
-                                        </div>
-                                        <div class="factor-distribution">
-                                            <span class="health-badge health-badge--green">{healthBreakdown.accountsCasesGreen}</span>
-                                            <span class="health-badge health-badge--yellow">{healthBreakdown.accountsCasesYellow}</span>
-                                            <span class="health-badge health-badge--red">{healthBreakdown.accountsCasesRed}</span>
-                                        </div>
-                                        <p class="factor-note">Thresholds: 0-2 healthy, 3-4 warning, 5+ at risk</p>
-                                    </div>
+                                <div class="breakdown-footer">
+                                    <p class="breakdown-timestamp">Portfolio-wide health factors update when the dashboard refreshes.</p>
                                 </div>
                             </div>
                         </template>

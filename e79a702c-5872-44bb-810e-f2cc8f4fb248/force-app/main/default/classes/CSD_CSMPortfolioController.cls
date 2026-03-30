@@ -27,6 +27,26 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public Decimal totalWeightedPipeline { get; set; }
         @AuraEnabled public Decimal totalYtdClosedWon { get; set; }
         @AuraEnabled public Integer upcomingRenewalsCount { get; set; }
+        @AuraEnabled public Integer ytdCaseCount { get; set; }
+        @AuraEnabled public Integer priorYearCaseCount { get; set; }
+        @AuraEnabled public Integer caseMonth1 { get; set; }
+        @AuraEnabled public Integer caseMonth2 { get; set; }
+        @AuraEnabled public Integer caseMonth3 { get; set; }
+        @AuraEnabled public Integer caseMonth4 { get; set; }
+        @AuraEnabled public Integer caseMonth5 { get; set; }
+        @AuraEnabled public Integer caseMonth6 { get; set; }
+        @AuraEnabled public Integer caseMonth1Prev { get; set; }
+        @AuraEnabled public Integer caseMonth2Prev { get; set; }
+        @AuraEnabled public Integer caseMonth3Prev { get; set; }
+        @AuraEnabled public Integer caseMonth4Prev { get; set; }
+        @AuraEnabled public Integer caseMonth5Prev { get; set; }
+        @AuraEnabled public Integer caseMonth6Prev { get; set; }
+        @AuraEnabled public String caseMonth1Label { get; set; }
+        @AuraEnabled public String caseMonth2Label { get; set; }
+        @AuraEnabled public String caseMonth3Label { get; set; }
+        @AuraEnabled public String caseMonth4Label { get; set; }
+        @AuraEnabled public String caseMonth5Label { get; set; }
+        @AuraEnabled public String caseMonth6Label { get; set; }
     }
 
     /**
@@ -125,6 +145,11 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public String stageName { get; set; }
     }
 
+    private static final String[] MONTH_ABBREVS = new String[]{
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    };
+
     /**
      * @description Retrieves portfolio summary KPIs for the current user
      * @return PortfolioSummary object with aggregated metrics
@@ -134,6 +159,26 @@ public with sharing class CSD_CSMPortfolioController {
         try {
             Id currentUserId = UserInfo.getUserId();
             PortfolioSummary summary = new PortfolioSummary();
+            summary.ytdCaseCount = 0;
+            summary.priorYearCaseCount = 0;
+            summary.caseMonth1 = 0;
+            summary.caseMonth2 = 0;
+            summary.caseMonth3 = 0;
+            summary.caseMonth4 = 0;
+            summary.caseMonth5 = 0;
+            summary.caseMonth6 = 0;
+            summary.caseMonth1Prev = 0;
+            summary.caseMonth2Prev = 0;
+            summary.caseMonth3Prev = 0;
+            summary.caseMonth4Prev = 0;
+            summary.caseMonth5Prev = 0;
+            summary.caseMonth6Prev = 0;
+            summary.caseMonth1Label = '';
+            summary.caseMonth2Label = '';
+            summary.caseMonth3Label = '';
+            summary.caseMonth4Label = '';
+            summary.caseMonth5Label = '';
+            summary.caseMonth6Label = '';
 
             // Total accounts assigned to current user
             summary.totalAccounts = [
@@ -321,11 +366,146 @@ public with sharing class CSD_CSMPortfolioController {
                 ];
             }
 
+            populatePortfolioYtdCaseCount(accountIds, summary);
+            populatePortfolioMonthlyCaseVolume(accountIds, summary);
+
             return summary;
 
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving portfolio summary: ' + e.getMessage());
         }
+    }
+
+    private static void populatePortfolioYtdCaseCount(Set<Id> accountIds, PortfolioSummary summary) {
+        if (accountIds.isEmpty()) {
+            return;
+        }
+
+        Integer currentYear = Date.today().year();
+        Date ytdStart = Date.newInstance(currentYear, 1, 1);
+        Integer priorYear = currentYear - 1;
+        Date priorYearStart = Date.newInstance(priorYear, 1, 1);
+        Date priorYearEnd = Date.newInstance(priorYear, 12, 31);
+
+        summary.ytdCaseCount = [
+            SELECT COUNT()
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND CreatedDate >= :ytdStart
+        ];
+
+        summary.priorYearCaseCount = [
+            SELECT COUNT()
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND CreatedDate >= :priorYearStart
+            AND CreatedDate <= :priorYearEnd
+        ];
+    }
+
+    private static void populatePortfolioMonthlyCaseVolume(Set<Id> accountIds, PortfolioSummary summary) {
+        if (accountIds.isEmpty()) {
+            return;
+        }
+
+        Date today = Date.today();
+        Integer currentMonth = today.month();
+        Integer currentYear = today.year();
+        Integer startMonth = currentMonth - 5;
+        Integer startYear = currentYear;
+        if (startMonth < 1) {
+            startMonth += 12;
+            startYear--;
+        }
+
+        Date sixMonthsAgo = Date.newInstance(startYear, startMonth, 1);
+        Date priorSixMonthsAgo = Date.newInstance(startYear - 1, startMonth, 1);
+
+        Map<String, Integer> monthCounts = new Map<String, Integer>();
+        Map<String, Integer> prevMonthCounts = new Map<String, Integer>();
+        List<String> orderedKeys = new List<String>();
+
+        Integer monthCursor = startMonth;
+        Integer yearCursor = startYear;
+        for (Integer i = 0; i < 6; i++) {
+            String key = yearCursor + '-' + String.valueOf(monthCursor).leftPad(2, '0');
+            monthCounts.put(key, 0);
+            orderedKeys.add(key);
+
+            String prevKey = (yearCursor - 1) + '-' + String.valueOf(monthCursor).leftPad(2, '0');
+            prevMonthCounts.put(prevKey, 0);
+
+            monthCursor++;
+            if (monthCursor > 12) {
+                monthCursor = 1;
+                yearCursor++;
+            }
+        }
+
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CreatedDate) mo, CALENDAR_YEAR(CreatedDate) yr, COUNT(Id) cnt
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND CreatedDate >= :sixMonthsAgo
+            GROUP BY CALENDAR_MONTH(CreatedDate), CALENDAR_YEAR(CreatedDate)
+            ORDER BY CALENDAR_YEAR(CreatedDate), CALENDAR_MONTH(CreatedDate)
+        ]) {
+            Integer resultMonth = (Integer) ar.get('mo');
+            Integer resultYear = (Integer) ar.get('yr');
+            String key = resultYear + '-' + String.valueOf(resultMonth).leftPad(2, '0');
+            if (monthCounts.containsKey(key)) {
+                monthCounts.put(key, (Integer) ar.get('cnt'));
+            }
+        }
+
+        for (AggregateResult ar : [
+            SELECT CALENDAR_MONTH(CreatedDate) mo, CALENDAR_YEAR(CreatedDate) yr, COUNT(Id) cnt
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND CreatedDate >= :priorSixMonthsAgo
+            AND CreatedDate < :sixMonthsAgo
+            GROUP BY CALENDAR_MONTH(CreatedDate), CALENDAR_YEAR(CreatedDate)
+            ORDER BY CALENDAR_YEAR(CreatedDate), CALENDAR_MONTH(CreatedDate)
+        ]) {
+            Integer resultMonth = (Integer) ar.get('mo');
+            Integer resultYear = (Integer) ar.get('yr');
+            String key = resultYear + '-' + String.valueOf(resultMonth).leftPad(2, '0');
+            if (prevMonthCounts.containsKey(key)) {
+                prevMonthCounts.put(key, (Integer) ar.get('cnt'));
+            }
+        }
+
+        List<Integer> counts = new List<Integer>();
+        List<Integer> prevCounts = new List<Integer>();
+        List<String> labels = new List<String>();
+        for (String key : orderedKeys) {
+            counts.add(monthCounts.get(key));
+
+            Integer monthValue = Integer.valueOf(key.substring(5));
+            Integer yearValue = Integer.valueOf(key.substring(0, 4));
+            String prevKey = (yearValue - 1) + '-' + String.valueOf(monthValue).leftPad(2, '0');
+            prevCounts.add(prevMonthCounts.containsKey(prevKey) ? prevMonthCounts.get(prevKey) : 0);
+            labels.add(MONTH_ABBREVS[monthValue - 1]);
+        }
+
+        summary.caseMonth1 = counts[0];
+        summary.caseMonth2 = counts[1];
+        summary.caseMonth3 = counts[2];
+        summary.caseMonth4 = counts[3];
+        summary.caseMonth5 = counts[4];
+        summary.caseMonth6 = counts[5];
+        summary.caseMonth1Prev = prevCounts[0];
+        summary.caseMonth2Prev = prevCounts[1];
+        summary.caseMonth3Prev = prevCounts[2];
+        summary.caseMonth4Prev = prevCounts[3];
+        summary.caseMonth5Prev = prevCounts[4];
+        summary.caseMonth6Prev = prevCounts[5];
+        summary.caseMonth1Label = labels[0];
+        summary.caseMonth2Label = labels[1];
+        summary.caseMonth3Label = labels[2];
+        summary.caseMonth4Label = labels[3];
+        summary.caseMonth5Label = labels[4];
+        summary.caseMonth6Label = labels[5];
     }
 
     /**
