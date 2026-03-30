@@ -2175,7 +2175,7 @@ button:focus-visible,
     gap: 4px;
     min-width: 0;
     position: relative;
-    cursor: default;
+    cursor: pointer;
 }
 
 .trend-chart-col:focus {
@@ -2224,9 +2224,8 @@ button:focus-visible,
     border-radius: var(--csd-radius-md);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     padding: var(--csd-space-2);
-    max-width: 140px;
     min-width: 90px;
-    white-space: nowrap;
+    width: max-content;
     z-index: 10;
     pointer-events: none;
     display: flex;

@@ -12,6 +12,8 @@ import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts'
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
 import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
 import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
+import getCasesForMonth from '@salesforce/apex/CSD_CSDashboardController.getCasesForMonth';
+import getClosedWonForMonth from '@salesforce/apex/CSD_CSDashboardController.getClosedWonForMonth';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
@@ -1355,10 +1357,11 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         const max = Math.max(...raw.map((r) => r.current), 1);
         return raw.map((r, index) => {
             const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
-            const displayLabel = index % 2 === 0 ? r.label : '\u00b7';
+            const displayLabel = r.label;
             const avgCloseText = r.avgClose != null ? `${r.avgClose} days` : '\u2014';
             return {
                 key: `cm-${index}`,
+                monthIndex: index,
                 label: displayLabel,
                 fullLabel: r.label || '\u2014',
                 currentCount: r.current,
@@ -1367,7 +1370,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 hasCurrentBar: r.current > 0,
                 isTooltipActive: this._activeTooltipKey === `cm-${index}`,
                 tooltipCaseCount: `${r.current} case${r.current !== 1 ? 's' : ''}`,
-                tooltipAvgClose: r.current === 0 ? 'No closed cases' : `Avg close: ${avgCloseText}`,
+                tooltipAvgClose: r.current === 0 ? 'No closes' : `Avg close: ${r.avgClose != null ? r.avgClose + 'd' : '\u2014'}`,
                 ariaLabel: `${r.label || ''}: ${r.current} cases, avg close ${avgCloseText}`
             };
         });
@@ -1396,9 +1399,10 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         const max = Math.max(...raw.map((r) => r.current), 1);
         return raw.map((r, index) => {
             const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
-            const displayLabel = index % 2 === 0 ? r.label : '\u00b7';
+            const displayLabel = r.label;
             return {
                 key: `wm-${index}`,
+                monthIndex: index,
                 label: displayLabel,
                 fullLabel: r.label || '\u2014',
                 currentAmount: r.current,
@@ -1407,7 +1411,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
                 hasCurrentBar: r.current > 0,
                 isTooltipActive: this._activeTooltipKey === `wm-${index}`,
                 tooltipAmount: this.formatCompactCurrency(r.current),
-                tooltipPrevAmount: `Last year: ${this.formatCompactCurrency(r.prev)}`,
+                tooltipPrevAmount: `Prior yr: ${this.formatCompactCurrency(r.prev)}`,
                 ariaLabel: `${r.label || ''}: ${this.formatCompactCurrency(r.current)}, last year ${this.formatCompactCurrency(r.prev)}`
             };
         });
@@ -1427,21 +1431,54 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return `$${value}`;
     }
 
+    _getMonthYearFromIndex(index) {
+        const now = new Date();
+        const d = new Date(now.getFullYear(), now.getMonth() - 11 + index, 1);
+        return { month: d.getMonth() + 1, year: d.getFullYear() };
+    }
+
+    _formatMonthTitle(index) {
+        const { month, year } = this._getMonthYearFromIndex(index);
+        const abbrevs = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${abbrevs[month - 1]} ${year}`;
+    }
+
     handleCaseTrendBarClick(event) {
-        const label = event.currentTarget.dataset.label;
-        this.kpiModalTitle = `Cases opened in ${label}`;
+        const idx = parseInt(event.currentTarget.dataset.monthIndex, 10);
+        const { month, year } = this._getMonthYearFromIndex(idx);
+        const title = this._formatMonthTitle(idx);
+
+        this.kpiModalTitle = `Cases \u2014 ${title}`;
         this.kpiModalType = 'recentCases';
         this.kpiModalScope = '';
-        this.kpiModalEmptyMessage = `No cases opened in ${label}.`;
+        this.kpiModalEmptyMessage = `No cases opened in ${title}.`;
         this.kpiModalData = [];
         this.showKpiModal = true;
 
-        getCasesOpenedInLastDays({ accountId: this.recordId, days: 180 })
-            .then(result => {
-                this.kpiModalData = result || [];
-            })
+        getCasesForMonth({ accountId: this.recordId, month, year })
+            .then(result => { this.kpiModalData = result || []; })
             .catch(error => {
                 this.handleError('Failed to load cases', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleRevenueTrendBarClick(event) {
+        const idx = parseInt(event.currentTarget.dataset.monthIndex, 10);
+        const { month, year } = this._getMonthYearFromIndex(idx);
+        const title = this._formatMonthTitle(idx);
+
+        this.kpiModalTitle = `Closed Won \u2014 ${title}`;
+        this.kpiModalType = 'opportunities';
+        this.kpiModalScope = '';
+        this.kpiModalEmptyMessage = `No closed-won opportunities in ${title}.`;
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getClosedWonForMonth({ accountId: this.recordId, month, year })
+            .then(result => { this.kpiModalData = result || []; })
+            .catch(error => {
+                this.handleError('Failed to load opportunities', error);
                 this.showKpiModal = false;
             });
     }

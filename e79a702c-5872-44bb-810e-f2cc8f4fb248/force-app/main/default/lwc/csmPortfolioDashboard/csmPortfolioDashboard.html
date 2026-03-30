@@ -253,7 +253,9 @@
                                                 <div class="trend-chart">
                                                     <template for:each={revenueMonthBars} for:item="rb">
                                                         <div key={rb.key} class="trend-chart-col" data-key={rb.key}
+                                                             data-month-index={rb.monthIndex}
                                                              aria-label={rb.ariaLabel} tabindex="0"
+                                                             onclick={handleRevenueTrendBarClick}
                                                              onmouseenter={handleBarMouseEnter}
                                                              onmouseleave={handleBarMouseLeave}
                                                              onfocus={handleBarMouseEnter}
@@ -335,7 +337,9 @@
                                                 <div class="trend-chart">
                                                     <template for:each={caseTrendBars} for:item="cb">
                                                         <div key={cb.key} class="trend-chart-col" data-key={cb.key}
+                                                             data-month-index={cb.monthIndex}
                                                              aria-label={cb.ariaLabel} tabindex="0"
+                                                             onclick={handleCaseTrendBarClick}
                                                              onmouseenter={handleBarMouseEnter}
                                                              onmouseleave={handleBarMouseLeave}
                                                              onfocus={handleBarMouseEnter}
@@ -1359,6 +1363,101 @@
                                         </tbody>
                                     </table>
                                 </div>
+                            </template>
+                            <template if:false={hasKpiModalData}>
+                                <div class="kpi-modal-empty-state">
+                                    <lightning-icon icon-name="utility:info" size="large" class="empty-state-icon"></lightning-icon>
+                                    <p class="empty-state-message">{kpiModalEmptyMessage}</p>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Month Cases Table (grouped by account) -->
+                        <template if:true={showMonthCasesModal}>
+                            <template if:true={hasKpiModalData}>
+                                <template for:each={groupedKpiModalData} for:item="group">
+                                    <div key={group.accountName} class="kpi-modal-group">
+                                        <h3 class="kpi-modal-group-header" data-id={group.accountId} onclick={handleKpiRecordClick}>{group.accountName}</h3>
+                                        <div class="kpi-modal-table-container">
+                                            <table class="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Case #</th>
+                                                        <th>Subject</th>
+                                                        <th>Status</th>
+                                                        <th>Priority</th>
+                                                        <th>Owner</th>
+                                                        <th>Age (days)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template for:each={group.items} for:item="caseItem">
+                                                        <tr key={caseItem.caseId} data-id={caseItem.caseId} onclick={handleKpiRecordClick} class="table-row">
+                                                            <td>
+                                                                <span class="case-number">{caseItem.caseNumber}</span>
+                                                                <template if:true={caseItem.isEscalated}>
+                                                                    <lightning-icon icon-name="utility:warning" size="xx-small" class="escalated-icon"></lightning-icon>
+                                                                </template>
+                                                            </td>
+                                                            <td class="subject-cell">{caseItem.subject}</td>
+                                                            <td><span class="status-badge">{caseItem.status}</span></td>
+                                                            <td><span class="priority-badge">{caseItem.priority}</span></td>
+                                                            <td>{caseItem.ownerName}</td>
+                                                            <td>{caseItem.age}</td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </template>
+                            </template>
+                            <template if:false={hasKpiModalData}>
+                                <div class="kpi-modal-empty-state">
+                                    <lightning-icon icon-name="utility:success" size="large" class="empty-state-icon"></lightning-icon>
+                                    <p class="empty-state-message">{kpiModalEmptyMessage}</p>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Month Opportunities Table (grouped by account) -->
+                        <template if:true={showMonthOpportunitiesModal}>
+                            <template if:true={hasKpiModalData}>
+                                <template for:each={groupedKpiModalData} for:item="group">
+                                    <div key={group.accountName} class="kpi-modal-group">
+                                        <h3 class="kpi-modal-group-header" data-id={group.accountId} onclick={handleKpiRecordClick}>{group.accountName}</h3>
+                                        <div class="kpi-modal-table-container">
+                                            <table class="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Stage</th>
+                                                        <th>Close Date</th>
+                                                        <th>Amount</th>
+                                                        <th>Probability</th>
+                                                        <th>Owner</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template for:each={group.items} for:item="opp">
+                                                        <tr key={opp.opportunityId} data-id={opp.opportunityId} onclick={handleKpiRecordClick} class="table-row">
+                                                            <td class="subject-cell">{opp.name}</td>
+                                                            <td><span class="status-badge">{opp.stageName}</span></td>
+                                                            <td>{opp.closeDate}</td>
+                                                            <td>
+                                                                <template if:true={opp.amount}>
+                                                                    <lightning-formatted-number value={opp.amount} format-style="currency"></lightning-formatted-number>
+                                                                </template>
+                                                            </td>
+                                                            <td>{opp.probability}%</td>
+                                                            <td>{opp.ownerName}</td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </template>
                             </template>
                             <template if:false={hasKpiModalData}>
                                 <div class="kpi-modal-empty-state">

@@ -1869,4 +1869,79 @@ public with sharing class CSD_CSDashboardController {
             throw new AuraHandledException('Error creating event: ' + e.getMessage());
         }
     }
+
+    @AuraEnabled(cacheable=false)
+    public static List<CaseData> getCasesForMonth(Id accountId, Integer month, Integer year) {
+        try {
+            if (accountId == null) {
+                throw new AuraHandledException('Account ID is required');
+            }
+
+            Date monthStart = Date.newInstance(year, month, 1);
+            Date monthEnd = monthStart.addMonths(1);
+            List<CaseData> caseList = new List<CaseData>();
+
+            for (Case c : [
+                SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
+                FROM Case
+                WHERE AccountId = :accountId
+                AND CreatedDate >= :monthStart
+                AND CreatedDate < :monthEnd
+                ORDER BY CreatedDate DESC
+                LIMIT 100
+            ]) {
+                CaseData cd = new CaseData();
+                cd.caseId = c.Id;
+                cd.caseNumber = c.CaseNumber;
+                cd.subject = c.Subject;
+                cd.status = c.Status;
+                cd.priority = c.Priority;
+                cd.ownerName = c.Owner.Name;
+                cd.isEscalated = c.IsEscalated;
+                cd.age = c.CreatedDate != null ? c.CreatedDate.date().daysBetween(Date.today()) : 0;
+                caseList.add(cd);
+            }
+            return caseList;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving cases for month: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static List<OpportunityData> getClosedWonForMonth(Id accountId, Integer month, Integer year) {
+        try {
+            if (accountId == null) {
+                throw new AuraHandledException('Account ID is required');
+            }
+
+            Date monthStart = Date.newInstance(year, month, 1);
+            Date monthEnd = monthStart.addMonths(1);
+            List<OpportunityData> oppList = new List<OpportunityData>();
+
+            for (Opportunity opp : [
+                SELECT Id, Name, StageName, CloseDate, Amount, Owner.Name, Probability
+                FROM Opportunity
+                WHERE AccountId = :accountId
+                AND IsClosed = true
+                AND IsWon = true
+                AND CloseDate >= :monthStart
+                AND CloseDate < :monthEnd
+                ORDER BY Amount DESC
+                LIMIT 100
+            ]) {
+                OpportunityData od = new OpportunityData();
+                od.opportunityId = opp.Id;
+                od.name = opp.Name;
+                od.stageName = opp.StageName;
+                od.closeDate = opp.CloseDate != null ? opp.CloseDate.format() : '';
+                od.amount = opp.Amount;
+                od.ownerName = opp.Owner.Name;
+                od.probability = opp.Probability != null ? Integer.valueOf(opp.Probability) : null;
+                oppList.add(od);
+            }
+            return oppList;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving closed-won opportunities for month: ' + e.getMessage());
+        }
+    }
 }

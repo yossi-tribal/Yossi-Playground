@@ -1821,4 +1821,86 @@ public with sharing class CSD_CSMPortfolioController {
             AND IsClosed = false
         ];
     }
+
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioCaseRow> getPortfolioCasesForMonth(Integer month, Integer year) {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioCaseRow> rows = new List<PortfolioCaseRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            Date monthStart = Date.newInstance(year, month, 1);
+            Date monthEnd = monthStart.addMonths(1);
+
+            for (Case c : [
+                SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name,
+                       Account.Name, AccountId, IsEscalated, CreatedDate
+                FROM Case
+                WHERE AccountId IN :accountIds
+                AND CreatedDate >= :monthStart
+                AND CreatedDate < :monthEnd
+                ORDER BY Account.Name ASC, CreatedDate DESC
+                LIMIT 200
+            ]) {
+                PortfolioCaseRow row = new PortfolioCaseRow();
+                row.caseId = c.Id;
+                row.caseNumber = c.CaseNumber;
+                row.subject = c.Subject;
+                row.status = c.Status;
+                row.priority = c.Priority;
+                row.ownerName = c.Owner.Name;
+                row.age = c.CreatedDate != null ? c.CreatedDate.date().daysBetween(Date.today()) : 0;
+                row.accountName = c.Account != null ? c.Account.Name : '';
+                row.accountId = c.AccountId;
+                row.isEscalated = c.IsEscalated;
+                rows.add(row);
+            }
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving cases for month: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioOpportunityRow> getPortfolioClosedWonForMonth(Integer month, Integer year) {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioOpportunityRow> rows = new List<PortfolioOpportunityRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            Date monthStart = Date.newInstance(year, month, 1);
+            Date monthEnd = monthStart.addMonths(1);
+
+            for (Opportunity opp : [
+                SELECT Id, Name, StageName, CloseDate, Amount, Probability,
+                       Owner.Name, Account.Name, AccountId
+                FROM Opportunity
+                WHERE AccountId IN :accountIds
+                AND IsWon = true
+                AND CloseDate >= :monthStart
+                AND CloseDate < :monthEnd
+                ORDER BY Account.Name ASC, Amount DESC
+                LIMIT 200
+            ]) {
+                PortfolioOpportunityRow row = new PortfolioOpportunityRow();
+                row.opportunityId = opp.Id;
+                row.name = opp.Name;
+                row.stageName = opp.StageName;
+                row.closeDate = opp.CloseDate != null ? opp.CloseDate.format() : '';
+                row.amount = opp.Amount != null ? opp.Amount : 0;
+                row.probability = opp.Probability != null ? opp.Probability : 0;
+                row.ownerName = opp.Owner.Name;
+                row.accountName = opp.Account != null ? opp.Account.Name : '';
+                row.accountId = opp.AccountId;
+                rows.add(row);
+            }
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving closed-won opportunities for month: ' + e.getMessage());
+        }
+    }
 }

@@ -235,7 +235,9 @@
                                         <div class="trend-chart">
                                             <template for:each={revenueMonthBars} for:item="rb">
                                                 <div key={rb.key} class="trend-chart-col" data-key={rb.key}
+                                                     data-month-index={rb.monthIndex}
                                                      aria-label={rb.ariaLabel} tabindex="0"
+                                                     onclick={handleRevenueTrendBarClick}
                                                      onmouseenter={handleBarMouseEnter}
                                                      onmouseleave={handleBarMouseLeave}
                                                      onfocus={handleBarMouseEnter}
@@ -316,7 +318,9 @@
                                         <div class="trend-chart">
                                             <template for:each={caseTrendBars} for:item="cb">
                                                 <div key={cb.key} class="trend-chart-col" data-key={cb.key}
+                                                     data-month-index={cb.monthIndex}
                                                      aria-label={cb.ariaLabel} tabindex="0"
+                                                     onclick={handleCaseTrendBarClick}
                                                      onmouseenter={handleBarMouseEnter}
                                                      onmouseleave={handleBarMouseLeave}
                                                      onfocus={handleBarMouseEnter}

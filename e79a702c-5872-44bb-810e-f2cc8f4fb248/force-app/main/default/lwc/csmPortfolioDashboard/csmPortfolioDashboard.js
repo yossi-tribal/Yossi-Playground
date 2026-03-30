@@ -10,6 +10,8 @@ import getHighPriorityCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioC
 import getAllOpenCasesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenCasesForPortfolio';
 import getAllOpenOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenOpportunitiesForPortfolio';
 import getAllOpenTasksForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenTasksForPortfolio';
+import getPortfolioCasesForMonth from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioCasesForMonth';
+import getPortfolioClosedWonForMonth from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioClosedWonForMonth';
 import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingEventsForPortfolio';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
@@ -435,6 +437,58 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         this._activeTooltipKey = null;
     }
 
+    // ── Trend Bar Click Drill-Down ──
+
+    _getMonthYearFromIndex(index) {
+        const now = new Date();
+        const d = new Date(now.getFullYear(), now.getMonth() - 11 + index, 1);
+        return { month: d.getMonth() + 1, year: d.getFullYear() };
+    }
+
+    _formatMonthTitle(index) {
+        const { month, year } = this._getMonthYearFromIndex(index);
+        const abbrevs = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${abbrevs[month - 1]} ${year}`;
+    }
+
+    handleCaseTrendBarClick(event) {
+        const idx = parseInt(event.currentTarget.dataset.monthIndex, 10);
+        const { month, year } = this._getMonthYearFromIndex(idx);
+        const title = this._formatMonthTitle(idx);
+
+        this.kpiModalTitle = `Cases \u2014 ${title}`;
+        this.kpiModalType = 'monthCases';
+        this.kpiModalEmptyMessage = `No cases opened in ${title}.`;
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getPortfolioCasesForMonth({ month, year })
+            .then(result => { this.kpiModalData = result || []; })
+            .catch(error => {
+                this.handleError('Failed to load cases', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleRevenueTrendBarClick(event) {
+        const idx = parseInt(event.currentTarget.dataset.monthIndex, 10);
+        const { month, year } = this._getMonthYearFromIndex(idx);
+        const title = this._formatMonthTitle(idx);
+
+        this.kpiModalTitle = `Closed Won \u2014 ${title}`;
+        this.kpiModalType = 'monthOpportunities';
+        this.kpiModalEmptyMessage = `No closed-won opportunities in ${title}.`;
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getPortfolioClosedWonForMonth({ month, year })
+            .then(result => { this.kpiModalData = result || []; })
+            .catch(error => {
+                this.handleError('Failed to load opportunities', error);
+                this.showKpiModal = false;
+            });
+    }
+
     // ── Health Breakdown Modal ──
 
     handleViewHealthBreakdown() {
@@ -777,6 +831,23 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     get showCasesModal() { return this.showKpiModal && this.kpiModalType === 'cases'; }
     get showTasksModal() { return this.showKpiModal && this.kpiModalType === 'tasks'; }
     get showOpportunitiesModal() { return this.showKpiModal && this.kpiModalType === 'opportunities'; }
+    get showMonthCasesModal() { return this.showKpiModal && this.kpiModalType === 'monthCases'; }
+    get showMonthOpportunitiesModal() { return this.showKpiModal && this.kpiModalType === 'monthOpportunities'; }
+
+    get groupedKpiModalData() {
+        if (!this.kpiModalData || this.kpiModalData.length === 0) return [];
+        const groups = {};
+        const order = [];
+        for (const item of this.kpiModalData) {
+            const name = item.accountName || 'Unknown';
+            if (!groups[name]) {
+                groups[name] = { accountName: name, accountId: item.accountId, items: [] };
+                order.push(name);
+            }
+            groups[name].items.push(item);
+        }
+        return order.map(name => groups[name]);
+    }
 
     // ── Stat Bar ──
 
@@ -929,10 +1000,11 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         const max = Math.max(...raw.map((r) => r.current), 1);
         return raw.map((r, index) => {
             const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
-            const displayLabel = index % 2 === 0 ? r.label : '\u00b7';
+            const displayLabel = r.label;
             const avgCloseText = r.avgClose != null ? `${r.avgClose} days` : '\u2014';
             return {
                 key: `pcm-${index}`,
+                monthIndex: index,
                 label: displayLabel,
                 fullLabel: r.label || '\u2014',
                 currentCount: r.current,
@@ -941,7 +1013,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
                 hasCurrentBar: r.current > 0,
                 isTooltipActive: this._activeTooltipKey === `pcm-${index}`,
                 tooltipCaseCount: `${r.current} case${r.current !== 1 ? 's' : ''}`,
-                tooltipAvgClose: r.current === 0 ? 'No closed cases' : `Avg close: ${avgCloseText}`,
+                tooltipAvgClose: r.current === 0 ? 'No closes' : `Avg close: ${r.avgClose != null ? r.avgClose + 'd' : '\u2014'}`,
                 ariaLabel: `${r.label || ''}: ${r.current} cases, avg close ${avgCloseText}`
             };
         });
@@ -1002,9 +1074,10 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         const max = Math.max(...raw.map((r) => r.current), 1);
         return raw.map((r, index) => {
             const curPct = r.current === 0 ? 0 : Math.max(6, Math.round((r.current / max) * 100));
-            const displayLabel = index % 2 === 0 ? r.label : '\u00b7';
+            const displayLabel = r.label;
             return {
                 key: `prm-${index}`,
+                monthIndex: index,
                 label: displayLabel,
                 fullLabel: r.label || '\u2014',
                 currentAmount: r.current,
@@ -1013,7 +1086,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
                 hasCurrentBar: r.current > 0,
                 isTooltipActive: this._activeTooltipKey === `prm-${index}`,
                 tooltipAmount: this.formatCurrencyShort(r.current),
-                tooltipPrevAmount: `Last year: ${this.formatCurrencyShort(r.prev)}`,
+                tooltipPrevAmount: `Prior yr: ${this.formatCurrencyShort(r.prev)}`,
                 ariaLabel: `${r.label || ''}: ${this.formatCurrencyShort(r.current)}, last year ${this.formatCurrencyShort(r.prev)}`
             };
         });
