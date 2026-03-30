@@ -883,23 +883,31 @@ public with sharing class CSD_CSDashboardController {
         }
 
         Map<String, Decimal> avgCloseByMonth = new Map<String, Decimal>();
-        for (AggregateResult ar : [
-            SELECT CALENDAR_MONTH(ClosedDate) mo, CALENDAR_YEAR(ClosedDate) yr,
-                   AVG(CSD_Days_To_Close__c) avgDays
+        Map<String, List<Integer>> closeDaysByMonth = new Map<String, List<Integer>>();
+        for (Case c : [
+            SELECT CreatedDate, ClosedDate
             FROM Case
             WHERE AccountId = :accountId
             AND IsClosed = true
             AND ClosedDate >= :twelveMonthsAgo
-            AND CSD_Days_To_Close__c != null
-            GROUP BY CALENDAR_MONTH(ClosedDate), CALENDAR_YEAR(ClosedDate)
+            AND CreatedDate != null
+            AND ClosedDate != null
         ]) {
-            Integer arMonth = (Integer) ar.get('mo');
-            Integer arYear = (Integer) ar.get('yr');
-            String key = arYear + '-' + String.valueOf(arMonth).leftPad(2, '0');
-            Decimal avg = (Decimal) ar.get('avgDays');
-            if (avg != null) {
-                avgCloseByMonth.put(key, avg.setScale(1, System.RoundingMode.HALF_UP));
+            Integer cm = c.ClosedDate.month();
+            Integer cy = c.ClosedDate.year();
+            String key = cy + '-' + String.valueOf(cm).leftPad(2, '0');
+            Integer days = Math.max(c.CreatedDate.date().daysBetween(c.ClosedDate.date()), 0);
+            if (!closeDaysByMonth.containsKey(key)) {
+                closeDaysByMonth.put(key, new List<Integer>());
             }
+            closeDaysByMonth.get(key).add(days);
+        }
+        for (String key : closeDaysByMonth.keySet()) {
+            List<Integer> days = closeDaysByMonth.get(key);
+            Decimal total = 0;
+            for (Integer d : days) { total += d; }
+            Decimal avg = (total / days.size()).setScale(1, System.RoundingMode.HALF_UP);
+            avgCloseByMonth.put(key, avg);
         }
 
         List<Integer> counts = new List<Integer>();
