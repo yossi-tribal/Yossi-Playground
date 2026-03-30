@@ -1364,14 +1364,6 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         });
     }
 
-    get escalationValueClass() {
-        if (!this.summary) return 'commercial-kpi-value commercial-kpi-value--num';
-        const count = this.summary.escalatedCasesLast90Days || 0;
-        if (count >= 3) return 'commercial-kpi-value commercial-kpi-value--num commercial-kpi-value--danger';
-        if (count >= 1) return 'commercial-kpi-value commercial-kpi-value--num commercial-kpi-value--warning';
-        return 'commercial-kpi-value commercial-kpi-value--num commercial-kpi-value--good';
-    }
-
     get hasCaseMonthData() {
         if (!this.summary) return false;
         return [

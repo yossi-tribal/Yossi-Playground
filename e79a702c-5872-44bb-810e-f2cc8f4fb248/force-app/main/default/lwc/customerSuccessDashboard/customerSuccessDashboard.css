@@ -1866,17 +1866,6 @@ button:focus-visible,
     line-height: 1.35;
 }
 
-.commercial-kpi-value--danger {
-    color: var(--csd-red);
-}
-
-.commercial-kpi-value--warning {
-    color: var(--csd-amber);
-}
-
-.commercial-kpi-value--good {
-    color: var(--csd-green);
-}
 
 .commercial-kpi-value-unit {
     font-size: var(--csd-text-sm);
@@ -2380,4 +2369,14 @@ button:focus-visible,
         flex-direction: column;
         gap: 0;
     }
+}
+
+.csd-watermark {
+    text-align: center;
+    padding: var(--csd-space-3) 0 var(--csd-space-2);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--csd-text-tertiary, #c4c4c4);
+    opacity: 0.6;
+    user-select: none;
 }

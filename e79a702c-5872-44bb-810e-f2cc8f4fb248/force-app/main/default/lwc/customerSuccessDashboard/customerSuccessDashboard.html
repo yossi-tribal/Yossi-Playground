@@ -280,7 +280,7 @@
                                 </button>
                                 <div class="commercial-kpi">
                                     <span class="commercial-kpi-label">Escalated (90 days)</span>
-                                    <span class={escalationValueClass}>{summary.escalatedCasesLast90Days}</span>
+                                    <span class="commercial-kpi-value commercial-kpi-value--num">{summary.escalatedCasesLast90Days}</span>
                                     <span class="commercial-kpi-sub">of {summary.casesOpenedLast90Days} cases</span>
                                 </div>
                                 <template if:true={hasCaseResolutionData}>
@@ -1127,5 +1127,6 @@
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>
         </template>
+        <div class="csd-watermark">Made by Tribal</div>
     </lightning-card>
 </template>
