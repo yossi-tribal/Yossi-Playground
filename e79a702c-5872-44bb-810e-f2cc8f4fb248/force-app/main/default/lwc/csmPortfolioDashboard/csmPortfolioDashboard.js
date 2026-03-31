@@ -1081,6 +1081,10 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return 'commercial-kpi';
     }
 
+    get supportCasesYearClickClass() {
+        return 'commercial-kpi commercial-kpi--click';
+    }
+
     get caseTrendBars() {
         if (!this.summary) return [];
         const s = this.summary;
@@ -1205,6 +1209,14 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         } else {
             this.openSuggestedAction('renewals');
         }
+    }
+
+    handleSnapshotPipelineClick() {
+        this.handleOpenPipelineClick();
+    }
+
+    handleSnapshotCasesClick() {
+        this.handleOpenCasesClick();
     }
 
     // ── Support Snapshot ──
