@@ -1929,4 +1929,110 @@ public with sharing class CSD_CSMPortfolioController {
             throw new AuraHandledException('Error retrieving closed-won opportunities for month: ' + e.getMessage());
         }
     }
+
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioOpportunityRow> getClosedWonOpportunitiesForPortfolio(String scopeFilter) {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioOpportunityRow> rows = new List<PortfolioOpportunityRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            String scope = String.isBlank(scopeFilter) ? 'ALL_TIME' : scopeFilter.trim().toUpperCase();
+            Integer y = Date.today().year();
+            Date ytdStart = Date.newInstance(y, 1, 1);
+            Date ytdEnd = Date.newInstance(y, 12, 31);
+
+            List<Opportunity> opportunities;
+
+            if (scope == 'YTD') {
+                opportunities = [
+                    SELECT Id, Name, StageName, CloseDate, Amount, Probability,
+                           Owner.Name, Account.Name, AccountId
+                    FROM Opportunity
+                    WHERE AccountId IN :accountIds
+                    AND IsClosed = true
+                    AND IsWon = true
+                    AND CloseDate >= :ytdStart
+                    AND CloseDate <= :ytdEnd
+                    ORDER BY Account.Name ASC, Amount DESC
+                    LIMIT 200
+                ];
+            } else {
+                opportunities = [
+                    SELECT Id, Name, StageName, CloseDate, Amount, Probability,
+                           Owner.Name, Account.Name, AccountId
+                    FROM Opportunity
+                    WHERE AccountId IN :accountIds
+                    AND IsClosed = true
+                    AND IsWon = true
+                    ORDER BY Account.Name ASC, Amount DESC
+                    LIMIT 200
+                ];
+            }
+
+            for (Opportunity opp : opportunities) {
+                PortfolioOpportunityRow row = new PortfolioOpportunityRow();
+                row.opportunityId = opp.Id;
+                row.name = opp.Name;
+                row.stageName = opp.StageName;
+                row.closeDate = opp.CloseDate != null ? opp.CloseDate.format() : '';
+                row.amount = opp.Amount != null ? opp.Amount : 0;
+                row.probability = opp.Probability != null ? opp.Probability : 0;
+                row.ownerName = opp.Owner.Name;
+                row.accountName = opp.Account != null ? opp.Account.Name : '';
+                row.accountId = opp.AccountId;
+                rows.add(row);
+            }
+
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving closed-won opportunities: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioCaseRow> getCasesOpenedInLastDaysForPortfolio(Integer days) {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioCaseRow> rows = new List<PortfolioCaseRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            if (days == null || days <= 0) {
+                days = 90;
+            }
+
+            DateTime cutoff = DateTime.now().addDays(-days);
+
+            for (Case c : [
+                SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name,
+                       Account.Name, AccountId, IsEscalated, CreatedDate
+                FROM Case
+                WHERE AccountId IN :accountIds
+                AND CreatedDate >= :cutoff
+                ORDER BY Account.Name ASC, CreatedDate DESC
+                LIMIT 200
+            ]) {
+                PortfolioCaseRow row = new PortfolioCaseRow();
+                row.caseId = c.Id;
+                row.caseNumber = c.CaseNumber;
+                row.subject = c.Subject;
+                row.status = c.Status;
+                row.priority = c.Priority;
+                row.ownerName = c.Owner.Name;
+                row.age = c.CreatedDate != null ? c.CreatedDate.date().daysBetween(Date.today()) : 0;
+                row.accountName = c.Account != null ? c.Account.Name : '';
+                row.accountId = c.AccountId;
+                row.isEscalated = c.IsEscalated;
+                rows.add(row);
+            }
+
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving recent cases: ' + e.getMessage());
+        }
+    }
 }

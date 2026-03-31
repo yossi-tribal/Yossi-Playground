@@ -204,14 +204,14 @@
                                 <div class="snapshot-section">
                                     <span class="snapshot-section-header">Revenue</span>
                                     <div class="commercial-kpi-row">
-                                        <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotPipelineClick}>
+                                        <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotLifetimeValueClick}>
                                             <span class="commercial-kpi-label">Lifetime value</span>
                                             <span class="commercial-kpi-value">
                                                 <lightning-formatted-number value={summary.totalClosedWonAmount} format-style="currency" currency-code="USD"></lightning-formatted-number>
                                             </span>
                                             <span class="commercial-kpi-sub">Total closed-won across portfolio</span>
                                         </div>
-                                        <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotPipelineClick}>
+                                        <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotWonYtdClick}>
                                             <span class="commercial-kpi-label">Won this year ({currentYear})</span>
                                             <span class="commercial-kpi-value">
                                                 <lightning-formatted-number value={summary.totalYtdClosedWon} format-style="currency" currency-code="USD"></lightning-formatted-number>
@@ -289,23 +289,23 @@
                                 <div class="snapshot-section snapshot-section--border">
                                     <span class="snapshot-section-header">Support</span>
                                     <div class="commercial-kpi-row">
-                                        <div class={supportCasesYearClickClass} onclick={handleSnapshotCasesClick}>
+                                        <div class={supportCasesYearClickClass} onclick={handleSnapshotYtdCasesClick}>
                                             <span class="commercial-kpi-label">Cases this year ({currentYear})</span>
                                             <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
                                             <span class="commercial-kpi-sub">Prior year: {summary.priorYearCaseCount}</span>
                                         </div>
-                                        <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotCasesClick}>
+                                        <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotRecentCasesClick}>
                                             <span class="commercial-kpi-label">Cases (90 days)</span>
                                             <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
                                             <span class="commercial-kpi-sub">Opened across portfolio</span>
                                         </div>
-                                        <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotCasesClick}>
+                                        <div class="commercial-kpi">
                                             <span class="commercial-kpi-label">Escalated (90 days)</span>
                                             <span class="commercial-kpi-value commercial-kpi-value--num">{summary.escalatedCasesLast90Days}</span>
                                             <span class="commercial-kpi-sub">of {summary.casesOpenedLast90Days} cases</span>
                                         </div>
                                         <template if:true={hasCaseResolutionData}>
-                                            <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotCasesClick}>
+                                            <div class="commercial-kpi">
                                                 <span class="commercial-kpi-label">Avg resolution</span>
                                                 <span class="commercial-kpi-value">
                                                     {caseResolutionMedianDays}
@@ -317,7 +317,7 @@
                                             </div>
                                         </template>
                                         <template if:false={hasCaseResolutionData}>
-                                            <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotCasesClick}>
+                                            <div class="commercial-kpi">
                                                 <span class="commercial-kpi-label">Avg resolution</span>
                                                 <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
                                                 <span class="commercial-kpi-sub">No closed cases (90 days)</span>

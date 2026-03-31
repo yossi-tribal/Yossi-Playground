@@ -12,6 +12,8 @@ import getAllOpenOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortfol
 import getAllOpenTasksForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getAllOpenTasksForPortfolio';
 import getPortfolioCasesForMonth from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioCasesForMonth';
 import getPortfolioClosedWonForMonth from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioClosedWonForMonth';
+import getClosedWonOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getClosedWonOpportunitiesForPortfolio';
+import getCasesOpenedInLastDaysForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getCasesOpenedInLastDaysForPortfolio';
 import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingEventsForPortfolio';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
@@ -924,9 +926,9 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     get hasSuggestedActions() { return this.suggestedActions.length > 0; }
     get hasSuggestedActionModalItems() { return this.suggestedActionModalItems && this.suggestedActionModalItems.length > 0; }
     get hasKpiModalData() { return this.kpiModalData && this.kpiModalData.length > 0; }
-    get showCasesModal() { return this.showKpiModal && this.kpiModalType === 'cases'; }
+    get showCasesModal() { return this.showKpiModal && (this.kpiModalType === 'cases' || this.kpiModalType === 'recentCases'); }
     get showTasksModal() { return this.showKpiModal && this.kpiModalType === 'tasks'; }
-    get showOpportunitiesModal() { return this.showKpiModal && this.kpiModalType === 'opportunities'; }
+    get showOpportunitiesModal() { return this.showKpiModal && (this.kpiModalType === 'opportunities' || this.kpiModalType === 'closedWon'); }
     get showMonthCasesModal() { return this.showKpiModal && this.kpiModalType === 'monthCases'; }
     get showMonthOpportunitiesModal() { return this.showKpiModal && this.kpiModalType === 'monthOpportunities'; }
 
@@ -1215,8 +1217,66 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         this.handleOpenPipelineClick();
     }
 
-    handleSnapshotCasesClick() {
-        this.handleOpenCasesClick();
+    handleSnapshotLifetimeValueClick() {
+        this.openPortfolioClosedWonModal('ALL_TIME', 'Lifetime value (all closed-won)');
+    }
+
+    handleSnapshotWonYtdClick() {
+        this.openPortfolioClosedWonModal('YTD', 'Won this year');
+    }
+
+    openPortfolioClosedWonModal(scope, title) {
+        this.kpiModalTitle = title;
+        this.kpiModalType = 'closedWon';
+        this.kpiModalEmptyMessage = 'No closed-won opportunities in this period.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getClosedWonOpportunitiesForPortfolio({ scopeFilter: scope })
+            .then(result => {
+                this.kpiModalData = this.sortPortfolioOpportunities(result || []);
+            })
+            .catch(error => {
+                this.handleError('Failed to load closed-won opportunities', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleSnapshotYtdCasesClick() {
+        this.kpiModalTitle = 'Cases opened this year';
+        this.kpiModalType = 'recentCases';
+        this.kpiModalEmptyMessage = 'No cases opened this year.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        const daysIntoYear = Math.ceil(
+            (Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 86400000
+        );
+        getCasesOpenedInLastDaysForPortfolio({ days: daysIntoYear })
+            .then(result => {
+                this.kpiModalData = this.sortPortfolioCases(result || []);
+            })
+            .catch(error => {
+                this.handleError('Failed to load YTD cases', error);
+                this.showKpiModal = false;
+            });
+    }
+
+    handleSnapshotRecentCasesClick() {
+        this.kpiModalTitle = 'Cases opened (last 90 days)';
+        this.kpiModalType = 'recentCases';
+        this.kpiModalEmptyMessage = 'No cases opened in the last 90 days.';
+        this.kpiModalData = [];
+        this.showKpiModal = true;
+
+        getCasesOpenedInLastDaysForPortfolio({ days: 90 })
+            .then(result => {
+                this.kpiModalData = this.sortPortfolioCases(result || []);
+            })
+            .catch(error => {
+                this.handleError('Failed to load recent cases', error);
+                this.showKpiModal = false;
+            });
     }
 
     // ── Support Snapshot ──
