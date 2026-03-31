@@ -926,10 +926,10 @@
                             <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
                             <span class="slds-assistive-text">Close</span>
                         </button>
-                        <h2 class="slds-text-heading_medium slds-hyphenate">{selectedAccountModalTitle}</h2>
+                        <h2 class="slds-text-heading_medium slds-hyphenate">Customer Success Dashboard</h2>
                     </header>
                     <div class="slds-modal__content portfolio-modal__content portfolio-modal__content--flush slds-p-around_none">
-                        <c-customer-success-dashboard record-id={selectedAccountId}></c-customer-success-dashboard>
+                        <c-customer-success-dashboard record-id={selectedAccountId} header-title={selectedAccountName}></c-customer-success-dashboard>
                     </div>
                     <footer class="slds-modal__footer">
                         <button class="custom-btn custom-btn--secondary" onclick={handleCloseAccountModal} type="button">

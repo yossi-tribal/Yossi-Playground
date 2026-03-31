@@ -4,7 +4,7 @@
             <div class="dashboard-header-main">
                 <lightning-icon icon-name="standard:account" size="small" class="header-icon"></lightning-icon>
                 <div class="dashboard-header-titles">
-                    <h2 class="dashboard-title">Customer Success Dashboard</h2>
+                    <h2 class="dashboard-title">{displayTitle}</h2>
                     <template if:true={hasSummary}>
                         <p class="dashboard-header-csm">CSM: {csmDisplayName}</p>
                     </template>

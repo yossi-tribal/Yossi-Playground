@@ -20,7 +20,8 @@ import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.ge
 import currentUserId from '@salesforce/user/Id';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
-    @api recordId; // Account record ID from the page context
+    @api recordId;
+    @api headerTitle;
 
     @track summary = null;
     @track cases = [];
@@ -721,6 +722,10 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get hasSummary() {
         return this.summary !== null;
+    }
+
+    get displayTitle() {
+        return this.headerTitle || 'Customer Success Dashboard';
     }
 
     get currentYear() { return new Date().getFullYear(); }
