@@ -2784,6 +2784,45 @@ button:focus-visible,
     color: var(--csd-text-primary);
 }
 
+/* Clickable expansion items */
+
+.recent-activity-item--clickable {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.recent-activity-item--clickable:hover {
+    background: var(--csd-blue-light, rgba(27, 150, 255, 0.06));
+}
+
+.recent-activity-item--clickable:hover .recent-activity-subject {
+    color: var(--csd-blue);
+}
+
+.expansion-contact--clickable {
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.expansion-contact--clickable:hover {
+    background: var(--csd-blue-light, rgba(27, 150, 255, 0.06));
+    border-color: var(--csd-blue-muted, rgba(27, 150, 255, 0.2));
+}
+
+.expansion-contact--clickable:hover .expansion-contact-name {
+    color: var(--csd-blue);
+}
+
+.health-factor-card--clickable {
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.health-factor-card--clickable:hover {
+    background: var(--csd-blue-light, rgba(27, 150, 255, 0.06));
+    border-color: var(--csd-blue-muted, rgba(27, 150, 255, 0.2));
+}
+
 /* ===== SUGGESTED ACTION MODAL (Issue 1) ===== */
 
 .action-modal-list {

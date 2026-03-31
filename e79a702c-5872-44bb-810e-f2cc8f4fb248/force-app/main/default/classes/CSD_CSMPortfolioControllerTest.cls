@@ -706,7 +706,19 @@ private class CSD_CSMPortfolioControllerTest {
                 if (acc.accountId == acc2.Id) {
                     System.assert(acc.recentActivities.size() > 0,
                         'Account 2 should have recent activities from completed task');
+                    for (CSD_CSMPortfolioController.RecentActivity ra : acc.recentActivities) {
+                        System.assertNotEquals(null, ra.activityId,
+                            'Each recent activity should have an activityId');
+                    }
                     break;
+                }
+            }
+
+            // Verify primaryContactId is populated when primaryContactName is set
+            for (CSD_CSMPortfolioController.AccountRow acc : accounts) {
+                if (acc.primaryContactName != null) {
+                    System.assertNotEquals(null, acc.primaryContactId,
+                        'primaryContactId should be set when primaryContactName is set for ' + acc.accountName);
                 }
             }
         }

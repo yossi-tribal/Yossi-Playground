@@ -469,7 +469,10 @@
                                                                     <div class="expansion-section-label">Recent Activity</div>
                                                                     <div class="expansion-recent-activities">
                                                                         <template for:each={account.recentActivities} for:item="activity">
-                                                                            <div key={activity.subject} class="recent-activity-item">
+                                                                            <div key={activity.activityId}
+                                                                                 class="recent-activity-item recent-activity-item--clickable"
+                                                                                 data-id={activity.activityId}
+                                                                                 onclick={handleExpansionActivityClick}>
                                                                                 <span class="recent-activity-type">{activity.activityType}</span>
                                                                                 <span class="recent-activity-subject">{activity.subject}</span>
                                                                                 <span class="recent-activity-date">{activity.activityDate}</span>
@@ -480,7 +483,9 @@
 
                                                                 <template if:true={account.primaryContactName}>
                                                                     <div class="expansion-section-label">Key Contact</div>
-                                                                    <div class="expansion-contact">
+                                                                    <div class="expansion-contact expansion-contact--clickable"
+                                                                         data-id={account.primaryContactId}
+                                                                         onclick={handleExpansionContactClick}>
                                                                         <lightning-icon icon-name="standard:contact" size="x-small"></lightning-icon>
                                                                         <span class="expansion-contact-name">{account.primaryContactName}</span>
                                                                     </div>
@@ -491,7 +496,12 @@
                                                                 <div class="expansion-section-label">Account Snapshot</div>
                                                                 <div class="expansion-health-factors">
                                                                     <template for:each={account.healthFactors} for:item="factor">
-                                                                        <div key={factor.label} class="health-factor-card">
+                                                                        <div key={factor.label}
+                                                                             class="health-factor-card health-factor-card--clickable"
+                                                                             data-factor={factor.factorType}
+                                                                             data-account={account.accountId}
+                                                                             data-name={account.accountName}
+                                                                             onclick={handleHealthFactorClick}>
                                                                             <span class="health-factor-label">{factor.label}</span>
                                                                             <span class={factor.valueClass}>{factor.value}</span>
                                                                             <span class={factor.statusClass}>{factor.status}</span>
@@ -563,7 +573,10 @@
                                                 <div class="expansion-section-label">Recent Activity</div>
                                                 <div class="expansion-recent-activities">
                                                     <template for:each={account.recentActivities} for:item="activity">
-                                                        <div key={activity.subject} class="recent-activity-item">
+                                                        <div key={activity.activityId}
+                                                             class="recent-activity-item recent-activity-item--clickable"
+                                                             data-id={activity.activityId}
+                                                             onclick={handleExpansionActivityClick}>
                                                             <span class="recent-activity-type">{activity.activityType}</span>
                                                             <span class="recent-activity-subject">{activity.subject}</span>
                                                             <span class="recent-activity-date">{activity.activityDate}</span>
@@ -574,7 +587,9 @@
 
                                             <template if:true={account.primaryContactName}>
                                                 <div class="expansion-section-label">Key Contact</div>
-                                                <div class="expansion-contact">
+                                                <div class="expansion-contact expansion-contact--clickable"
+                                                     data-id={account.primaryContactId}
+                                                     onclick={handleExpansionContactClick}>
                                                     <lightning-icon icon-name="standard:contact" size="x-small"></lightning-icon>
                                                     <span class="expansion-contact-name">{account.primaryContactName}</span>
                                                 </div>
@@ -583,7 +598,12 @@
                                             <div class="expansion-section-label">Account Snapshot</div>
                                             <div class="expansion-health-factors">
                                                 <template for:each={account.healthFactors} for:item="factor">
-                                                    <div key={factor.label} class="health-factor-card">
+                                                    <div key={factor.label}
+                                                         class="health-factor-card health-factor-card--clickable"
+                                                         data-factor={factor.factorType}
+                                                         data-account={account.accountId}
+                                                         data-name={account.accountName}
+                                                         onclick={handleHealthFactorClick}>
                                                         <span class="health-factor-label">{factor.label}</span>
                                                         <span class={factor.valueClass}>{factor.value}</span>
                                                         <span class={factor.statusClass}>{factor.status}</span>

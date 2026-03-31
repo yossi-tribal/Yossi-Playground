@@ -410,6 +410,101 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         }
     }
 
+    // ── Expansion Row Click Handlers ──
+
+    handleExpansionActivityClick(event) {
+        event.stopPropagation();
+        const recordId = event.currentTarget.dataset.id;
+        if (recordId) {
+            this.navigateToRecord(recordId);
+        }
+    }
+
+    handleExpansionContactClick(event) {
+        event.stopPropagation();
+        const contactId = event.currentTarget.dataset.id;
+        if (contactId) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: { recordId: contactId, objectApiName: 'Contact', actionName: 'view' }
+            });
+        }
+    }
+
+    handleHealthFactorClick(event) {
+        event.stopPropagation();
+        const factorType = event.currentTarget.dataset.factor;
+        const accountId = event.currentTarget.dataset.account;
+        const accountName = event.currentTarget.dataset.name;
+        if (!factorType || !accountId) return;
+
+        if (factorType === 'activity') {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: { recordId: accountId, objectApiName: 'Account', actionName: 'view' }
+            });
+            return;
+        }
+
+        if (factorType === 'overdueTasks') {
+            this.kpiModalTitle = `Overdue Tasks — ${accountName}`;
+            this.kpiModalType = 'tasks';
+            this.kpiModalEmptyMessage = 'No overdue tasks for this account.';
+            this.kpiModalData = [];
+            this.showKpiModal = true;
+
+            getOverdueTasksForPortfolio()
+                .then(result => {
+                    this.kpiModalData = this.sortPortfolioTasks(
+                        (result || []).filter(t => t.accountId === accountId)
+                    );
+                })
+                .catch(error => {
+                    this.handleError('Failed to load overdue tasks', error);
+                    this.showKpiModal = false;
+                });
+        } else if (factorType === 'highPriCases') {
+            this.kpiModalTitle = `High-Priority Cases — ${accountName}`;
+            this.kpiModalType = 'cases';
+            this.kpiModalEmptyMessage = 'No high-priority cases for this account.';
+            this.kpiModalData = [];
+            this.showKpiModal = true;
+
+            getHighPriorityCasesForPortfolio()
+                .then(result => {
+                    const filtered = (result || []).filter(c => c.accountId === accountId);
+                    this.kpiModalData = filtered.map(c => ({
+                        ...c,
+                        caseId: c.caseId,
+                        subject: `${c.caseNumber}: ${c.subject}`,
+                        priorityDotClass: c.priority === 'High' ? 'priority-dot priority-dot--high' :
+                            (c.priority === 'Medium' ? 'priority-dot priority-dot--medium' : 'priority-dot priority-dot--low')
+                    }));
+                })
+                .catch(error => {
+                    this.handleError('Failed to load high-priority cases', error);
+                    this.showKpiModal = false;
+                });
+        } else if (factorType === 'openCases') {
+            this.kpiModalTitle = `Open Cases — ${accountName}`;
+            this.kpiModalType = 'cases';
+            this.kpiModalEmptyMessage = 'No open cases for this account.';
+            this.kpiModalData = [];
+            this.showKpiModal = true;
+
+            getAllOpenCasesForPortfolio()
+                .then(result => {
+                    this.kpiModalData = this.sortPortfolioCases(
+                        (result || []).filter(c => c.accountId === accountId)
+                    );
+                })
+                .catch(error => {
+                    this.handleError('Failed to load cases', error);
+                    this.showKpiModal = false;
+                });
+        }
+    }
+
     // ── Snapshot Toggle ──
 
     handleSnapshotToggle() {
@@ -1552,6 +1647,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return [
             {
                 label: 'Activity Recency',
+                factorType: 'activity',
                 value: this.getDaysSinceActivityText(days),
                 valueClass: this.getFactorValueClass('activity', days),
                 status: this.getFactorStatusLabel('activity', days),
@@ -1559,6 +1655,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             },
             {
                 label: 'Overdue Tasks',
+                factorType: 'overdueTasks',
                 value: String(overdue),
                 valueClass: this.getFactorValueClass('overdue', overdue),
                 status: this.getFactorStatusLabel('overdue', overdue),
@@ -1566,6 +1663,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             },
             {
                 label: 'High-Priority Cases',
+                factorType: 'highPriCases',
                 value: String(highPri),
                 valueClass: this.getFactorValueClass('highpri', highPri),
                 status: this.getFactorStatusLabel('highpri', highPri),
@@ -1573,6 +1671,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             },
             {
                 label: 'Open Cases',
+                factorType: 'openCases',
                 value: String(totalCases),
                 valueClass: this.getFactorValueClass('cases', totalCases),
                 status: this.getFactorStatusLabel('cases', totalCases),

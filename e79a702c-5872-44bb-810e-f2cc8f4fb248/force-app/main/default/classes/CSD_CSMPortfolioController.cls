@@ -147,12 +147,14 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public Integer daysSinceActivityForHealth { get; set; }
         @AuraEnabled public List<RecentActivity> recentActivities { get; set; }
         @AuraEnabled public String primaryContactName { get; set; }
+        @AuraEnabled public Id primaryContactId { get; set; }
     }
 
     /**
      * @description Wrapper for a recent activity (Task or Event) shown in expansion rows
      */
     public class RecentActivity {
+        @AuraEnabled public Id activityId { get; set; }
         @AuraEnabled public String subject { get; set; }
         @AuraEnabled public String activityDate { get; set; }
         @AuraEnabled public String activityType { get; set; }
@@ -792,6 +794,7 @@ public with sharing class CSD_CSMPortfolioController {
             Map<Id, Date> nearestRenewalByAccount = getNearestRenewalDates(accountIds);
             Map<Id, List<RecentActivity>> recentActivitiesByAccount = getRecentActivities(accountIds);
             Map<Id, String> primaryContactByAccount = getPrimaryContactNames(accountIds);
+            Map<Id, Id> primaryContactIdByAccount = getPrimaryContactIds(accountIds);
 
             // Build account rows
             for (Account acc : accounts) {
@@ -860,6 +863,7 @@ public with sharing class CSD_CSMPortfolioController {
                     ? recentActivitiesByAccount.get(acc.Id)
                     : new List<RecentActivity>();
                 row.primaryContactName = primaryContactByAccount.get(acc.Id);
+                row.primaryContactId = primaryContactIdByAccount.get(acc.Id);
 
                 accountRows.add(row);
             }
@@ -1232,7 +1236,7 @@ public with sharing class CSD_CSMPortfolioController {
         Map<Id, List<RecentActivity>> tempMap = new Map<Id, List<RecentActivity>>();
 
         for (Task t : [
-            SELECT WhatId, Subject, ActivityDate, Type
+            SELECT Id, WhatId, Subject, ActivityDate, Type
             FROM Task
             WHERE WhatId IN :accountIds
             AND IsClosed = true
@@ -1245,6 +1249,7 @@ public with sharing class CSD_CSMPortfolioController {
             List<RecentActivity> activities = tempMap.get(t.WhatId);
             if (activities.size() < 3) {
                 RecentActivity ra = new RecentActivity();
+                ra.activityId = t.Id;
                 ra.subject = t.Subject;
                 ra.activityDate = t.ActivityDate.format();
                 ra.activityType = (t.Type != null && t.Type.toLowerCase().contains('call')) ? 'Call' : 'Task';
@@ -1253,7 +1258,7 @@ public with sharing class CSD_CSMPortfolioController {
         }
 
         for (Event e : [
-            SELECT WhatId, Subject, ActivityDate
+            SELECT Id, WhatId, Subject, ActivityDate
             FROM Event
             WHERE WhatId IN :accountIds
             AND ActivityDate != null
@@ -1266,6 +1271,7 @@ public with sharing class CSD_CSMPortfolioController {
             List<RecentActivity> activities = tempMap.get(e.WhatId);
             if (activities.size() < 3) {
                 RecentActivity ra = new RecentActivity();
+                ra.activityId = e.Id;
                 ra.subject = e.Subject;
                 ra.activityDate = e.ActivityDate.format();
                 ra.activityType = 'Event';
@@ -1310,6 +1316,26 @@ public with sharing class CSD_CSMPortfolioController {
         }
 
         return contactByAccount;
+    }
+
+    private static Map<Id, Id> getPrimaryContactIds(Set<Id> accountIds) {
+        Map<Id, Id> contactIdByAccount = new Map<Id, Id>();
+        if (accountIds.isEmpty()) {
+            return contactIdByAccount;
+        }
+
+        for (Contact c : [
+            SELECT AccountId, Id
+            FROM Contact
+            WHERE AccountId IN :accountIds
+            ORDER BY CreatedDate ASC
+        ]) {
+            if (!contactIdByAccount.containsKey(c.AccountId)) {
+                contactIdByAccount.put(c.AccountId, c.Id);
+            }
+        }
+
+        return contactIdByAccount;
     }
 
     /**
