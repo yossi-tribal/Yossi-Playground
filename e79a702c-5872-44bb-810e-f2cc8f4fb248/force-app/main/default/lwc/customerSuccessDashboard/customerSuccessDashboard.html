@@ -55,63 +55,65 @@
 
                         <!-- Suggested + Quick Actions (merged column) -->
                         <div class="suggested-actions-container grid-area-actions">
-                            <div class="action-section-label">Suggested actions</div>
+                            <div class="suggested-actions-list">
+                                <div class="action-section-label">Suggested actions</div>
 
-                            <template if:true={hasSuggestedAction1}>
-                                <div class={suggestedAction1Class} onclick={handleSuggestedAction} data-action={suggestedAction1.handler}>
-                                    <div class="suggested-action-content">
-                                        <div class="suggested-action-main">
-                                            <template if:true={suggestedAction1.showBadge}>
-                                                <span class={suggestedAction1DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction1.badge}</span>
-                                            </template>
-                                            <span class="suggested-action-text">{suggestedAction1.text}</span>
+                                <template if:true={hasSuggestedAction1}>
+                                    <div class={suggestedAction1Class} onclick={handleSuggestedAction} data-action={suggestedAction1.handler}>
+                                        <div class="suggested-action-content">
+                                            <div class="suggested-action-main">
+                                                <template if:true={suggestedAction1.showBadge}>
+                                                    <span class={suggestedAction1DotClass}></span>
+                                                    <span class="suggested-action-urgency-label">{suggestedAction1.badge}</span>
+                                                </template>
+                                                <span class="suggested-action-text">{suggestedAction1.text}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
 
-                            <template if:true={hasSuggestedAction2}>
-                                <div class={suggestedAction2Class} onclick={handleSuggestedAction} data-action={suggestedAction2.handler}>
-                                    <div class="suggested-action-content">
-                                        <div class="suggested-action-main">
-                                            <template if:true={suggestedAction2.showBadge}>
-                                                <span class={suggestedAction2DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction2.badge}</span>
-                                            </template>
-                                            <span class="suggested-action-text">{suggestedAction2.text}</span>
+                                <template if:true={hasSuggestedAction2}>
+                                    <div class={suggestedAction2Class} onclick={handleSuggestedAction} data-action={suggestedAction2.handler}>
+                                        <div class="suggested-action-content">
+                                            <div class="suggested-action-main">
+                                                <template if:true={suggestedAction2.showBadge}>
+                                                    <span class={suggestedAction2DotClass}></span>
+                                                    <span class="suggested-action-urgency-label">{suggestedAction2.badge}</span>
+                                                </template>
+                                                <span class="suggested-action-text">{suggestedAction2.text}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
 
-                            <template if:true={hasSuggestedAction3}>
-                                <div class={suggestedAction3Class} onclick={handleSuggestedAction} data-action={suggestedAction3.handler}>
-                                    <div class="suggested-action-content">
-                                        <div class="suggested-action-main">
-                                            <template if:true={suggestedAction3.showBadge}>
-                                                <span class={suggestedAction3DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction3.badge}</span>
-                                            </template>
-                                            <span class="suggested-action-text">{suggestedAction3.text}</span>
+                                <template if:true={hasSuggestedAction3}>
+                                    <div class={suggestedAction3Class} onclick={handleSuggestedAction} data-action={suggestedAction3.handler}>
+                                        <div class="suggested-action-content">
+                                            <div class="suggested-action-main">
+                                                <template if:true={suggestedAction3.showBadge}>
+                                                    <span class={suggestedAction3DotClass}></span>
+                                                    <span class="suggested-action-urgency-label">{suggestedAction3.badge}</span>
+                                                </template>
+                                                <span class="suggested-action-text">{suggestedAction3.text}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
 
-                            <template if:true={hasSuggestedAction4}>
-                                <div class={suggestedAction4Class} onclick={handleSuggestedAction} data-action={suggestedAction4.handler}>
-                                    <div class="suggested-action-content">
-                                        <div class="suggested-action-main">
-                                            <template if:true={suggestedAction4.showBadge}>
-                                                <span class={suggestedAction4DotClass}></span>
-                                                <span class="suggested-action-urgency-label">{suggestedAction4.badge}</span>
-                                            </template>
-                                            <span class="suggested-action-text">{suggestedAction4.text}</span>
+                                <template if:true={hasSuggestedAction4}>
+                                    <div class={suggestedAction4Class} onclick={handleSuggestedAction} data-action={suggestedAction4.handler}>
+                                        <div class="suggested-action-content">
+                                            <div class="suggested-action-main">
+                                                <template if:true={suggestedAction4.showBadge}>
+                                                    <span class={suggestedAction4DotClass}></span>
+                                                    <span class="suggested-action-urgency-label">{suggestedAction4.badge}</span>
+                                                </template>
+                                                <span class="suggested-action-text">{suggestedAction4.text}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
 
                             <div class="quick-actions-inline">
                                 <button type="button" class="quick-action-btn" onclick={handleLogCall} title="Log a Call">
