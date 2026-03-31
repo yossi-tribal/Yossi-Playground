@@ -463,35 +463,52 @@
                                             <tr key={account.expansionKey} class="expansion-row">
                                                 <td colspan="9">
                                                     <div class="expansion-card">
-                                                        <template if:true={account.hasRecentActivities}>
-                                                            <div class="expansion-section-label">Recent Activity</div>
-                                                            <div class="expansion-recent-activities">
-                                                                <template for:each={account.recentActivities} for:item="activity">
-                                                                    <div key={activity.subject} class="recent-activity-item">
-                                                                        <span class="recent-activity-type">{activity.activityType}</span>
-                                                                        <span class="recent-activity-subject">{activity.subject}</span>
-                                                                        <span class="recent-activity-date">{activity.activityDate}</span>
+                                                        <div class="expansion-grid-layout">
+                                                            <div class="expansion-col">
+                                                                <template if:true={account.hasRecentActivities}>
+                                                                    <div class="expansion-section-label">Recent Activity</div>
+                                                                    <div class="expansion-recent-activities">
+                                                                        <template for:each={account.recentActivities} for:item="activity">
+                                                                            <div key={activity.subject} class="recent-activity-item">
+                                                                                <span class="recent-activity-type">{activity.activityType}</span>
+                                                                                <span class="recent-activity-subject">{activity.subject}</span>
+                                                                                <span class="recent-activity-date">{activity.activityDate}</span>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </template>
+
+                                                                <template if:true={account.primaryContactName}>
+                                                                    <div class="expansion-section-label">Key Contact</div>
+                                                                    <div class="expansion-contact">
+                                                                        <lightning-icon icon-name="standard:contact" size="x-small"></lightning-icon>
+                                                                        <span class="expansion-contact-name">{account.primaryContactName}</span>
                                                                     </div>
                                                                 </template>
                                                             </div>
-                                                        </template>
 
-                                                        <template if:true={account.primaryContactName}>
-                                                            <div class="expansion-section-label">Key Contact</div>
-                                                            <div class="expansion-contact">
-                                                                <lightning-icon icon-name="standard:contact" size="x-small"></lightning-icon>
-                                                                <span class="expansion-contact-name">{account.primaryContactName}</span>
+                                                            <div class="expansion-col">
+                                                                <div class="expansion-section-label">Account Snapshot</div>
+                                                                <div class="expansion-health-factors">
+                                                                    <template for:each={account.healthFactors} for:item="factor">
+                                                                        <div key={factor.label} class="health-factor-card">
+                                                                            <span class="health-factor-label">{factor.label}</span>
+                                                                            <span class={factor.valueClass}>{factor.value}</span>
+                                                                            <span class={factor.statusClass}>{factor.status}</span>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
                                                             </div>
-                                                        </template>
+                                                        </div>
 
                                                         <div class="expansion-actions">
-                                                            <button class="custom-btn custom-btn--primary"
+                                                            <button class="custom-btn custom-btn--ghost"
                                                                     data-id={account.accountId}
                                                                     onclick={handleViewFullDashboard}
                                                                     type="button">
                                                                 View Full Dashboard
                                                             </button>
-                                                            <button class="custom-btn custom-btn--secondary"
+                                                            <button class="custom-btn custom-btn--ghost"
                                                                     data-id={account.accountId}
                                                                     onclick={handleGoToAccount}
                                                                     type="button">
@@ -563,14 +580,25 @@
                                                 </div>
                                             </template>
 
+                                            <div class="expansion-section-label">Account Snapshot</div>
+                                            <div class="expansion-health-factors">
+                                                <template for:each={account.healthFactors} for:item="factor">
+                                                    <div key={factor.label} class="health-factor-card">
+                                                        <span class="health-factor-label">{factor.label}</span>
+                                                        <span class={factor.valueClass}>{factor.value}</span>
+                                                        <span class={factor.statusClass}>{factor.status}</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+
                                             <div class="expansion-actions">
-                                                <button class="custom-btn custom-btn--primary"
+                                                <button class="custom-btn custom-btn--ghost"
                                                         data-id={account.accountId}
                                                         onclick={handleViewFullDashboard}
                                                         type="button">
                                                     View Full Dashboard
                                                 </button>
-                                                <button class="custom-btn custom-btn--secondary"
+                                                <button class="custom-btn custom-btn--ghost"
                                                         data-id={account.accountId}
                                                         onclick={handleGoToAccount}
                                                         type="button">
