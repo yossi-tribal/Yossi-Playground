@@ -169,13 +169,14 @@
    MOBILE-FIRST RESPONSIVE LAYOUT WITH CSS GRID
    ═══════════════════════════════════════════════════════════════ */
 
-/* Mobile First: hero + actions column */
+/* Mobile First: hero + actions + quick-actions column */
 .premium-header {
     display: grid;
     grid-template-columns: 1fr;
     grid-template-areas:
         "health"
-        "actions";
+        "actions"
+        "quickactions";
     gap: var(--csd-space-4);
     margin-bottom: 0;
     padding: var(--csd-space-4);
@@ -191,6 +192,10 @@
 
 .grid-area-actions {
     grid-area: actions;
+}
+
+.grid-area-quickactions {
+    grid-area: quickactions;
 }
 
 /* Hero Card Container - Contains the merged health score card */
@@ -610,13 +615,6 @@
     overflow: hidden;
     max-width: 100%;
     width: 100%;
-}
-
-.suggested-actions-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--csd-space-3);
-    min-width: 0;
 }
 
 .action-section-label {
@@ -1354,7 +1352,9 @@
 @media (min-width: 768px) {
     .premium-header {
         grid-template-columns: minmax(240px, 300px) 1fr;
-        grid-template-areas: "health actions";
+        grid-template-areas:
+            "health actions"
+            ".      quickactions";
         gap: var(--csd-space-5);
         padding: var(--csd-space-5);
         align-items: start;
@@ -1371,30 +1371,21 @@
 
 @media (min-width: 1024px) {
     .premium-header {
-        grid-template-columns: 280px 1fr;
+        grid-template-columns: 280px 1fr auto;
+        grid-template-areas: "health actions quickactions";
         gap: var(--csd-space-6);
         padding: var(--csd-space-6);
     }
 
-    .suggested-actions-container {
-        flex-direction: row;
-        align-items: flex-start;
-    }
-
-    .suggested-actions-list {
-        flex: 1;
-    }
-
     .quick-actions-inline {
         grid-template-columns: repeat(2, 1fr);
-        flex-shrink: 0;
         width: 180px;
         border-top: none;
         margin-top: 0;
         padding-top: 0;
         border-left: 1px solid var(--csd-border);
         padding-left: var(--csd-space-4);
-        align-self: stretch;
+        align-self: start;
         align-content: start;
     }
 
