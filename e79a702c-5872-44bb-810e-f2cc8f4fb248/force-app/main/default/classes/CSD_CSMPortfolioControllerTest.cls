@@ -191,7 +191,7 @@ private class CSD_CSMPortfolioControllerTest {
             System.assert(summary.ytdCaseCount >= 4, 'Should include current-year portfolio cases in the summary');
             System.assertEquals(1, summary.priorYearCaseCount, 'Should include prior-year portfolio case count');
             System.assertEquals(3, summary.closedCasesAllTimeCount, 'Three closed cases in portfolio setup');
-            System.assertNotEquals(null, summary.medianCaseResolutionHours, 'Median elapsed hours for closed cases');
+            System.assertNotEquals(null, summary.averageCaseResolutionHours, 'Average elapsed hours for closed cases');
         }
         Test.stopTest();
     }

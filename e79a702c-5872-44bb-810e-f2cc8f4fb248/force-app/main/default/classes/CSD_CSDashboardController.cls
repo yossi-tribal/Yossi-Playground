@@ -57,9 +57,9 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String wonQuarter3Label { get; set; }
         @AuraEnabled public String wonQuarter4Label { get; set; }
 
-        /** Median elapsed resolution (hours); null when no closed cases */
-        @AuraEnabled public Decimal medianCaseResolutionHours { get; set; }
-        /** Count of closed cases included in median (all-time) */
+        /** Mean elapsed resolution (hours); null when no closed cases */
+        @AuraEnabled public Decimal averageCaseResolutionHours { get; set; }
+        /** Count of closed cases included in average (all-time) */
         @AuraEnabled public Integer closedCasesAllTimeCount { get; set; }
 
         /** Monthly case volume (trailing 12 months, oldest first) */
@@ -519,7 +519,7 @@ public with sharing class CSD_CSDashboardController {
         summary.wonQuarter3Label = '';
         summary.wonQuarter4Label = '';
 
-        summary.medianCaseResolutionHours = null;
+        summary.averageCaseResolutionHours = null;
         summary.closedCasesAllTimeCount = 0;
 
         summary.caseMonth1 = 0; summary.caseMonth2 = 0; summary.caseMonth3 = 0;
@@ -754,19 +754,19 @@ public with sharing class CSD_CSDashboardController {
         return Decimal.valueOf(ms) / 3600000.0;
     }
 
-    private static Decimal computeMedianDecimal(List<Decimal> sorted) {
-        if (sorted.isEmpty()) {
+    private static Decimal computeMeanHours(List<Decimal> hours) {
+        if (hours.isEmpty()) {
             return null;
         }
-        Integer n = sorted.size();
-        if (Math.mod(n, 2) == 1) {
-            return sorted[n / 2];
+        Decimal total = 0;
+        for (Decimal h : hours) {
+            total += h;
         }
-        return (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+        return total / hours.size();
     }
 
     /**
-     * @description All-time closed cases: batched SOQL, median elapsed hours (create → close).
+     * @description All-time closed cases: batched SOQL, mean elapsed hours (create → close).
      */
     private static void populateCaseResolutionMetrics(Id accountId, DashboardSummary summary) {
         List<Decimal> hoursList = new List<Decimal>();
@@ -811,11 +811,10 @@ public with sharing class CSD_CSDashboardController {
 
         summary.closedCasesAllTimeCount = hoursList.size();
         if (hoursList.isEmpty()) {
-            summary.medianCaseResolutionHours = null;
+            summary.averageCaseResolutionHours = null;
             return;
         }
-        hoursList.sort();
-        summary.medianCaseResolutionHours = computeMedianDecimal(hoursList);
+        summary.averageCaseResolutionHours = computeMeanHours(hoursList);
     }
 
     private static final String[] MONTH_ABBREVS = new String[]{

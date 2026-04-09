@@ -1,8 +1,8 @@
 /**
- * Format median resolution (hours) for dashboard KPIs.
+ * Format average resolution (hours) for dashboard KPIs.
  * Rules: &lt;24h → "4h 30m"; exactly 24h → "24h"; &gt;24h → fractional days (2 decimals).
  */
-export function formatMedianResolutionHours(hours) {
+export function formatAverageResolutionHours(hours) {
     if (hours == null || hours === undefined || Number.isNaN(Number(hours))) {
         return '\u2014';
     }

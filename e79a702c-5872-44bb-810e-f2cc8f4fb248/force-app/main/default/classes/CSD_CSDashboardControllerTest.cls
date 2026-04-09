@@ -287,16 +287,16 @@ private class CSD_CSDashboardControllerTest {
         System.assertEquals(0, summary.caseMonth12, 'Month 12 case count should be 0 for empty account');
         System.assertEquals(null, summary.caseMonth1AvgClose, 'Avg close should be null for empty account');
         System.assertEquals(null, summary.caseMonth12AvgClose, 'Month 12 avg close should be null for empty account');
-        System.assertEquals(null, summary.medianCaseResolutionHours, 'No closed cases — median hours null');
+        System.assertEquals(null, summary.averageCaseResolutionHours, 'No closed cases — average hours null');
         System.assertEquals(0, summary.closedCasesAllTimeCount, 'No closed cases — count 0');
     }
 
     /**
-     * @description Median elapsed resolution across all-time closed cases (batched query)
+     * @description Mean elapsed resolution across all-time closed cases (batched query)
      */
     @isTest
-    static void testGetDashboardSummary_MedianResolutionHours_AllTime() {
-        Account solo = new Account(Name = 'Median Resolution Account', CSD_Account_Health_Score__c = 'Healthy');
+    static void testGetDashboardSummary_AverageResolutionHours_AllTime() {
+        Account solo = new Account(Name = 'Average Resolution Account', CSD_Account_Health_Score__c = 'Healthy');
         insert solo;
         List<Case> cases = new List<Case>();
         cases.add(new Case(AccountId = solo.Id, Subject = 'MR-A', Status = 'New', Origin = 'Web'));
@@ -317,11 +317,12 @@ private class CSD_CSDashboardControllerTest {
         Test.stopTest();
 
         System.assertEquals(3, summary.closedCasesAllTimeCount, 'Three closed cases');
-        System.assertNotEquals(null, summary.medianCaseResolutionHours, 'Median hours set');
+        System.assertNotEquals(null, summary.averageCaseResolutionHours, 'Average hours set');
+        Decimal expectedMean = Decimal.valueOf(2 + 4 + 8) / 3;
         System.assertEquals(
-            4,
-            summary.medianCaseResolutionHours.setScale(0, System.RoundingMode.HALF_UP),
-            'Median of 2h, 4h, 8h is 4h'
+            expectedMean.setScale(4, System.RoundingMode.HALF_UP),
+            summary.averageCaseResolutionHours.setScale(4, System.RoundingMode.HALF_UP),
+            'Mean of 2h, 4h, 8h is 14/3 hours'
         );
     }
 

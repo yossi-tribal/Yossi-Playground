@@ -306,14 +306,14 @@
                                         </div>
                                         <template if:true={hasCaseResolutionData}>
                                             <div class="commercial-kpi">
-                                                <span class="commercial-kpi-label">Median resolution</span>
-                                                <span class="commercial-kpi-value">{formattedMedianResolution}</span>
-                                                <span class="commercial-kpi-sub">{medianResolutionCountSubtext}</span>
+                                                <span class="commercial-kpi-label">Avg resolution</span>
+                                                <span class="commercial-kpi-value">{formattedAverageResolution}</span>
+                                                <span class="commercial-kpi-sub">{averageResolutionCountSubtext}</span>
                                             </div>
                                         </template>
                                         <template if:false={hasCaseResolutionData}>
                                             <div class="commercial-kpi">
-                                                <span class="commercial-kpi-label">Median resolution</span>
+                                                <span class="commercial-kpi-label">Avg resolution</span>
                                                 <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
                                                 <span class="commercial-kpi-sub">No closed cases</span>
                                             </div>

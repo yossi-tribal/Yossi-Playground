@@ -116,7 +116,7 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public String wonMonth12Label { get; set; }
         @AuraEnabled public Integer casesOpenedLast90Days { get; set; }
         @AuraEnabled public Integer escalatedCasesLast90Days { get; set; }
-        @AuraEnabled public Decimal medianCaseResolutionHours { get; set; }
+        @AuraEnabled public Decimal averageCaseResolutionHours { get; set; }
         @AuraEnabled public Integer closedCasesAllTimeCount { get; set; }
         @AuraEnabled public Integer openTasksCount { get; set; }
     }
@@ -338,7 +338,7 @@ public with sharing class CSD_CSMPortfolioController {
             summary.wonMonth10Label = ''; summary.wonMonth11Label = ''; summary.wonMonth12Label = '';
             summary.casesOpenedLast90Days = 0;
             summary.escalatedCasesLast90Days = 0;
-            summary.medianCaseResolutionHours = null;
+            summary.averageCaseResolutionHours = null;
             summary.closedCasesAllTimeCount = 0;
             summary.openTasksCount = 0;
 
@@ -1768,23 +1768,23 @@ public with sharing class CSD_CSMPortfolioController {
         return Decimal.valueOf(ms) / 3600000.0;
     }
 
-    private static Decimal portfolioMedianDecimal(List<Decimal> sorted) {
-        if (sorted.isEmpty()) {
+    private static Decimal portfolioMeanHours(List<Decimal> hours) {
+        if (hours.isEmpty()) {
             return null;
         }
-        Integer n = sorted.size();
-        if (Math.mod(n, 2) == 1) {
-            return sorted[n / 2];
+        Decimal total = 0;
+        for (Decimal h : hours) {
+            total += h;
         }
-        return (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+        return total / hours.size();
     }
 
     /**
-     * @description All-time closed cases across portfolio accounts: batched SOQL, median elapsed hours.
+     * @description All-time closed cases across portfolio accounts: batched SOQL, mean elapsed hours.
      */
     private static void populatePortfolioCaseResolutionMetrics(Set<Id> accountIds, PortfolioSummary summary) {
         if (accountIds.isEmpty()) {
-            summary.medianCaseResolutionHours = null;
+            summary.averageCaseResolutionHours = null;
             summary.closedCasesAllTimeCount = 0;
             return;
         }
@@ -1829,11 +1829,10 @@ public with sharing class CSD_CSMPortfolioController {
         }
         summary.closedCasesAllTimeCount = hoursList.size();
         if (hoursList.isEmpty()) {
-            summary.medianCaseResolutionHours = null;
+            summary.averageCaseResolutionHours = null;
             return;
         }
-        hoursList.sort();
-        summary.medianCaseResolutionHours = portfolioMedianDecimal(hoursList);
+        summary.averageCaseResolutionHours = portfolioMeanHours(hoursList);
     }
 
     private static void populatePortfolioPriorYearRevenue(Set<Id> accountIds, PortfolioSummary summary) {

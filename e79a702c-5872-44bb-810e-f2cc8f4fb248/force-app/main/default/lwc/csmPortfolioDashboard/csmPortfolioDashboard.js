@@ -18,7 +18,7 @@ import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioCont
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
-import { formatMedianResolutionHours } from 'c/csdResolutionFormat';
+import { formatAverageResolutionHours } from 'c/csdResolutionFormat';
 import currentUserId from '@salesforce/user/Id';
 
 export default class CsmPortfolioDashboard extends NavigationMixin(LightningElement) {
@@ -1286,19 +1286,19 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return Boolean(this.summary && (this.summary.closedCasesAllTimeCount || 0) > 0);
     }
 
-    get formattedMedianResolution() {
+    get formattedAverageResolution() {
         if (!this.summary) {
             return '\u2014';
         }
-        return formatMedianResolutionHours(this.summary.medianCaseResolutionHours);
+        return formatAverageResolutionHours(this.summary.averageCaseResolutionHours);
     }
 
-    get medianResolutionCountSubtext() {
+    get averageResolutionCountSubtext() {
         const n = this.summary ? this.summary.closedCasesAllTimeCount || 0 : 0;
         if (n === 0) {
             return '';
         }
-        return `Median of all ${n} case${n !== 1 ? 's' : ''}`;
+        return `Avg of all ${n} case${n !== 1 ? 's' : ''}`;
     }
 
     // ── Detail Accordion Sections ──
