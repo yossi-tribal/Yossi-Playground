@@ -17,6 +17,7 @@ import getClosedWonForMonth from '@salesforce/apex/CSD_CSDashboardController.get
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
+import { formatMedianResolutionHours } from 'c/csdResolutionFormat';
 import currentUserId from '@salesforce/user/Id';
 
 export default class CustomerSuccessDashboard extends NavigationMixin(LightningElement) {
@@ -1287,65 +1288,24 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return 'USD';
     }
 
-    /** Case resolution: median close time formatted to 1 decimal */
-    get caseResolutionMedianDays() {
-        if (!this.summary) return '0';
-        const v = Number(this.summary.medianCaseCloseTimeDays || 0);
-        return v % 1 === 0 ? String(v) : v.toFixed(1);
+    /** Median elapsed resolution (all-time closed cases); subtext shows count */
+    get formattedMedianResolution() {
+        if (!this.summary) {
+            return '\u2014';
+        }
+        return formatMedianResolutionHours(this.summary.medianCaseResolutionHours);
     }
 
-    get caseResolutionMinDays() {
-        if (!this.summary) return 0;
-        return Math.round(Number(this.summary.minCaseCloseTimeDays || 0));
-    }
-
-    get caseResolutionMaxDays() {
-        if (!this.summary) return 0;
-        return Math.round(Number(this.summary.maxCaseCloseTimeDays || 0));
-    }
-
-    get closedCasesLast90Days() {
-        return this.summary ? (this.summary.closedCasesLast90Days || 0) : 0;
+    get medianResolutionCountSubtext() {
+        const n = this.summary ? this.summary.closedCasesAllTimeCount || 0 : 0;
+        if (n === 0) {
+            return '';
+        }
+        return `Median of all ${n} case${n !== 1 ? 's' : ''}`;
     }
 
     get hasCaseResolutionData() {
-        return this.closedCasesLast90Days > 0;
-    }
-
-    get closedCasesSubtitle() {
-        const n = this.closedCasesLast90Days;
-        return `Based on ${n} closed case${n !== 1 ? 's' : ''}`;
-    }
-
-    get resolutionTrendIcon() {
-        if (!this.summary || !this.summary.caseResolutionTrend) return '→';
-        if (this.summary.caseResolutionTrend === 'improving') return '↑';
-        if (this.summary.caseResolutionTrend === 'declining') return '↓';
-        return '→';
-    }
-
-    get resolutionTrendText() {
-        if (!this.summary || !this.summary.caseResolutionTrend) return 'Stable';
-        if (this.summary.caseResolutionTrend === 'improving') return 'Improving';
-        if (this.summary.caseResolutionTrend === 'declining') return 'Declining';
-        return 'Stable';
-    }
-
-    get resolutionTrendClass() {
-        const trend = this.summary ? this.summary.caseResolutionTrend : 'stable';
-        return `case-resolution-trend case-resolution-trend--${trend || 'stable'}`;
-    }
-
-    get resolutionTrendAriaLabel() {
-        return `Resolution time ${this.resolutionTrendText.toLowerCase()}`;
-    }
-
-    get showCaseResolutionRange() {
-        return this.hasCaseResolutionData && this.caseResolutionMinDays !== this.caseResolutionMaxDays;
-    }
-
-    get caseResolutionRangeText() {
-        return `Fastest ${this.caseResolutionMinDays}d · Slowest ${this.caseResolutionMaxDays}d`;
+        return Boolean(this.summary && (this.summary.closedCasesAllTimeCount || 0) > 0);
     }
 
     /** Trailing 12-month case volume: single-series bar array with tooltip data */

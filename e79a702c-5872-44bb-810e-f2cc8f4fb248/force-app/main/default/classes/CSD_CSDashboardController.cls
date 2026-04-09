@@ -57,12 +57,10 @@ public with sharing class CSD_CSDashboardController {
         @AuraEnabled public String wonQuarter3Label { get; set; }
         @AuraEnabled public String wonQuarter4Label { get; set; }
 
-        /** Case resolution metrics (closed cases, last 90 days) */
-        @AuraEnabled public Decimal medianCaseCloseTimeDays { get; set; }
-        @AuraEnabled public Decimal minCaseCloseTimeDays { get; set; }
-        @AuraEnabled public Decimal maxCaseCloseTimeDays { get; set; }
-        @AuraEnabled public Integer closedCasesLast90Days { get; set; }
-        @AuraEnabled public String caseResolutionTrend { get; set; }
+        /** Median elapsed resolution (hours); null when no closed cases */
+        @AuraEnabled public Decimal medianCaseResolutionHours { get; set; }
+        /** Count of closed cases included in median (all-time) */
+        @AuraEnabled public Integer closedCasesAllTimeCount { get; set; }
 
         /** Monthly case volume (trailing 12 months, oldest first) */
         @AuraEnabled public Integer caseMonth1 { get; set; }
@@ -521,11 +519,8 @@ public with sharing class CSD_CSDashboardController {
         summary.wonQuarter3Label = '';
         summary.wonQuarter4Label = '';
 
-        summary.medianCaseCloseTimeDays = 0;
-        summary.minCaseCloseTimeDays = 0;
-        summary.maxCaseCloseTimeDays = 0;
-        summary.closedCasesLast90Days = 0;
-        summary.caseResolutionTrend = 'stable';
+        summary.medianCaseResolutionHours = null;
+        summary.closedCasesAllTimeCount = 0;
 
         summary.caseMonth1 = 0; summary.caseMonth2 = 0; summary.caseMonth3 = 0;
         summary.caseMonth4 = 0; summary.caseMonth5 = 0; summary.caseMonth6 = 0;
@@ -749,69 +744,78 @@ public with sharing class CSD_CSDashboardController {
         return w;
     }
 
-    private static List<Integer> computeDurations(List<Case> cases) {
-        List<Integer> durations = new List<Integer>();
-        for (Case c : cases) {
-            if (c.CreatedDate != null && c.ClosedDate != null) {
-                Integer days = c.CreatedDate.date().daysBetween(c.ClosedDate.date());
-                durations.add(Math.max(days, 0));
-            }
+    private static final Integer CASE_RESOLUTION_BATCH = 200;
+
+    private static Decimal elapsedHours(Case c) {
+        Long ms = c.ClosedDate.getTime() - c.CreatedDate.getTime();
+        if (ms < 0) {
+            ms = 0;
         }
-        durations.sort();
-        return durations;
+        return Decimal.valueOf(ms) / 3600000.0;
     }
 
-    private static Decimal computeMedian(List<Integer> sorted) {
-        if (sorted.isEmpty()) return 0;
+    private static Decimal computeMedianDecimal(List<Decimal> sorted) {
+        if (sorted.isEmpty()) {
+            return null;
+        }
         Integer n = sorted.size();
         if (Math.mod(n, 2) == 1) {
             return sorted[n / 2];
         }
-        return ((Decimal) sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+        return (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
     }
 
+    /**
+     * @description All-time closed cases: batched SOQL, median elapsed hours (create → close).
+     */
     private static void populateCaseResolutionMetrics(Id accountId, DashboardSummary summary) {
-        List<Case> currentCases = [
-            SELECT CreatedDate, ClosedDate
-            FROM Case
-            WHERE AccountId = :accountId
-            AND IsClosed = true
-            AND ClosedDate >= LAST_N_DAYS:90
-        ];
-
-        List<Integer> durations = computeDurations(currentCases);
-        summary.closedCasesLast90Days = durations.size();
-
-        if (!durations.isEmpty()) {
-            summary.medianCaseCloseTimeDays = computeMedian(durations).setScale(1, System.RoundingMode.HALF_UP);
-            summary.minCaseCloseTimeDays = durations[0];
-            summary.maxCaseCloseTimeDays = durations[durations.size() - 1];
-        }
-
-        DateTime priorStart = DateTime.now().addDays(-180);
-        DateTime priorEnd = DateTime.now().addDays(-90);
-        List<Case> priorCases = [
-            SELECT CreatedDate, ClosedDate
-            FROM Case
-            WHERE AccountId = :accountId
-            AND IsClosed = true
-            AND ClosedDate >= :priorStart
-            AND ClosedDate < :priorEnd
-        ];
-
-        List<Integer> priorDurations = computeDurations(priorCases);
-        if (!durations.isEmpty() && !priorDurations.isEmpty()) {
-            Decimal currentMedian = computeMedian(durations);
-            Decimal priorMedian = computeMedian(priorDurations);
-            if (priorMedian > 0) {
-                Decimal pctChange = ((currentMedian - priorMedian) / priorMedian) * 100;
-                if (pctChange <= -10) {
-                    summary.caseResolutionTrend = 'improving';
-                } else if (pctChange >= 10) {
-                    summary.caseResolutionTrend = 'declining';
-                }
+        List<Decimal> hoursList = new List<Decimal>();
+        Id lastId = null;
+        while (true) {
+            List<Case> batch;
+            if (lastId == null) {
+                batch = [
+                    SELECT Id, CreatedDate, ClosedDate
+                    FROM Case
+                    WHERE AccountId = :accountId
+                    AND IsClosed = true
+                    AND CreatedDate != null
+                    AND ClosedDate != null
+                    ORDER BY Id ASC
+                    LIMIT :CASE_RESOLUTION_BATCH
+                ];
+            } else {
+                batch = [
+                    SELECT Id, CreatedDate, ClosedDate
+                    FROM Case
+                    WHERE AccountId = :accountId
+                    AND IsClosed = true
+                    AND CreatedDate != null
+                    AND ClosedDate != null
+                    AND Id > :lastId
+                    ORDER BY Id ASC
+                    LIMIT :CASE_RESOLUTION_BATCH
+                ];
             }
+            if (batch.isEmpty()) {
+                break;
+            }
+            for (Case c : batch) {
+                hoursList.add(elapsedHours(c));
+            }
+            if (batch.size() < CASE_RESOLUTION_BATCH) {
+                break;
+            }
+            lastId = batch[batch.size() - 1].Id;
         }
+
+        summary.closedCasesAllTimeCount = hoursList.size();
+        if (hoursList.isEmpty()) {
+            summary.medianCaseResolutionHours = null;
+            return;
+        }
+        hoursList.sort();
+        summary.medianCaseResolutionHours = computeMedianDecimal(hoursList);
     }
 
     private static final String[] MONTH_ABBREVS = new String[]{

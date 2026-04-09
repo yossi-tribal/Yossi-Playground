@@ -18,6 +18,7 @@ import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioCont
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
+import { formatMedianResolutionHours } from 'c/csdResolutionFormat';
 import currentUserId from '@salesforce/user/Id';
 
 export default class CsmPortfolioDashboard extends NavigationMixin(LightningElement) {
@@ -1282,40 +1283,22 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     // ── Support Snapshot ──
 
     get hasCaseResolutionData() {
-        return this.summary && this.summary.caseResolutionMedianDays != null;
+        return Boolean(this.summary && (this.summary.closedCasesAllTimeCount || 0) > 0);
     }
 
-    get caseResolutionMedianDays() {
-        if (!this.summary || this.summary.caseResolutionMedianDays == null) return '—';
-        return Math.round(this.summary.caseResolutionMedianDays);
+    get formattedMedianResolution() {
+        if (!this.summary) {
+            return '\u2014';
+        }
+        return formatMedianResolutionHours(this.summary.medianCaseResolutionHours);
     }
 
-    get resolutionTrendIcon() {
-        if (!this.summary) return '';
-        const trend = this.summary.caseResolutionTrend;
-        if (trend === 'improving') return '↓';
-        if (trend === 'worsening') return '↑';
-        return '→';
-    }
-
-    get resolutionTrendText() {
-        if (!this.summary) return '';
-        const trend = this.summary.caseResolutionTrend;
-        if (trend === 'improving') return 'Improving';
-        if (trend === 'worsening') return 'Getting slower';
-        return 'Stable';
-    }
-
-    get resolutionTrendClass() {
-        if (!this.summary) return 'trend-value';
-        const trend = this.summary.caseResolutionTrend;
-        if (trend === 'improving') return 'trend-value trend-value--good';
-        if (trend === 'worsening') return 'trend-value trend-value--bad';
-        return 'trend-value';
-    }
-
-    get resolutionTrendAriaLabel() {
-        return `Resolution trend: ${this.resolutionTrendText}`;
+    get medianResolutionCountSubtext() {
+        const n = this.summary ? this.summary.closedCasesAllTimeCount || 0 : 0;
+        if (n === 0) {
+            return '';
+        }
+        return `Median of all ${n} case${n !== 1 ? 's' : ''}`;
     }
 
     // ── Detail Accordion Sections ──

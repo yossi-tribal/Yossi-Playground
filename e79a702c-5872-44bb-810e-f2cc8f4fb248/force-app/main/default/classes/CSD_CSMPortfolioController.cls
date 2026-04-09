@@ -116,8 +116,8 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public String wonMonth12Label { get; set; }
         @AuraEnabled public Integer casesOpenedLast90Days { get; set; }
         @AuraEnabled public Integer escalatedCasesLast90Days { get; set; }
-        @AuraEnabled public Decimal caseResolutionMedianDays { get; set; }
-        @AuraEnabled public String caseResolutionTrend { get; set; }
+        @AuraEnabled public Decimal medianCaseResolutionHours { get; set; }
+        @AuraEnabled public Integer closedCasesAllTimeCount { get; set; }
         @AuraEnabled public Integer openTasksCount { get; set; }
     }
 
@@ -338,8 +338,8 @@ public with sharing class CSD_CSMPortfolioController {
             summary.wonMonth10Label = ''; summary.wonMonth11Label = ''; summary.wonMonth12Label = '';
             summary.casesOpenedLast90Days = 0;
             summary.escalatedCasesLast90Days = 0;
-            summary.caseResolutionMedianDays = null;
-            summary.caseResolutionTrend = 'stable';
+            summary.medianCaseResolutionHours = null;
+            summary.closedCasesAllTimeCount = 0;
             summary.openTasksCount = 0;
 
             // Total accounts assigned to current user
@@ -1739,7 +1739,6 @@ public with sharing class CSD_CSMPortfolioController {
         }
 
         Date ninetyDaysAgo = Date.today().addDays(-90);
-        Date oneEightyDaysAgo = Date.today().addDays(-180);
 
         summary.casesOpenedLast90Days = [
             SELECT COUNT()
@@ -1756,62 +1755,85 @@ public with sharing class CSD_CSMPortfolioController {
             AND IsEscalated = true
         ];
 
-        List<Decimal> resolutionDays = new List<Decimal>();
-        for (Case c : [
-            SELECT CreatedDate, ClosedDate
-            FROM Case
-            WHERE AccountId IN :accountIds
-            AND IsClosed = true
-            AND ClosedDate >= :ninetyDaysAgo
-            AND CreatedDate != null
-            AND ClosedDate != null
-        ]) {
-            Integer days = c.CreatedDate.date().daysBetween(c.ClosedDate.date());
-            resolutionDays.add(days);
-        }
+        populatePortfolioCaseResolutionMetrics(accountIds, summary);
+    }
 
-        if (!resolutionDays.isEmpty()) {
-            resolutionDays.sort();
-            Integer mid = resolutionDays.size() / 2;
-            if (Math.mod(resolutionDays.size(), 2) == 0) {
-                summary.caseResolutionMedianDays = (resolutionDays[mid - 1] + resolutionDays[mid]) / 2;
-            } else {
-                summary.caseResolutionMedianDays = resolutionDays[mid];
-            }
-        }
+    private static final Integer PORTFOLIO_CASE_RESOLUTION_BATCH = 200;
 
-        List<Decimal> priorResolutionDays = new List<Decimal>();
-        for (Case c : [
-            SELECT CreatedDate, ClosedDate
-            FROM Case
-            WHERE AccountId IN :accountIds
-            AND IsClosed = true
-            AND ClosedDate >= :oneEightyDaysAgo
-            AND ClosedDate < :ninetyDaysAgo
-            AND CreatedDate != null
-            AND ClosedDate != null
-        ]) {
-            Integer days = c.CreatedDate.date().daysBetween(c.ClosedDate.date());
-            priorResolutionDays.add(days);
+    private static Decimal portfolioElapsedHours(Case c) {
+        Long ms = c.ClosedDate.getTime() - c.CreatedDate.getTime();
+        if (ms < 0) {
+            ms = 0;
         }
+        return Decimal.valueOf(ms) / 3600000.0;
+    }
 
-        if (!resolutionDays.isEmpty() && !priorResolutionDays.isEmpty()) {
-            priorResolutionDays.sort();
-            Integer priorMid = priorResolutionDays.size() / 2;
-            Decimal priorMedian;
-            if (Math.mod(priorResolutionDays.size(), 2) == 0) {
-                priorMedian = (priorResolutionDays[priorMid - 1] + priorResolutionDays[priorMid]) / 2;
-            } else {
-                priorMedian = priorResolutionDays[priorMid];
-            }
-            if (summary.caseResolutionMedianDays < priorMedian) {
-                summary.caseResolutionTrend = 'improving';
-            } else if (summary.caseResolutionMedianDays > priorMedian) {
-                summary.caseResolutionTrend = 'worsening';
-            } else {
-                summary.caseResolutionTrend = 'stable';
-            }
+    private static Decimal portfolioMedianDecimal(List<Decimal> sorted) {
+        if (sorted.isEmpty()) {
+            return null;
         }
+        Integer n = sorted.size();
+        if (Math.mod(n, 2) == 1) {
+            return sorted[n / 2];
+        }
+        return (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+    }
+
+    /**
+     * @description All-time closed cases across portfolio accounts: batched SOQL, median elapsed hours.
+     */
+    private static void populatePortfolioCaseResolutionMetrics(Set<Id> accountIds, PortfolioSummary summary) {
+        if (accountIds.isEmpty()) {
+            summary.medianCaseResolutionHours = null;
+            summary.closedCasesAllTimeCount = 0;
+            return;
+        }
+        List<Decimal> hoursList = new List<Decimal>();
+        Id lastId = null;
+        while (true) {
+            List<Case> batch;
+            if (lastId == null) {
+                batch = [
+                    SELECT Id, CreatedDate, ClosedDate
+                    FROM Case
+                    WHERE AccountId IN :accountIds
+                    AND IsClosed = true
+                    AND CreatedDate != null
+                    AND ClosedDate != null
+                    ORDER BY Id ASC
+                    LIMIT :PORTFOLIO_CASE_RESOLUTION_BATCH
+                ];
+            } else {
+                batch = [
+                    SELECT Id, CreatedDate, ClosedDate
+                    FROM Case
+                    WHERE AccountId IN :accountIds
+                    AND IsClosed = true
+                    AND CreatedDate != null
+                    AND ClosedDate != null
+                    AND Id > :lastId
+                    ORDER BY Id ASC
+                    LIMIT :PORTFOLIO_CASE_RESOLUTION_BATCH
+                ];
+            }
+            if (batch.isEmpty()) {
+                break;
+            }
+            for (Case c : batch) {
+                hoursList.add(portfolioElapsedHours(c));
+            }
+            if (batch.size() < PORTFOLIO_CASE_RESOLUTION_BATCH) {
+                break;
+            }
+            lastId = batch[batch.size() - 1].Id;
+        }
+        summary.closedCasesAllTimeCount = hoursList.size();
+        if (hoursList.isEmpty()) {
+            summary.medianCaseResolutionHours = null;
+            return;
+        }
+        hoursList.sort();
+        summary.medianCaseResolutionHours = portfolioMedianDecimal(hoursList);
     }
 
     private static void populatePortfolioPriorYearRevenue(Set<Id> accountIds, PortfolioSummary summary) {

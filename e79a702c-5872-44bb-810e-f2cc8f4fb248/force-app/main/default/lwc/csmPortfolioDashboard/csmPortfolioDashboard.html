@@ -306,21 +306,16 @@
                                         </div>
                                         <template if:true={hasCaseResolutionData}>
                                             <div class="commercial-kpi">
-                                                <span class="commercial-kpi-label">Avg resolution</span>
-                                                <span class="commercial-kpi-value">
-                                                    {caseResolutionMedianDays}
-                                                    <span class="commercial-kpi-value-unit">days</span>
-                                                </span>
-                                                <span class="commercial-kpi-sub">
-                                                    <span class={resolutionTrendClass} aria-label={resolutionTrendAriaLabel}>{resolutionTrendIcon} {resolutionTrendText}</span>
-                                                </span>
+                                                <span class="commercial-kpi-label">Median resolution</span>
+                                                <span class="commercial-kpi-value">{formattedMedianResolution}</span>
+                                                <span class="commercial-kpi-sub">{medianResolutionCountSubtext}</span>
                                             </div>
                                         </template>
                                         <template if:false={hasCaseResolutionData}>
                                             <div class="commercial-kpi">
-                                                <span class="commercial-kpi-label">Avg resolution</span>
+                                                <span class="commercial-kpi-label">Median resolution</span>
                                                 <span class="commercial-kpi-value commercial-kpi-value--muted">—</span>
-                                                <span class="commercial-kpi-sub">No closed cases (90 days)</span>
+                                                <span class="commercial-kpi-sub">No closed cases</span>
                                             </div>
                                         </template>
                                     </div>
