@@ -1298,7 +1298,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         if (n === 0) {
             return '';
         }
-        return `Avg of all ${n} case${n !== 1 ? 's' : ''}`;
+        return `Avg of all ${n} closed case${n !== 1 ? 's' : ''}`;
     }
 
     // ── Detail Accordion Sections ──

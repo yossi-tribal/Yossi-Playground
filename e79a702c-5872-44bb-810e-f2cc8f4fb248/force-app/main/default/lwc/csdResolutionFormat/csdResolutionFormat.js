@@ -1,6 +1,6 @@
 /**
  * Format average resolution (hours) for dashboard KPIs.
- * Rules: &lt;24h → "4h 30m"; exactly 24h → "24h"; &gt;24h → fractional days (2 decimals).
+ * Rules: &lt;24h → "4h 30m"; exactly 24h → "24h"; &gt;24h → "xd yh zm" (days, hours, minutes).
  */
 export function formatAverageResolutionHours(hours) {
     if (hours == null || hours === undefined || Number.isNaN(Number(hours))) {
@@ -20,6 +20,22 @@ export function formatAverageResolutionHours(hours) {
         }
         return `${hh}h ${mm}m`;
     }
-    const days = h / 24;
-    return `${days.toFixed(2)}d`;
+    // Convert to days, hours, minutes format
+    const totalMinutesAll = Math.round(h * 60);
+    const days = Math.floor(totalMinutesAll / (24 * 60));
+    const remainingMinutes = totalMinutesAll % (24 * 60);
+    const hh = Math.floor(remainingMinutes / 60);
+    const mm = remainingMinutes % 60;
+
+    // Build the display string
+    let result = `${days}d`;
+    if (hh > 0 || mm > 0) {
+        if (hh > 0) {
+            result += ` ${hh}h`;
+        }
+        if (mm > 0) {
+            result += ` ${mm}m`;
+        }
+    }
+    return result;
 }

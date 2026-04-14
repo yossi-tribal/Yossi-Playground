@@ -1301,7 +1301,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         if (n === 0) {
             return '';
         }
-        return `Avg of all ${n} case${n !== 1 ? 's' : ''}`;
+        return `Avg of all ${n} closed case${n !== 1 ? 's' : ''}`;
     }
 
     get hasCaseResolutionData() {
