@@ -1112,9 +1112,11 @@ public with sharing class CSD_CSDashboardController {
                 FROM Case
                 WHERE AccountId = :accountId
                 AND IsClosed = false
-                ORDER BY IsEscalated DESC, Priority DESC, CreatedDate ASC
+                ORDER BY IsEscalated DESC, CreatedDate ASC
                 LIMIT :recordLimit
             ];
+
+            cases.sort(new CaseOpenPriorityComparator());
 
             for (Case c : cases) {
                 CaseData caseData = new CaseData();
@@ -1123,7 +1125,9 @@ public with sharing class CSD_CSDashboardController {
                 caseData.subject = c.Subject;
                 caseData.status = c.Status;
                 caseData.priority = c.Priority;
-                caseData.ownerName = c.Owner.Name;
+                caseData.ownerName = (c.Owner != null && String.isNotBlank(c.Owner.Name))
+                    ? c.Owner.Name
+                    : UserInfo.getName();
                 caseData.isEscalated = c.IsEscalated;
 
                 // Calculate age in days
@@ -1176,7 +1180,9 @@ public with sharing class CSD_CSDashboardController {
                 activity.activityType = 'Task';
                 activity.activityDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
                 activity.activityDateValue = t.ActivityDate;
-                activity.ownerName = t.Owner.Name;
+                activity.ownerName = (t.Owner != null && String.isNotBlank(t.Owner.Name))
+                    ? t.Owner.Name
+                    : UserInfo.getName();
                 activity.status = t.Status;
                 activity.isOverdue = t.ActivityDate != null && t.ActivityDate < today;
                 activity.isDueToday = t.ActivityDate != null && t.ActivityDate == today;
@@ -1232,7 +1238,9 @@ public with sharing class CSD_CSDashboardController {
                 activity.activityType = 'Task';
                 activity.activityDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
                 activity.activityDateValue = t.ActivityDate;
-                activity.ownerName = t.Owner.Name;
+                activity.ownerName = (t.Owner != null && String.isNotBlank(t.Owner.Name))
+                    ? t.Owner.Name
+                    : UserInfo.getName();
                 activity.status = t.Status;
                 activityList.add(activity);
             }
@@ -1254,7 +1262,9 @@ public with sharing class CSD_CSDashboardController {
                 activity.activityType = 'Event';
                 activity.activityDate = e.ActivityDate != null ? e.ActivityDate.format() : '';
                 activity.activityDateValue = e.ActivityDate;
-                activity.ownerName = e.Owner.Name;
+                activity.ownerName = (e.Owner != null && String.isNotBlank(e.Owner.Name))
+                    ? e.Owner.Name
+                    : UserInfo.getName();
                 activityList.add(activity);
             }
 
@@ -1408,9 +1418,11 @@ public with sharing class CSD_CSDashboardController {
                 FROM Case
                 WHERE AccountId = :accountId
                 AND IsClosed = false
-                ORDER BY IsEscalated DESC, Priority DESC, CreatedDate ASC
+                ORDER BY IsEscalated DESC, CreatedDate ASC
                 LIMIT 100
             ];
+
+            cases.sort(new CaseOpenPriorityComparator());
 
             for (Case c : cases) {
                 CaseData caseData = new CaseData();
@@ -1419,7 +1431,9 @@ public with sharing class CSD_CSDashboardController {
                 caseData.subject = c.Subject;
                 caseData.status = c.Status;
                 caseData.priority = c.Priority;
-                caseData.ownerName = c.Owner.Name;
+                caseData.ownerName = (c.Owner != null && String.isNotBlank(c.Owner.Name))
+                    ? c.Owner.Name
+                    : UserInfo.getName();
                 caseData.isEscalated = c.IsEscalated;
                 caseData.age = c.CreatedDate.date().daysBetween(Date.today());
                 caseList.add(caseData);
@@ -1463,7 +1477,9 @@ public with sharing class CSD_CSDashboardController {
                 activity.activityType = 'Task';
                 activity.activityDate = t.ActivityDate != null ? t.ActivityDate.format() : '';
                 activity.activityDateValue = t.ActivityDate;
-                activity.ownerName = t.Owner.Name;
+                activity.ownerName = (t.Owner != null && String.isNotBlank(t.Owner.Name))
+                    ? t.Owner.Name
+                    : UserInfo.getName();
                 activity.status = t.Status;
                 activity.isOverdue = t.ActivityDate != null && t.ActivityDate < today;
                 activity.isDueToday = t.ActivityDate != null && t.ActivityDate == today;
@@ -1945,6 +1961,48 @@ public with sharing class CSD_CSDashboardController {
             return oppList;
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving closed-won opportunities for month: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Escalated first, then priority High, Medium, Low, then oldest created first.
+     */
+    private class CaseOpenPriorityComparator implements Comparator<Case> {
+        private Integer priorityRank(String p) {
+            if (p == 'High') {
+                return 1;
+            }
+            if (p == 'Medium') {
+                return 2;
+            }
+            if (p == 'Low') {
+                return 3;
+            }
+            return 4;
+        }
+
+        public Integer compare(Case a, Case b) {
+            if (a.IsEscalated && !b.IsEscalated) {
+                return -1;
+            }
+            if (!a.IsEscalated && b.IsEscalated) {
+                return 1;
+            }
+            Integer pa = priorityRank(a.Priority);
+            Integer pb = priorityRank(b.Priority);
+            if (pa < pb) {
+                return -1;
+            }
+            if (pa > pb) {
+                return 1;
+            }
+            if (a.CreatedDate < b.CreatedDate) {
+                return -1;
+            }
+            if (a.CreatedDate > b.CreatedDate) {
+                return 1;
+            }
+            return 0;
         }
     }
 }

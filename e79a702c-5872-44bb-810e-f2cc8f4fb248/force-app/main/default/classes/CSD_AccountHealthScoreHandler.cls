@@ -10,6 +10,12 @@
  */
 public with sharing class CSD_AccountHealthScoreHandler {
 
+    /**
+     * When true, Account health trigger skips recalculation (for tests that set scores manually).
+     */
+    @TestVisible
+    private static Boolean skipRecalculationInTests = false;
+
     // Health score risk thresholds
     private static final Integer RED_DAYS_NO_ACTIVITY = 30;
     private static final Integer YELLOW_DAYS_NO_ACTIVITY = 15;
@@ -28,6 +34,9 @@ public with sharing class CSD_AccountHealthScoreHandler {
         if (accountIds == null || accountIds.isEmpty()) {
             return;
         }
+        if (Test.isRunningTest() && skipRecalculationInTests) {
+            return;
+        }
 
         // Query accounts that need health score calculation
         List<Account> accountsToUpdate = [
@@ -40,54 +49,136 @@ public with sharing class CSD_AccountHealthScoreHandler {
             return;
         }
 
-        // Calculate health metrics for each account
-        Map<Id, String> accountHealthScores = new Map<Id, String>();
-
-        for (Account acc : accountsToUpdate) {
-            String calculatedScore = calculateHealthScore(acc.Id);
-            accountHealthScores.put(acc.Id, calculatedScore);
+        Map<Id, Date> lastClosedTaskDateByAccount = new Map<Id, Date>();
+        for (Task t : [
+            SELECT WhatId, ActivityDate
+            FROM Task
+            WHERE WhatId IN :accountIds
+            AND IsClosed = true
+            AND ActivityDate != null
+        ]) {
+            Date existing = lastClosedTaskDateByAccount.get(t.WhatId);
+            if (existing == null || t.ActivityDate > existing) {
+                lastClosedTaskDateByAccount.put(t.WhatId, t.ActivityDate);
+            }
         }
 
-        // Update accounts with new health scores
+        Map<Id, Date> lastEventDateByAccount = new Map<Id, Date>();
+        for (Event ev : [
+            SELECT WhatId, ActivityDate
+            FROM Event
+            WHERE WhatId IN :accountIds
+            AND ActivityDate != null
+        ]) {
+            Date existing = lastEventDateByAccount.get(ev.WhatId);
+            if (existing == null || ev.ActivityDate > existing) {
+                lastEventDateByAccount.put(ev.WhatId, ev.ActivityDate);
+            }
+        }
+
+        Map<Id, Integer> overdueTaskCountByAccount = new Map<Id, Integer>();
+        for (AggregateResult ar : [
+            SELECT WhatId wid, COUNT(Id) cnt
+            FROM Task
+            WHERE WhatId IN :accountIds
+            AND IsClosed = false
+            AND ActivityDate < TODAY
+            GROUP BY WhatId
+        ]) {
+            overdueTaskCountByAccount.put((Id) ar.get('wid'), (Integer) ar.get('cnt'));
+        }
+
+        Map<Id, Integer> highPriorityCaseCountByAccount = new Map<Id, Integer>();
+        for (AggregateResult ar : [
+            SELECT AccountId aid, COUNT(Id) cnt
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND IsClosed = false
+            AND (Priority = 'High' OR IsEscalated = true)
+            GROUP BY AccountId
+        ]) {
+            highPriorityCaseCountByAccount.put((Id) ar.get('aid'), (Integer) ar.get('cnt'));
+        }
+
+        Map<Id, Integer> openCaseCountByAccount = new Map<Id, Integer>();
+        for (AggregateResult ar : [
+            SELECT AccountId aid, COUNT(Id) cnt
+            FROM Case
+            WHERE AccountId IN :accountIds
+            AND IsClosed = false
+            GROUP BY AccountId
+        ]) {
+            openCaseCountByAccount.put((Id) ar.get('aid'), (Integer) ar.get('cnt'));
+        }
+
+        Map<Id, String> accountHealthScores = new Map<Id, String>();
+        for (Account acc : accountsToUpdate) {
+            Date lastTaskDate = lastClosedTaskDateByAccount.get(acc.Id);
+            Date lastEventDate = lastEventDateByAccount.get(acc.Id);
+            Date lastActivityDate = null;
+            if (lastTaskDate != null && lastEventDate != null) {
+                lastActivityDate = lastTaskDate > lastEventDate ? lastTaskDate : lastEventDate;
+            } else if (lastTaskDate != null) {
+                lastActivityDate = lastTaskDate;
+            } else if (lastEventDate != null) {
+                lastActivityDate = lastEventDate;
+            }
+
+            Integer daysSinceLastActivity = null;
+            if (lastActivityDate != null) {
+                daysSinceLastActivity = lastActivityDate.daysBetween(Date.today());
+            }
+
+            Integer overdueTasksCount = overdueTaskCountByAccount.containsKey(acc.Id)
+                ? overdueTaskCountByAccount.get(acc.Id)
+                : 0;
+            Integer highPriorityCasesCount = highPriorityCaseCountByAccount.containsKey(acc.Id)
+                ? highPriorityCaseCountByAccount.get(acc.Id)
+                : 0;
+            Integer totalOpenCasesCount = openCaseCountByAccount.containsKey(acc.Id)
+                ? openCaseCountByAccount.get(acc.Id)
+                : 0;
+
+            accountHealthScores.put(
+                acc.Id,
+                calculateHealthScoreFromMetrics(
+                    daysSinceLastActivity,
+                    overdueTasksCount,
+                    highPriorityCasesCount,
+                    totalOpenCasesCount
+                )
+            );
+        }
+
         List<Account> accountsWithNewScores = new List<Account>();
         for (Account acc : accountsToUpdate) {
             String newScore = accountHealthScores.get(acc.Id);
-            // Only update if score has changed to avoid unnecessary updates
             if (newScore != null && newScore != acc.CSD_Account_Health_Score__c) {
                 acc.CSD_Account_Health_Score__c = newScore;
                 accountsWithNewScores.add(acc);
             }
         }
 
-        // Perform DML update if there are changes
         if (!accountsWithNewScores.isEmpty()) {
             update accountsWithNewScores;
         }
     }
 
     /**
-     * @description Calculates health score for a single account based on risk factors
-     * @param accountId The Account ID to evaluate
-     * @return String health score value (At Risk, Needs Attention, or Healthy)
+     * @description Calculates health score from pre-loaded metrics (bulk-safe).
      */
-    private static String calculateHealthScore(Id accountId) {
-        // Gather all risk metrics
-        Integer daysSinceLastActivity = getDaysSinceLastActivity(accountId);
-        Integer overdueTasksCount = getOverdueTasksCount(accountId);
-        Integer highPriorityCasesCount = getHighPriorityCasesCount(accountId);
-        Integer totalOpenCasesCount = getTotalOpenCasesCount(accountId);
-
-        // Evaluate Red (At Risk) conditions - highest priority
+    private static String calculateHealthScoreFromMetrics(
+        Integer daysSinceLastActivity,
+        Integer overdueTasksCount,
+        Integer highPriorityCasesCount,
+        Integer totalOpenCasesCount
+    ) {
         if (isRedRisk(daysSinceLastActivity, overdueTasksCount, highPriorityCasesCount, totalOpenCasesCount)) {
             return 'At Risk';
         }
-
-        // Evaluate Yellow (Caution) conditions - medium priority
         if (isYellowRisk(daysSinceLastActivity, overdueTasksCount, highPriorityCasesCount, totalOpenCasesCount)) {
             return 'Needs Attention';
         }
-
-        // Default to Green (Healthy) if no risk conditions are met
         return 'Healthy';
     }
 
@@ -123,95 +214,5 @@ public with sharing class CSD_AccountHealthScoreHandler {
                (overdueTasksCount >= YELLOW_OVERDUE_TASKS) ||
                (highPriorityCasesCount >= YELLOW_HIGH_PRIORITY_CASES) ||
                (totalOpenCasesCount >= YELLOW_TOTAL_CASES);
-    }
-
-    /**
-     * @description Calculates days since last completed activity (Task or Event)
-     * @param accountId The Account ID
-     * @return Integer number of days since last activity, or null if no activity found
-     */
-    private static Integer getDaysSinceLastActivity(Id accountId) {
-        // Query most recent completed Task
-        List<Task> lastTasks = [
-            SELECT Id, ActivityDate
-            FROM Task
-            WHERE WhatId = :accountId
-            AND IsClosed = true
-            ORDER BY ActivityDate DESC
-            LIMIT 1
-        ];
-
-        // Query most recent Event
-        List<Event> lastEvents = [
-            SELECT Id, ActivityDate
-            FROM Event
-            WHERE WhatId = :accountId
-            ORDER BY ActivityDate DESC
-            LIMIT 1
-        ];
-
-        // Determine the most recent activity date
-        Date lastActivityDate = null;
-        if (!lastTasks.isEmpty() && !lastEvents.isEmpty()) {
-            lastActivityDate = lastTasks[0].ActivityDate > lastEvents[0].ActivityDate
-                ? lastTasks[0].ActivityDate
-                : lastEvents[0].ActivityDate;
-        } else if (!lastTasks.isEmpty()) {
-            lastActivityDate = lastTasks[0].ActivityDate;
-        } else if (!lastEvents.isEmpty()) {
-            lastActivityDate = lastEvents[0].ActivityDate;
-        }
-
-        // Calculate days since last activity
-        if (lastActivityDate != null) {
-            return lastActivityDate.daysBetween(Date.today());
-        }
-
-        // Return null if no activity found (will be treated as highest risk)
-        return null;
-    }
-
-    /**
-     * @description Counts overdue tasks for the account
-     * @param accountId The Account ID
-     * @return Integer number of overdue tasks
-     */
-    private static Integer getOverdueTasksCount(Id accountId) {
-        return [
-            SELECT COUNT()
-            FROM Task
-            WHERE WhatId = :accountId
-            AND IsClosed = false
-            AND ActivityDate < TODAY
-        ];
-    }
-
-    /**
-     * @description Counts high priority or escalated open cases for the account
-     * @param accountId The Account ID
-     * @return Integer number of high priority or escalated cases
-     */
-    private static Integer getHighPriorityCasesCount(Id accountId) {
-        return [
-            SELECT COUNT()
-            FROM Case
-            WHERE AccountId = :accountId
-            AND IsClosed = false
-            AND (Priority = 'High' OR IsEscalated = true)
-        ];
-    }
-
-    /**
-     * @description Counts total open cases for the account
-     * @param accountId The Account ID
-     * @return Integer number of open cases
-     */
-    private static Integer getTotalOpenCasesCount(Id accountId) {
-        return [
-            SELECT COUNT()
-            FROM Case
-            WHERE AccountId = :accountId
-            AND IsClosed = false
-        ];
     }
 }

@@ -81,6 +81,25 @@ private class CSD_CSMPortfolioControllerTest {
                 Priority = 'Medium',
                 Status = 'Working'
             ));
+            // Five total open cases on acc1 triggers At Risk in automated health scoring
+            cases.add(new Case(
+                AccountId = acc1.Id,
+                Subject = 'Test Case 3 - Low Open',
+                Priority = 'Low',
+                Status = 'New'
+            ));
+            cases.add(new Case(
+                AccountId = acc1.Id,
+                Subject = 'Test Case 4 - Low Open',
+                Priority = 'Low',
+                Status = 'New'
+            ));
+            cases.add(new Case(
+                AccountId = acc1.Id,
+                Subject = 'Test Case 5 - Low Open',
+                Priority = 'Low',
+                Status = 'New'
+            ));
             insert cases;
 
             // Create additional cases with backdated CreatedDates for portfolio trend coverage
@@ -185,7 +204,7 @@ private class CSD_CSMPortfolioControllerTest {
             System.assertEquals(1, summary.atRiskAccounts, 'Should have 1 at-risk account');
             System.assertEquals(1, summary.needsAttentionAccounts, 'Should have 1 needs attention account');
             System.assertEquals(1, summary.healthyAccounts, 'Should have 1 healthy account');
-            System.assertEquals(2, summary.totalOpenCases, 'Should have 2 open cases');
+            System.assertEquals(5, summary.totalOpenCases, 'Should have 5 open cases on at-risk account');
             System.assertEquals(1, summary.totalOverdueTasks, 'Should have 1 overdue task');
             System.assertEquals(125000, summary.totalOpenPipeline, 'Should have total pipeline of 125000');
             System.assert(summary.ytdCaseCount >= 4, 'Should include current-year portfolio cases in the summary');
@@ -270,7 +289,7 @@ private class CSD_CSMPortfolioControllerTest {
             System.assertEquals(1, accounts.size(), 'Should return 1 at-risk account');
             System.assertEquals('At Risk', accounts[0].healthScore, 'Health score should be At Risk');
             System.assertEquals('red', accounts[0].healthScoreColor, 'Health score color should be red');
-            System.assertEquals(2, accounts[0].openCasesCount, 'Should have 2 open cases');
+            System.assertEquals(5, accounts[0].openCasesCount, 'Should have 5 open cases');
             System.assertEquals(1, accounts[0].highPriorityCasesCount, 'Should have 1 high priority case');
         }
         Test.stopTest();
@@ -635,7 +654,7 @@ private class CSD_CSMPortfolioControllerTest {
                 CSD_CSMPortfolioController.getAllOpenCasesForPortfolio();
 
             System.assertNotEquals(null, cases, 'Cases list should not be null');
-            System.assertEquals(2, cases.size(), 'Should return every open case across the portfolio');
+            System.assertEquals(5, cases.size(), 'Should return every open case across the portfolio');
 
             CSD_CSMPortfolioController.PortfolioCaseRow firstCase = cases[0];
             System.assertNotEquals(null, firstCase.caseId, 'Case ID should be populated');
