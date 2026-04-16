@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>OHT_Risk_Level__c</fullName>
+            <label>Risk Level</label>
+            <description>Risk level category based on health score: On Track (75-100), Needs Attention (50-74), At-Risk (0-49)</description>
+            <type>Text</type>
+            <length>20</length>
+            <required>false</required>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+        </CustomField>

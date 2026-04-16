@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <description>Thermometer visualization of opportunity health score with color-coded risk levels. Shows breakdown of four criteria: overdue tasks, last activity, close date proximity, and stage aging. Refreshes automatically.</description>
+    <isExposed>true</isExposed>
+    <masterLabel>Opportunity Health Thermostat</masterLabel>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__RecordPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__AppPage">
+            <property name="recordId" type="String" />
+        </targetConfig>
+        <targetConfig targets="lightning__RecordPage">
+            <objects>
+                <object>Opportunity</object>
+            </objects>
+            <property name="recordId" type="String" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

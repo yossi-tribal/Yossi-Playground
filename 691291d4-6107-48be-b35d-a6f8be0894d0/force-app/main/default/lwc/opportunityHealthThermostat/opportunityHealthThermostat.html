@@ -1,0 +1,231 @@
+<template>
+    <lightning-card title="Opportunity Health Thermostat" icon-name="standard:dashboard">
+        <div slot="actions">
+            <lightning-button
+                label="Refresh"
+                icon-name="utility:refresh"
+                onclick={handleRefresh}
+                disabled={isLoading}
+            ></lightning-button>
+        </div>
+
+        <!-- Loading State -->
+        <template if:true={isLoading}>
+            <div class="slds-is-relative slds-p-around_medium">
+                <lightning-spinner alternative-text="Loading health score..." size="medium"></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- Error State -->
+        <template if:true={error}>
+            <div class="slds-p-around_medium">
+                <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+                    <span class="slds-assistive-text">Error</span>
+                    <h2>{error}</h2>
+                </div>
+            </div>
+        </template>
+
+        <!-- Health Score Display -->
+        <template if:true={hasHealthData}>
+            <div class="slds-p-around_medium">
+                <!-- Closed Status Banner -->
+                <template if:true={isClosed}>
+                    <div class="slds-box slds-theme_info slds-m-bottom_medium">
+                        <p class="slds-text-heading_small slds-text-align_center">
+                            This opportunity is {closedStatus}
+                        </p>
+                    </div>
+                </template>
+
+                <!-- Main Display Grid -->
+                <div class="health-display-container">
+                    <!-- Thermometer Visualization -->
+                    <div class="thermometer-container">
+                        <div class="thermometer">
+                            <div class="thermometer-scale">
+                                <span class="scale-label">100</span>
+                                <span class="scale-label">75</span>
+                                <span class="scale-label">50</span>
+                                <span class="scale-label">25</span>
+                                <span class="scale-label">0</span>
+                            </div>
+                            <div class="thermometer-tube-wrapper">
+                                <div class="thermometer-tube">
+                                    <div class={thermometerColorClass} style={thermometerFillHeight} role="progressbar" aria-valuenow={healthScore} aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="thermometer-bulb">
+                                    <div class={bulbFillClass}></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Score and Risk Level -->
+                    <div class="score-info-container">
+                        <div class="health-score-display">
+                            <div class="score-value">{healthScore}</div>
+                            <div class="score-label">Health Score</div>
+                        </div>
+                        <div class={riskLevelClass}>
+                            {riskLevel}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Criteria Breakdown -->
+                <div class="criteria-breakdown-section">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Health Criteria Breakdown</h3>
+
+                    <div class="criteria-grid">
+                        <!-- Overdue Tasks -->
+                        <div class={overdueTasksCardClass}>
+                            <div class="criteria-header">
+                                <span class="criteria-label">
+                                    <lightning-icon icon-name="standard:task" size="xx-small" class="slds-m-right_x-small"></lightning-icon>
+                                    <span class="criteria-name-container">
+                                        <span class="criteria-name">Overdue Tasks</span>
+                                        <span class="criteria-weight">30% weight</span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="score-bar-container">
+                                <div class={overdueTasksBarClass} style={overdueTasksBarWidth}></div>
+                            </div>
+                            <div class="criteria-details">
+                                <span class="criteria-detail-text">{overdueTasksText}</span>
+                                <span class="criteria-score-microcopy">{overdueTasksScore}/100</span>
+                            </div>
+                        </div>
+
+                        <!-- Last Activity -->
+                        <div class={lastActivityCardClass}>
+                            <div class="criteria-header">
+                                <span class="criteria-label">
+                                    <lightning-icon icon-name="standard:event" size="xx-small" class="slds-m-right_x-small"></lightning-icon>
+                                    <span class="criteria-name-container">
+                                        <span class="criteria-name">Last Activity</span>
+                                        <span class="criteria-weight">20% weight</span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="score-bar-container">
+                                <div class={lastActivityBarClass} style={lastActivityBarWidth}></div>
+                            </div>
+                            <div class="criteria-details">
+                                <span class="criteria-detail-text">Days since last activity: {daysSinceLastActivity}</span>
+                                <span class="criteria-score-microcopy">{lastActivityScore}/100</span>
+                            </div>
+                        </div>
+
+                        <!-- Close Date Proximity -->
+                        <div class={closeDateCardClass}>
+                            <div class="criteria-header">
+                                <span class="criteria-label">
+                                    <lightning-icon icon-name="standard:date_time" size="xx-small" class="slds-m-right_x-small"></lightning-icon>
+                                    <span class="criteria-name-container">
+                                        <span class="criteria-name">Close Date Proximity</span>
+                                        <span class="criteria-weight">25% weight</span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="score-bar-container">
+                                <div class={closeDateBarClass} style={closeDateBarWidth}></div>
+                            </div>
+                            <div class="criteria-details">
+                                <span class="criteria-detail-text">Days until close: {daysUntilClose}</span>
+                                <span class="criteria-score-microcopy">{closeDateScore}/100</span>
+                            </div>
+                        </div>
+
+                        <!-- Stage Aging -->
+                        <div class={stageAgingCardClass}>
+                            <div class="criteria-header">
+                                <span class="criteria-label">
+                                    <lightning-icon icon-name="standard:timesheet" size="xx-small" class="slds-m-right_x-small"></lightning-icon>
+                                    <span class="criteria-name-container">
+                                        <span class="criteria-name">Stage Aging</span>
+                                        <span class="criteria-weight">25% weight</span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="score-bar-container">
+                                <div class={stageAgingBarClass} style={stageAgingBarWidth}></div>
+                            </div>
+                            <div class="criteria-details">
+                                <span class="criteria-detail-text">Days in current stage: {daysInCurrentStage}</span>
+                                <span class="criteria-score-microcopy">{stageAgingScore}/100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Text - Collapsible Card -->
+                <div class="slds-m-top_medium help-section">
+                    <div class="help-card">
+                        <div class="help-header" onclick={toggleHelp}>
+                            <h4 class="slds-text-heading_small">How Health Score is Calculated</h4>
+                            <lightning-icon icon-name={helpToggleIcon} size="x-small"></lightning-icon>
+                        </div>
+                        <template if:true={isHelpExpanded}>
+                            <div class="help-content">
+                                <ul class="slds-list_dotted">
+                                    <li>
+                                        <strong>Overdue Tasks (30%):</strong>
+                                        <ul class="slds-list_dotted slds-m-left_medium">
+                                            <li>100 if no overdue tasks</li>
+                                            <li>0 if any overdue tasks exist</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>Last Activity (20%):</strong>
+                                        <ul class="slds-list_dotted slds-m-left_medium">
+                                            <li>100 if ≤7 days</li>
+                                            <li>50 if 8-14 days</li>
+                                            <li>0 if &gt;14 days</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>Close Date (25%):</strong>
+                                        <ul class="slds-list_dotted slds-m-left_medium">
+                                            <li>100 if &gt;30 days away</li>
+                                            <li>50 if 15-30 days</li>
+                                            <li>0 if &lt;15 days</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>Stage Aging (25%):</strong>
+                                        <ul class="slds-list_dotted slds-m-left_medium">
+                                            <li>100 if ≤30 days</li>
+                                            <li>50 if 31-60 days</li>
+                                            <li>0 if &gt;60 days</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>Risk Levels:</strong>
+                                        <ul class="slds-list_dotted slds-m-left_medium">
+                                            <li>On Track (75-100)</li>
+                                            <li>Needs Attention (50-74)</li>
+                                            <li>At-Risk (0-49)</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Last Updated Footer -->
+                <div class="last-updated-footer">
+                    <span class={statusIndicatorClass}></span>
+                    Last Updated: {lastUpdated}
+                </div>
+
+                <!-- Watermark -->
+                <div class="watermark">
+                    Made by Tribal
+                </div>
+            </div>
+        </template>
+    </lightning-card>
+</template>
