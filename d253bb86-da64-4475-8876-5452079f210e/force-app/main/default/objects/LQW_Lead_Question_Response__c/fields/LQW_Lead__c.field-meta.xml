@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_Lead__c</fullName>
+            <label>Lead</label>
+            <description>The lead record associated with this qualification response</description>
+            <type>Lookup</type>
+            <required>false</required>
+            <referenceTo>Lead</referenceTo>
+            <relationshipLabel>Lead Question Responses</relationshipLabel>
+            <relationshipName>LQW_Lead_Question_Responses</relationshipName>
+            <deleteConstraint>SetNull</deleteConstraint>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            <unique>false</unique>
+            <externalId>false</externalId>
+        </CustomField>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+            <deploymentStatus>Deployed</deploymentStatus>
+            <description>Stores configurable qualification questions for the Lead Qualification Wizard. Each question can be activated/deactivated, ordered, marked as a dealbreaker, and assigned a score value. Questions are displayed to sales representatives when qualifying leads.</description>
+            <enableActivities>true</enableActivities>
+            <enableBulkApi>true</enableBulkApi>
+            <enableFeeds>true</enableFeeds>
+            <enableHistory>true</enableHistory>
+            <enableReports>true</enableReports>
+            <enableSearch>true</enableSearch>
+            <enableSharing>true</enableSharing>
+            <enableStreamingApi>true</enableStreamingApi>
+            <externalSharingModel>Private</externalSharingModel>
+            <label>Qualification Question</label>
+            <nameField>
+                <displayFormat>QQ-{00000}</displayFormat>
+                <label>Question Number</label>
+                <type>AutoNumber</type>
+            </nameField>
+            <pluralLabel>Qualification Questions</pluralLabel>
+            <searchLayouts>
+                <searchFilterFields>NAME</searchFilterFields>
+                <searchResultsAdditionalFields>CREATED_DATE</searchResultsAdditionalFields>
+            </searchLayouts>
+            <sharingModel>ReadWrite</sharingModel>
+            <visibility>Public</visibility>
+        </CustomObject>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_All_Question_Lists</fullName>
+            <label>All Question Lists</label>
+            <filterScope>Everything</filterScope>
+            
+            <columns>NAME</columns>
+            
+            <columns>LQW_List_Name__c</columns>
+            
+            <columns>LQW_Is_Active__c</columns>
+            
+            <columns>LQW_Description__c</columns>
+            
+            <columns>CREATED_DATE</columns>
+
+        </ListView>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+            <label>Question List Manager</label>
+            <description>Admin interface for creating and managing question lists and their qualification questions with an intuitive master-detail layout</description>
+            
+            <flexiPage>LQW_Question_List_Manager</flexiPage>
+            
+            <motif>Custom88: Settings</motif>
+        </CustomTab>

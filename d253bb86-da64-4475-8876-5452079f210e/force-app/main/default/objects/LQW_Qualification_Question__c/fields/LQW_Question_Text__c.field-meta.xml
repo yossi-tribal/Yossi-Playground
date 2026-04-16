@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_Question_Text__c</fullName>
+            <label>Question Text</label>
+            <description>The text of the qualification question displayed to users in the Lead Qualification Wizard</description>
+            <type>Text</type>
+            <length>255</length>
+            <required>true</required>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+        </CustomField>

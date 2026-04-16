@@ -1,0 +1,946 @@
+<template>
+    <div class="manager-container">
+        <!-- Header -->
+        <div class="manager-header">
+            <lightning-icon icon-name="standard:question_feed" size="small" class="header-icon"></lightning-icon>
+            <span class="header-title">Question List Manager</span>
+        </div>
+
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <div class="loading-overlay">
+                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+                <p class="loading-text">Loading...</p>
+            </div>
+        </template>
+
+        <!-- Main Layout -->
+        <div class="manager-content">
+            <div class="slds-grid slds-wrap slds-gutters">
+
+            <!-- Left Panel: Question Lists -->
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-large-size_1-of-4">
+                <div class="list-panel">
+
+                    <!-- List Header -->
+                    <div class="list-panel-header">
+                        <h2 class="list-panel-title">Question Lists</h2>
+                        <button class="add-list-button" onclick={handleNewList} title="New List">
+                            <lightning-icon icon-name="utility:add" size="xx-small"></lightning-icon>
+                        </button>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="list-search-container">
+                        <lightning-input
+                            type="search"
+                            label="Search Lists"
+                            value={searchTerm}
+                            onchange={handleSearchChange}
+                            variant="label-hidden"
+                            placeholder="Search lists..."
+                            class="list-search-input">
+                        </lightning-input>
+                    </div>
+
+                    <!-- List Items -->
+                    <div class="list-container">
+                        <template if:true={hasQuestionLists}>
+                            <template for:each={filteredQuestionLists} for:item="list">
+                                <div key={list.listId}
+                                     class={list.itemClass}
+                                     data-list-id={list.listId}
+                                     onclick={handleSelectList}>
+                                    <div class="list-item">
+                                        <div class="list-item-name">{list.listName}</div>
+                                        <div class="list-item-meta">
+                                            <span class="list-item-stat">{list.totalQuestions} questions</span>
+                                            <span class="list-item-divider">•</span>
+                                            <span class="list-item-stat">{list.totalPossiblePoints} pts</span>
+                                            <template if:false={list.isActive}>
+                                                <span class="list-item-inactive-badge">Inactive</span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasQuestionLists}>
+                            <div class="empty-state-list">
+                                <lightning-icon icon-name="utility:database" size="large" class="empty-state-icon"></lightning-icon>
+                                <p class="empty-state-text">No question lists found</p>
+                                <p class="empty-state-subtext">Create your first list to get started</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Question Details -->
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3 slds-large-size_3-of-4">
+                <template if:true={hasSelectedList}>
+                    <div class="detail-panel">
+
+                        <!-- Detail Header -->
+                        <div class="detail-header">
+                            <div class="detail-header-content">
+                                <h1 class="detail-title">{selectedList.listName}</h1>
+                                <p class="detail-subtitle">{selectedListSummary}</p>
+                            </div>
+                            <div class="detail-header-actions">
+                                <lightning-button-menu
+                                    alternative-text="List Actions"
+                                    icon-size="x-small"
+                                    menu-alignment="right"
+                                    class="actions-menu">
+                                    <lightning-menu-item label="Edit List" icon-name="utility:edit" onclick={handleEditList}></lightning-menu-item>
+                                    <lightning-menu-item label="Clone List" icon-name="utility:copy" onclick={handleCloneList}></lightning-menu-item>
+                                    <lightning-menu-item label="Delete List" icon-name="utility:delete" onclick={handleDeleteList}></lightning-menu-item>
+                                    <lightning-menu-divider></lightning-menu-divider>
+                                    <lightning-menu-item label="Activate All Questions" icon-name="utility:check" onclick={handleActivateAll}></lightning-menu-item>
+                                    <lightning-menu-item label="Deactivate All Questions" icon-name="utility:ban" onclick={handleDeactivateAll}></lightning-menu-item>
+                                </lightning-button-menu>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <template if:true={selectedList.description}>
+                            <div class="detail-description">
+                                <p>{selectedList.description}</p>
+                            </div>
+                        </template>
+
+                        <!-- Assignment Rules Section (Read-Only) -->
+                        <div class="assignment-rules-section">
+                            <div class="assignment-rules-card">
+                                <div class="assignment-rules-header" onclick={handleToggleAssignmentRules}>
+                                    <div class="assignment-rules-header-left">
+                                        <lightning-icon icon-name="utility:filter" size="x-small" class="assignment-rules-icon"></lightning-icon>
+                                        <h3 class="assignment-rules-title">Assignment Rules</h3>
+                                        <button class="toggle-icon-button" title={assignmentRulesToggleTitle}>
+                                            <lightning-icon icon-name={assignmentRulesToggleIcon} size="xx-small"></lightning-icon>
+                                        </button>
+                                    </div>
+                                    <div class="assignment-rules-header-right">
+                                        <template if:true={selectedList.isDefault}>
+                                            <span class="default-badge">Default Fallback List</span>
+                                        </template>
+                                        <template if:false={selectedList.isDefault}>
+                                            <template if:true={hasAssignmentCriteria}>
+                                                <span class="criteria-badge">Criteria-Based</span>
+                                            </template>
+                                            <template if:false={hasAssignmentCriteria}>
+                                                <span class="no-criteria-badge">No Criteria Set</span>
+                                            </template>
+                                        </template>
+                                    </div>
+                                </div>
+                                <template if:true={isAssignmentRulesExpanded}>
+                                    <div class="assignment-rules-body">
+                                        <!-- State 1: Default Fallback List -->
+                                        <template if:true={selectedList.isDefault}>
+                                            <div class="assignment-state-card default-state-card">
+                                                <div class="state-card-icon-container default-state-icon">
+                                                    <lightning-icon icon-name="utility:shield" size="small"></lightning-icon>
+                                                </div>
+                                                <div class="state-card-content">
+                                                    <p class="state-card-primary-text">This is the <strong>default fallback list</strong> — it's automatically assigned when no other criteria match.</p>
+                                                    <p class="state-card-secondary-text">To change the default list or add criteria-based rules, configure in Tribal.</p>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <!-- State 2: Criteria-Based Assignment -->
+                                        <template if:false={selectedList.isDefault}>
+                                            <template if:true={hasAssignmentCriteria}>
+                                                <div class="assignment-state-card criteria-state-card">
+                                                    <div class="state-card-icon-container criteria-state-icon">
+                                                        <lightning-icon icon-name="utility:check" size="small"></lightning-icon>
+                                                    </div>
+                                                    <div class="state-card-content">
+                                                        <p class="state-card-primary-text">This list will be automatically assigned to leads matching these criteria:</p>
+                                                        <div class="criteria-rules-container">
+                                                            <template for:each={parsedCriteriaRules} for:item="rule">
+                                                                <div key={rule.key} class="criteria-rule-pill">
+                                                                    <span class="rule-field-name">{rule.label}</span>
+                                                                    <span class="rule-operator-badge">{rule.displayOperator}</span>
+                                                                    <span class="rule-value-tag">{rule.displayValue}</span>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                        <p class="state-card-secondary-text">To modify these rules, configure in Tribal.</p>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <!-- State 3: No Criteria Set -->
+                                            <template if:false={hasAssignmentCriteria}>
+                                                <div class="assignment-state-card no-criteria-state-card">
+                                                    <div class="state-card-icon-container no-criteria-state-icon">
+                                                        <lightning-icon icon-name="utility:settings" size="small"></lightning-icon>
+                                                    </div>
+                                                    <div class="state-card-content">
+                                                        <p class="state-card-primary-text">No assignment rules configured yet</p>
+                                                        <p class="state-card-secondary-text">Set up criteria-based assignment in Tribal to automatically assign this list to matching leads.</p>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </template>
+
+                                        <!-- Conflict Warning (shown for all states if conflicts exist) -->
+                                        <template if:true={hasConflicts}>
+                                            <div class="conflict-warning-banner">
+                                                <lightning-icon icon-name="utility:error" size="small" variant="error"></lightning-icon>
+                                                <div class="conflict-warning-content">
+                                                    <p class="conflict-warning-title">Assignment Rule Conflict Detected</p>
+                                                    <p class="conflict-warning-text">This list has conflicting assignment criteria with other active lists.</p>
+                                                    <button class="view-conflicts-button" onclick={handleViewConflicts}>
+                                                        View Conflicts
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Scoring Guide Card -->
+                        <div class="scoring-guide-section">
+                            <div class="scoring-guide-card">
+                                <div class="scoring-guide-header">
+                                    <div>
+                                        <h3 class="slds-text-heading_small slds-m-bottom_xx-small">Scoring Guide</h3>
+                                        <p class="scoring-guide-subtitle">Configure how leads are classified by score</p>
+                                    </div>
+                                    <div class="scoring-guide-actions">
+                                        <template if:false={isScoringGuideEditing}>
+                                            <button class="edit-guide-button" onclick={handleEditScoringGuide} title="Edit Scoring Guide">
+                                                <lightning-icon icon-name="utility:edit" size="xx-small"></lightning-icon>
+                                                <span>Edit</span>
+                                            </button>
+                                        </template>
+                                        <template if:true={isScoringGuideEditing}>
+                                            <div class="edit-actions">
+                                                <button class="action-button cancel-button" onclick={handleCancelScoringGuideEdit}>
+                                                    Cancel
+                                                </button>
+                                                <button class="action-button save-button" onclick={handleSaveScoringGuide}>
+                                                    <lightning-icon icon-name="utility:check" size="xx-small"></lightning-icon>
+                                                    <span>Save Changes</span>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Validation Error -->
+                                <template if:true={isScoringGuideEditing}>
+                                    <template if:false={isScoringGuideValid}>
+                                        <div class="validation-error-banner">
+                                            <lightning-icon icon-name="utility:error" size="x-small" variant="error"></lightning-icon>
+                                            <span>{scoringGuideValidationMessage}</span>
+                                        </div>
+                                    </template>
+                                </template>
+
+                                <!-- Display Mode -->
+                                <template if:false={isScoringGuideEditing}>
+                                    <div class="slds-grid slds-wrap slds-gutters_x-small scoring-tiers-grid">
+                                        <template for:each={scoringTiers} for:item="tier">
+                                            <div key={tier.key} class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                                <div class={tier.cssClass}>
+                                                    <div class="tier-header">
+                                                        <lightning-icon icon-name={tier.icon} size="x-small" variant={tier.color}></lightning-icon>
+                                                        <span class="tier-label">{tier.label}</span>
+                                                    </div>
+                                                    <div class="tier-threshold">{tier.threshold}+ points</div>
+                                                    <div class="tier-recommendation">{tier.recommendation}</div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- Edit Mode -->
+                                <template if:true={isScoringGuideEditing}>
+                                    <div class="scoring-guide-edit-mode">
+
+                                        <!-- High Quality Tier -->
+                                        <div class="tier-edit-card tier-edit-high">
+                                            <div class="tier-edit-header">
+                                                <lightning-icon icon-name="utility:success" size="x-small" variant="success"></lightning-icon>
+                                                <span class="tier-edit-title">High Quality</span>
+                                            </div>
+                                            <div class="tier-edit-body">
+                                                <div class="tier-edit-row">
+                                                    <div class="tier-edit-field">
+                                                        <label class="tier-field-label">Minimum Score</label>
+                                                        <lightning-input
+                                                            type="number"
+                                                            value={scoringGuideForm.highQualityThreshold}
+                                                            data-field="highQualityThreshold"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            min="1"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                    <div class="tier-edit-field flex-grow">
+                                                        <label class="tier-field-label">Display Label</label>
+                                                        <lightning-input
+                                                            value={scoringGuideForm.highQualityLabel}
+                                                            data-field="highQualityLabel"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            placeholder="e.g., Hot Lead"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                </div>
+                                                <div class="tier-edit-row">
+                                                    <div class="tier-edit-field full-width">
+                                                        <label class="tier-field-label">Recommendation</label>
+                                                        <lightning-input
+                                                            value={scoringGuideForm.highQualityRecommendation}
+                                                            data-field="highQualityRecommendation"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            placeholder="e.g., Convert to Opportunity Immediately"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Medium Quality Tier -->
+                                        <div class="tier-edit-card tier-edit-medium">
+                                            <div class="tier-edit-header">
+                                                <lightning-icon icon-name="utility:warning" size="x-small" variant="warning"></lightning-icon>
+                                                <span class="tier-edit-title">Medium Quality</span>
+                                            </div>
+                                            <div class="tier-edit-body">
+                                                <div class="tier-edit-row">
+                                                    <div class="tier-edit-field">
+                                                        <label class="tier-field-label">Minimum Score</label>
+                                                        <lightning-input
+                                                            type="number"
+                                                            value={scoringGuideForm.mediumQualityThreshold}
+                                                            data-field="mediumQualityThreshold"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            min="0"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                    <div class="tier-edit-field flex-grow">
+                                                        <label class="tier-field-label">Display Label</label>
+                                                        <lightning-input
+                                                            value={scoringGuideForm.mediumQualityLabel}
+                                                            data-field="mediumQualityLabel"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            placeholder="e.g., Warm Lead"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                </div>
+                                                <div class="tier-edit-row">
+                                                    <div class="tier-edit-field full-width">
+                                                        <label class="tier-field-label">Recommendation</label>
+                                                        <lightning-input
+                                                            value={scoringGuideForm.mediumQualityRecommendation}
+                                                            data-field="mediumQualityRecommendation"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            placeholder="e.g., Review with Manager Before Converting"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Low Quality Tier -->
+                                        <div class="tier-edit-card tier-edit-low">
+                                            <div class="tier-edit-header">
+                                                <lightning-icon icon-name="utility:error" size="x-small" variant="error"></lightning-icon>
+                                                <span class="tier-edit-title">Low Quality</span>
+                                            </div>
+                                            <div class="tier-edit-body">
+                                                <div class="tier-edit-note">
+                                                    Applies to leads scoring below the Medium threshold
+                                                </div>
+                                                <div class="tier-edit-row">
+                                                    <div class="tier-edit-field flex-grow">
+                                                        <label class="tier-field-label">Display Label</label>
+                                                        <lightning-input
+                                                            value={scoringGuideForm.lowQualityLabel}
+                                                            data-field="lowQualityLabel"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            placeholder="e.g., Cold Lead"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                    <div class="tier-edit-field flex-grow">
+                                                        <label class="tier-field-label">Recommendation</label>
+                                                        <lightning-input
+                                                            value={scoringGuideForm.lowQualityRecommendation}
+                                                            data-field="lowQualityRecommendation"
+                                                            onchange={handleScoringGuideFieldChange}
+                                                            variant="label-hidden"
+                                                            placeholder="e.g., Nurture or Disqualify"
+                                                            class="tier-input">
+                                                        </lightning-input>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Help Text -->
+                                        <div class="scoring-guide-help">
+                                            <lightning-icon icon-name="utility:info" size="x-small"></lightning-icon>
+                                            <span>High threshold must be greater than Medium threshold. Changes are saved to this question list only.</span>
+                                        </div>
+
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Active Question Overview -->
+                        <div class="active-question-overview-section">
+                            <div class="overview-header">
+                                <h3 class="overview-title">Active Question Overview</h3>
+                                <p class="overview-subtitle">Summary of currently active questions in this list</p>
+                            </div>
+                            <div class="question-metrics-bar">
+                                <div class="question-metric-card">
+                                    <div class="metric-icon-container metric-icon-success">
+                                        <lightning-icon icon-name="utility:check" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="metric-content">
+                                        <div class="metric-stat-value">{selectedList.activeQuestions}</div>
+                                        <div class="metric-stat-label">Active Questions</div>
+                                    </div>
+                                </div>
+                                <div class="question-metric-card">
+                                    <div class="metric-icon-container metric-icon-primary">
+                                        <lightning-icon icon-name="utility:chart" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="metric-content">
+                                        <div class="metric-stat-value">{totalActivePoints}</div>
+                                        <div class="metric-stat-label">Active Points</div>
+                                    </div>
+                                </div>
+                                <div class="question-metric-card">
+                                    <div class="metric-icon-container metric-icon-warning">
+                                        <lightning-icon icon-name="utility:warning" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="metric-content">
+                                        <div class="metric-stat-value">{activeDealbreakers}</div>
+                                        <div class="metric-stat-label">Active Dealbreakers</div>
+                                    </div>
+                                </div>
+                                <div class="question-metric-card">
+                                    <div class="metric-icon-container metric-icon-info">
+                                        <lightning-icon icon-name="utility:target" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="metric-content">
+                                        <div class="metric-stat-value">{avgPointsPerQuestion}</div>
+                                        <div class="metric-stat-label">Avg Points</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Questions Table -->
+                        <template if:true={hasQuestions}>
+                            <div class="questions-table-container">
+                                <table class="questions-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="table-header-cell" style="width: 50px;"></th>
+                                            <th class="table-header-cell" style="width: 60px;">#</th>
+                                            <th class="table-header-cell">Question</th>
+                                            <th class="table-header-cell" style="width: 80px;">Points</th>
+                                            <th class="table-header-cell" style="width: 120px;">Point Answer</th>
+                                            <th class="table-header-cell" style="width: 100px;">Dealbreaker</th>
+                                            <th class="table-header-cell" style="width: 80px;">Active</th>
+                                            <th class="table-header-cell" style="width: 120px;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={displayQuestions} for:item="question">
+                                            <tr key={question.questionId}
+                                                class={question.rowClass}
+                                                draggable={question.isDraggable}
+                                                data-question-id={question.questionId}
+                                                ondragstart={handleDragStart}
+                                                ondragover={handleDragOver}
+                                                ondragleave={handleDragLeave}
+                                                ondragend={handleDragEnd}
+                                                ondrop={handleDrop}>
+                                                <td class="table-cell table-cell-center">
+                                                    <template if:true={question.isDraggable}>
+                                                        <div class="drag-handle" title="Drag to reorder">
+                                                            <lightning-icon icon-name="utility:drag_and_drop" size="x-small"></lightning-icon>
+                                                        </div>
+                                                    </template>
+                                                </td>
+                                                <td class="table-cell table-cell-center">
+                                                    <span class={question.numberBadgeClass}>
+                                                        {question.displayOrderText}
+                                                    </span>
+                                                </td>
+                                                <td class="table-cell">
+                                                    <div class="question-text-cell" title={question.questionText}>
+                                                        {question.questionText}
+                                                    </div>
+                                                </td>
+                                                <td class="table-cell table-cell-center">
+                                                    <span class="points-badge">{question.scoreValue}</span>
+                                                </td>
+                                                <td class="table-cell">
+                                                    <template if:true={question.pointEarningAnswer}>
+                                                        <span class="point-answer-text">✓ {question.pointEarningAnswer}</span>
+                                                    </template>
+                                                </td>
+                                                <td class="table-cell table-cell-center">
+                                                    <template if:true={question.isDealbreaker}>
+                                                        <span class="dealbreaker-badge">{question.dealbreakerValue}</span>
+                                                    </template>
+                                                    <template if:false={question.isDealbreaker}>
+                                                        <span class="empty-indicator">—</span>
+                                                    </template>
+                                                </td>
+                                                <td class="table-cell table-cell-center">
+                                                    <template if:true={question.isActive}>
+                                                        <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="status-icon"></lightning-icon>
+                                                    </template>
+                                                    <template if:false={question.isActive}>
+                                                        <lightning-icon icon-name="utility:close" size="x-small" class="status-icon-inactive"></lightning-icon>
+                                                    </template>
+                                                </td>
+                                                <td class="table-cell table-cell-center">
+                                                    <div class="action-buttons">
+                                                        <button class="action-icon-button"
+                                                            data-question-id={question.questionId}
+                                                            onclick={handleEditQuestion}
+                                                            title="Edit">
+                                                            <lightning-icon icon-name="utility:edit" size="xx-small"></lightning-icon>
+                                                        </button>
+                                                        <button class="action-icon-button"
+                                                            data-question-id={question.questionId}
+                                                            onclick={handleDeleteQuestion}
+                                                            title="Delete">
+                                                            <lightning-icon icon-name="utility:delete" size="xx-small"></lightning-icon>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <!-- Add Question Row - Always visible as last row -->
+                                        <tr class="add-question-row" onclick={handleNewQuestion}>
+                                            <td class="table-cell table-cell-center">
+                                                <!-- Empty cell for drag handle column -->
+                                            </td>
+                                            <td class="table-cell table-cell-center">
+                                                <div class="add-question-icon-container">
+                                                    <lightning-icon icon-name="utility:add" size="x-small"></lightning-icon>
+                                                </div>
+                                            </td>
+                                            <td class="table-cell" colspan="6">
+                                                <div class="add-question-row-content">
+                                                    <span class="add-question-row-text">Add New Question</span>
+                                                    <span class="add-question-row-hint">Click to create a new question for this list</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+
+                        <template if:false={hasQuestions}>
+                            <div class="empty-state">
+                                <lightning-icon icon-name="utility:questions_and_answers" size="large" class="empty-state-icon"></lightning-icon>
+                                <p class="empty-state-text">No Questions Yet</p>
+                                <p class="empty-state-subtext">Add your first question to this list to get started</p>
+                            </div>
+                        </template>
+
+                    </div>
+                </template>
+
+                <!-- No Selection State -->
+                <template if:false={hasSelectedList}>
+                    <div class="detail-panel empty-detail-panel">
+                        <div class="empty-state">
+                            <lightning-icon icon-name="standard:question_feed" size="large" class="empty-state-icon"></lightning-icon>
+                            <p class="empty-state-text">Select a Question List</p>
+                            <p class="empty-state-subtext">Choose a list from the left panel to view and manage its questions</p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+        </div>
+        </div>
+
+        <!-- List Modal -->
+        <template if:true={showListModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseListModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                        </button>
+                        <h2 class="slds-modal__title slds-hyphenate">{listModalTitle}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <!-- Basic Information Section -->
+                        <div class="slds-m-bottom_medium">
+                            <h3 class="slds-text-heading_small slds-m-bottom_small">Basic Information</h3>
+                            <lightning-input
+                                label="List Name"
+                                value={listFormData.listName}
+                                data-field="listName"
+                                onchange={handleListFieldChange}
+                                required>
+                            </lightning-input>
+                            <lightning-textarea
+                                label="Description"
+                                value={listFormData.description}
+                                data-field="description"
+                                onchange={handleListFieldChange}>
+                            </lightning-textarea>
+                            <lightning-input
+                                type="checkbox"
+                                label="Active"
+                                checked={listFormData.isActive}
+                                data-field="isActive"
+                                onchange={handleListFieldChange}>
+                            </lightning-input>
+                        </div>
+
+                        <!-- Threshold Configuration Section -->
+                        <div class="threshold-config-section">
+                            <div class="slds-m-bottom_small">
+                                <h3 class="slds-text-heading_small">Quality Thresholds</h3>
+                                <p class="slds-text-body_small slds-text-color_weak">Configure scoring thresholds and labels for lead quality classification</p>
+                            </div>
+
+                            <!-- Validation Message -->
+                            <template if:false={isThresholdValid}>
+                                <div class="slds-box slds-theme_error slds-m-bottom_small">
+                                    <lightning-icon icon-name="utility:error" size="x-small" variant="error" class="slds-m-right_x-small"></lightning-icon>
+                                    {thresholdValidationMessage}
+                                </div>
+                            </template>
+
+                            <!-- High Quality Tier -->
+                            <div class="threshold-tier-card tier-high-config slds-m-bottom_small">
+                                <h4 class="slds-text-heading_small slds-m-bottom_x-small">🟢 High Quality Tier</h4>
+                                <div class="slds-grid slds-wrap slds-gutters_small">
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            type="number"
+                                            label="Minimum Points"
+                                            value={listFormData.highQualityThreshold}
+                                            data-field="highQualityThreshold"
+                                            onchange={handleListFieldChange}
+                                            min="1"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            label="Display Label"
+                                            value={listFormData.highQualityLabel}
+                                            data-field="highQualityLabel"
+                                            onchange={handleListFieldChange}
+                                            placeholder="e.g., Hot Lead"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-1">
+                                        <lightning-input
+                                            label="Recommended Action"
+                                            value={listFormData.highQualityRecommendation}
+                                            data-field="highQualityRecommendation"
+                                            onchange={handleListFieldChange}
+                                            placeholder="e.g., Convert to Opportunity Immediately"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Medium Quality Tier -->
+                            <div class="threshold-tier-card tier-medium-config slds-m-bottom_small">
+                                <h4 class="slds-text-heading_small slds-m-bottom_x-small">🟡 Medium Quality Tier</h4>
+                                <div class="slds-grid slds-wrap slds-gutters_small">
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            type="number"
+                                            label="Minimum Points"
+                                            value={listFormData.mediumQualityThreshold}
+                                            data-field="mediumQualityThreshold"
+                                            onchange={handleListFieldChange}
+                                            min="0"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            label="Display Label"
+                                            value={listFormData.mediumQualityLabel}
+                                            data-field="mediumQualityLabel"
+                                            onchange={handleListFieldChange}
+                                            placeholder="e.g., Warm Lead"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-1">
+                                        <lightning-input
+                                            label="Recommended Action"
+                                            value={listFormData.mediumQualityRecommendation}
+                                            data-field="mediumQualityRecommendation"
+                                            onchange={handleListFieldChange}
+                                            placeholder="e.g., Review with Manager Before Converting"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Low Quality Tier -->
+                            <div class="threshold-tier-card tier-low-config slds-m-bottom_small">
+                                <h4 class="slds-text-heading_small slds-m-bottom_x-small">🔴 Low Quality Tier</h4>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">Applies to leads scoring below the Medium threshold (0 points)</p>
+                                <div class="slds-grid slds-wrap slds-gutters_small">
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            label="Display Label"
+                                            value={listFormData.lowQualityLabel}
+                                            data-field="lowQualityLabel"
+                                            onchange={handleListFieldChange}
+                                            placeholder="e.g., Cold Lead"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            label="Recommended Action"
+                                            value={listFormData.lowQualityRecommendation}
+                                            data-field="lowQualityRecommendation"
+                                            onchange={handleListFieldChange}
+                                            placeholder="e.g., Nurture or Disqualify"
+                                            required>
+                                        </lightning-input>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Help Text -->
+                            <div class="slds-box slds-theme_info slds-m-top_small">
+                                <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                <span class="slds-text-body_small">
+                                    Thresholds determine how leads are classified based on their qualification score.
+                                    High threshold must be greater than Medium threshold.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <lightning-button label="Cancel" onclick={handleCloseListModal}></lightning-button>
+                        <lightning-button variant="brand" label="Save" onclick={handleSaveList}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Question Modal -->
+        <template if:true={showQuestionModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseQuestionModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                        </button>
+                        <h2 class="slds-modal__title slds-hyphenate">{questionModalTitle}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <div class="slds-grid slds-wrap slds-gutters">
+                            <div class="slds-col slds-size_1-of-1">
+                                <lightning-textarea
+                                    label="Question Text"
+                                    value={questionFormData.questionText}
+                                    data-field="questionText"
+                                    onchange={handleQuestionFieldChange}
+                                    required>
+                                </lightning-textarea>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1">
+                                <lightning-input
+                                    type="number"
+                                    label="Score Value"
+                                    value={questionFormData.scoreValue}
+                                    data-field="scoreValue"
+                                    onchange={handleQuestionFieldChange}
+                                    min="0"
+                                    required>
+                                </lightning-input>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-combobox
+                                    label="Point Earning Answer"
+                                    value={questionFormData.pointEarningAnswer}
+                                    placeholder="Select answer type"
+                                    options={pointEarningAnswerOptions}
+                                    data-field="pointEarningAnswer"
+                                    onchange={handleQuestionFieldChange}>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-input
+                                    type="checkbox"
+                                    label="Is Dealbreaker"
+                                    checked={questionFormData.isDealbreaker}
+                                    data-field="isDealbreaker"
+                                    onchange={handleQuestionFieldChange}>
+                                </lightning-input>
+                            </div>
+                            <template if:true={questionFormData.isDealbreaker}>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-combobox
+                                        label="Dealbreaker Value"
+                                        value={questionFormData.dealbreakerValue}
+                                        placeholder="Select dealbreaker answer"
+                                        options={dealbreakerValueOptions}
+                                        data-field="dealbreakerValue"
+                                        onchange={handleQuestionFieldChange}>
+                                    </lightning-combobox>
+                                </div>
+                            </template>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-input
+                                    type="checkbox"
+                                    label="Active"
+                                    checked={questionFormData.isActive}
+                                    data-field="isActive"
+                                    onchange={handleQuestionFieldChange}>
+                                </lightning-input>
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <lightning-button label="Cancel" onclick={handleCloseQuestionModal}></lightning-button>
+                        <lightning-button variant="brand" label="Save" onclick={handleSaveQuestion}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Clone Modal -->
+        <template if:true={showCloneModal}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseCloneModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                        </button>
+                        <h2 class="slds-modal__title slds-hyphenate">Clone Question List</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <lightning-input
+                            label="New List Name"
+                            value={cloneListName}
+                            onchange={handleCloneNameChange}
+                            required>
+                        </lightning-input>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <lightning-button label="Cancel" onclick={handleCloseCloneModal}></lightning-button>
+                        <lightning-button variant="brand" label="Clone" onclick={handleSaveClone}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Conflict Modal -->
+        <template if:true={showConflictModal}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container conflict-modal-container">
+                    <header class="slds-modal__header conflict-modal-header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseConflictModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                        </button>
+                        <div class="conflict-modal-header-content">
+                            <lightning-icon icon-name="utility:error" size="medium" variant="error" class="conflict-modal-icon"></lightning-icon>
+                            <h2 class="slds-modal__title slds-hyphenate">Assignment Rule Conflicts</h2>
+                        </div>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium conflict-modal-content">
+                        <p class="conflict-modal-description">
+                            The following question lists have overlapping assignment criteria. When a lead matches multiple lists,
+                            the system behavior may be unpredictable. Please review and update your assignment rules to avoid conflicts.
+                        </p>
+
+                        <template if:true={hasDetectedConflicts}>
+                            <div class="conflict-list">
+                                <template for:each={conflictList} for:item="conflict">
+                                    <div key={conflict.key} class="conflict-item">
+                                        <div class="conflict-item-header">
+                                            <lightning-icon icon-name="utility:warning" size="x-small" variant="warning"></lightning-icon>
+                                            <span class="conflict-item-title">Conflict #{conflict.index}</span>
+                                        </div>
+                                        <div class="conflict-item-body">
+                                            <div class="conflict-list-pair">
+                                                <div class="conflict-list-name">
+                                                    <lightning-icon icon-name="standard:question_feed" size="x-small"></lightning-icon>
+                                                    <span>{conflict.list1Name}</span>
+                                                </div>
+                                                <lightning-icon icon-name="utility:sync" size="x-small" class="conflict-sync-icon"></lightning-icon>
+                                                <div class="conflict-list-name">
+                                                    <lightning-icon icon-name="standard:question_feed" size="x-small"></lightning-icon>
+                                                    <span>{conflict.list2Name}</span>
+                                                </div>
+                                            </div>
+                                            <p class="conflict-description">{conflict.conflictDescription}</p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <div class="conflict-resolution-note">
+                            <lightning-icon icon-name="utility:info" size="small" class="conflict-info-icon"></lightning-icon>
+                            <div>
+                                <p class="resolution-note-title">How to Resolve</p>
+                                <p class="resolution-note-text">
+                                    Navigate to the Tribal configuration panel to review and adjust assignment criteria.
+                                    Ensure that each list has unique, non-overlapping criteria, or designate one list as the default fallback.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer conflict-modal-footer">
+                        <lightning-button label="Close" onclick={handleCloseConflictModal}></lightning-button>
+                        <lightning-button variant="brand" label="Configure in Tribal" onclick={handleConfigureInTribal} icon-name="utility:new_window" icon-position="right"></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Watermark -->
+        <div class="tribal-watermark">Made by Tribal</div>
+    </div>
+</template>

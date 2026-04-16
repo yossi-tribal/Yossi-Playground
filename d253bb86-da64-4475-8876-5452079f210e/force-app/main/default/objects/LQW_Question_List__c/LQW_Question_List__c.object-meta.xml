@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+            <deploymentStatus>Deployed</deploymentStatus>
+            <description>Stores different sets of qualification questions that can be assigned to leads based on criteria such as industry, company size, or lead source. Each question list contains a curated set of questions appropriate for specific lead types. Administrators can create multiple active question lists and assign them to leads manually or through automation. The Name field is an auto-number field labeled &#x27;List Number&#x27; (e.g., QL-0001), and a separate &#x27;List Name&#x27; text field allows administrators to provide descriptive, user-friendly names.</description>
+            <enableActivities>true</enableActivities>
+            <enableBulkApi>true</enableBulkApi>
+            <enableFeeds>true</enableFeeds>
+            <enableHistory>true</enableHistory>
+            <enableReports>true</enableReports>
+            <enableSearch>true</enableSearch>
+            <enableSharing>true</enableSharing>
+            <enableStreamingApi>true</enableStreamingApi>
+            <externalSharingModel>Private</externalSharingModel>
+            <label>Question List</label>
+            <nameField>
+                <displayFormat>QL-{00000}</displayFormat>
+                <label>List Number</label>
+                <type>AutoNumber</type>
+            </nameField>
+            <pluralLabel>Question Lists</pluralLabel>
+            <searchLayouts>
+                <searchFilterFields>NAME</searchFilterFields>
+                <searchResultsAdditionalFields>CREATED_DATE</searchResultsAdditionalFields>
+            </searchLayouts>
+            <sharingModel>ReadWrite</sharingModel>
+            <visibility>Public</visibility>
+        </CustomObject>

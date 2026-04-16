@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_All_Lead_Responses</fullName>
+            <label>All Lead Responses</label>
+            <filterScope>Everything</filterScope>
+            
+            <columns>NAME</columns>
+            
+            <columns>LQW_Lead__c</columns>
+            
+            <columns>LQW_Question__c</columns>
+            
+            <columns>LQW_Response__c</columns>
+            
+            <columns>LQW_Response_Date__c</columns>
+            
+            <columns>LQW_Last_Modified_Date__c</columns>
+            
+        </ListView>

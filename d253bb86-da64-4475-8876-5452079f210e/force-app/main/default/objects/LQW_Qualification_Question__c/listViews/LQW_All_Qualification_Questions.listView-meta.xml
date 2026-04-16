@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_All_Qualification_Questions</fullName>
+            <label>All Qualification Questions</label>
+            <filterScope>Everything</filterScope>
+            
+            <columns>NAME</columns>
+            
+            <columns>LQW_Question_Text__c</columns>
+            
+            <columns>LQW_Is_Active__c</columns>
+            
+            <columns>LQW_Question_Order__c</columns>
+            
+            <columns>LQW_Is_Dealbreaker__c</columns>
+            
+            <columns>LQW_Score_Value__c</columns>
+            
+            <columns>CREATED_DATE</columns>
+            
+        </ListView>

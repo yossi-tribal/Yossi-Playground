@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_Question_List__c</fullName>
+            <label>Question List</label>
+            <description>The question list that this qualification question belongs to. Each question must be associated with a question list to control which questions are displayed for different lead types.</description>
+            <type>Lookup</type>
+            <required>true</required>
+            <referenceTo>LQW_Question_List__c</referenceTo>
+            <relationshipLabel>Qualification Questions</relationshipLabel>
+            <relationshipName>LQW_Qualification_Questions</relationshipName>
+            <deleteConstraint>Restrict</deleteConstraint>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            <unique>false</unique>
+            <externalId>false</externalId>
+        </CustomField>

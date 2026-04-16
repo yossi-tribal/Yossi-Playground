@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+            <brand>
+                <headerColor>#0176D3</headerColor>
+                <shouldOverrideOrgTheme>false</shouldOverrideOrgTheme>
+            </brand>
+            <description>Administration application for the Lead Qualification Wizard. Provides access to the Question List Manager, Question Lists, Qualification Questions, and Lead Responses for comprehensive qualification management.</description>
+            <formFactors>Large</formFactors>
+            <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+            <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+            <label>Lead Qualification Admin</label>
+            <navType>Standard</navType>
+            
+            <tabs>LQW_Question_List_Manager</tabs>
+            
+            <tabs>LQW_Question_List__c</tabs>
+            
+            <tabs>LQW_Qualification_Question__c</tabs>
+            
+            <tabs>LQW_Lead_Question_Response__c</tabs>
+            
+            <uiType>Lightning</uiType>
+        </CustomApplication>

@@ -1,0 +1,75 @@
+{
+  "object_api_name": "LQW_Question_List__c",
+  "field_metadata": {
+    "LQW_Description__c": {
+      "type": "textarea",
+      "label": "Description",
+      "editable": true,
+      "required": false,
+      "referenced_object": "",
+      "picklist_values": []
+    },
+    "LQW_Is_Active__c": {
+      "type": "boolean",
+      "label": "Is Active",
+      "editable": true,
+      "required": false,
+      "referenced_object": "",
+      "picklist_values": []
+    },
+    "LQW_List_Name__c": {
+      "type": "string",
+      "label": "List Name",
+      "editable": true,
+      "required": true,
+      "referenced_object": "",
+      "picklist_values": []
+    }
+  },
+  "test_records": [
+    {
+      "LQW_List_Name__c": "Initial Lead Qualification",
+      "LQW_Description__c": "Standard qualification questions for new leads to assess their fit and readiness for our products and services.",
+      "LQW_Is_Active__c": true,
+      "__tribal_row_index": 0,
+      "__tribal_sf_id": "a0Ca50000AOZ7ZsEQL"
+    },
+    {
+      "LQW_List_Name__c": "Enterprise Customer Screening",
+      "LQW_Description__c": "Comprehensive question set designed for enterprise-level prospects to evaluate budget, authority, need, and timeline.",
+      "LQW_Is_Active__c": true,
+      "__tribal_row_index": 1,
+      "__tribal_sf_id": "a0Ca50000AOZ7ZtEQL"
+    },
+    {
+      "LQW_List_Name__c": "SMB Quick Qualifier",
+      "LQW_Description__c": "Streamlined qualification process for small and medium business leads focusing on immediate needs and decision-making capability.",
+      "LQW_Is_Active__c": true,
+      "__tribal_row_index": 2,
+      "__tribal_sf_id": "a0Ca50000AOZ7ZuEQL"
+    },
+    {
+      "LQW_List_Name__c": "Product Interest Assessment",
+      "LQW_Description__c": "Questions to determine specific product interests and technical requirements for leads showing interest in our solution portfolio.",
+      "LQW_Is_Active__c": false,
+      "__tribal_row_index": 3,
+      "__tribal_sf_id": "a0Ca50000AOZ7ZvEQL"
+    },
+    {
+      "LQW_List_Name__c": "Partner Qualification Framework",
+      "LQW_Description__c": "Specialized questions for evaluating potential channel partners and reseller relationships including market reach and technical capabilities.",
+      "LQW_Is_Active__c": true,
+      "__tribal_row_index": 4,
+      "__tribal_sf_id": "a0Ca50000AOZ7ZwEQL"
+    }
+  ],
+  "placeholder_dependencies": [],
+  "generation_metadata": {
+    "generated_at": "2026-04-08T22:16:07.360521+00:00",
+    "record_count": 5,
+    "reference_data_summary": {}
+  },
+  "push_status": "success",
+  "push_errors": [],
+  "pushed_at": "2026-04-08T22:16:29.820804+00:00"
+}

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_Point_Earning_Answer__c</fullName>
+            <label>Point Earning Answer</label>
+            <description>Specifies which answer (Yes, No, or Both) earns points for this question. Controls the scoring logic to allow flexible point assignment based on question type.</description>
+            <type>Picklist</type>
+            <required>false</required>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            
+            <valueSet>
+                <restricted>true</restricted>
+                <valueSetDefinition>
+                    <sorted>false</sorted>
+                    
+                    <value>
+                        <fullName>Yes</fullName>
+                        <default>false</default>
+                        <label>Yes</label>
+                    </value>
+                    
+                    <value>
+                        <fullName>No</fullName>
+                        <default>false</default>
+                        <label>No</label>
+                    </value>
+                    
+                    <value>
+                        <fullName>Both</fullName>
+                        <default>true</default>
+                        <label>Both</label>
+                    </value>
+                    
+                </valueSetDefinition>
+            </valueSet>
+        </CustomField>

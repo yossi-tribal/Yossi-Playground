@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_Lead_Qualification_Access</fullName>
+            <label>LQW Lead Qualification Access</label>
+            <description>Grants internal sales reps access to Lead Qualification Wizard. Includes Lead read/edit, Question read access, and Response create/read/edit permissions. Users can view and use the wizard on Lead record pages.</description>
+            
+            <!-- Object Permissions - Full CRUD permissions for custom objects -->
+            
+            <objectPermissions>
+                <allowCreate>true</allowCreate>
+                <allowDelete>true</allowDelete>
+                <allowEdit>true</allowEdit>
+                <allowRead>true</allowRead>
+                <modifyAllRecords>false</modifyAllRecords>
+                <object>LQW_Qualification_Question__c</object>
+                <viewAllRecords>false</viewAllRecords>
+            </objectPermissions>
+            
+            <objectPermissions>
+                <allowCreate>true</allowCreate>
+                <allowDelete>true</allowDelete>
+                <allowEdit>true</allowEdit>
+                <allowRead>true</allowRead>
+                <modifyAllRecords>false</modifyAllRecords>
+                <object>LQW_Lead_Question_Response__c</object>
+                <viewAllRecords>false</viewAllRecords>
+            </objectPermissions>
+
+            <objectPermissions>
+                <allowCreate>false</allowCreate>
+                <allowDelete>false</allowDelete>
+                <allowEdit>false</allowEdit>
+                <allowRead>true</allowRead>
+                <modifyAllRecords>false</modifyAllRecords>
+                <object>LQW_Question_List__c</object>
+                <viewAllRecords>false</viewAllRecords>
+            </objectPermissions>
+
+
+            <!-- Field Permissions - Make custom fields visible and editable based on isEditable (required fields are excluded) -->
+
+            <fieldPermissions>
+
+                <editable>true</editable>
+
+                <field>LQW_Qualification_Question__c.LQW_Is_Active__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            <fieldPermissions>
+                
+                <editable>true</editable>
+                
+                <field>LQW_Qualification_Question__c.LQW_Question_Order__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            <fieldPermissions>
+                
+                <editable>true</editable>
+                
+                <field>LQW_Qualification_Question__c.LQW_Is_Dealbreaker__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            <fieldPermissions>
+                
+                <editable>true</editable>
+                
+                <field>LQW_Qualification_Question__c.LQW_Dealbreaker_Value__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            <fieldPermissions>
+
+                <editable>true</editable>
+
+                <field>LQW_Qualification_Question__c.LQW_Score_Value__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>true</editable>
+
+                <field>LQW_Qualification_Question__c.LQW_Point_Earning_Answer__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>Lead.LQW_Question_List__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>true</editable>
+
+                <field>LQW_Lead_Question_Response__c.LQW_Lead__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Lead_Question_Response__c.LQW_Question_List__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_High_Quality_Threshold__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_Medium_Quality_Threshold__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_High_Quality_Label__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_Medium_Quality_Label__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_Low_Quality_Label__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_High_Quality_Recommendation__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_Medium_Quality_Recommendation__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_Low_Quality_Recommendation__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_Assignment_Criteria__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>false</editable>
+
+                <field>LQW_Question_List__c.LQW_Is_Default__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>true</editable>
+
+                <field>LQW_Lead_Question_Response__c.LQW_Response__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            <fieldPermissions>
+                
+                <editable>true</editable>
+                
+                <field>LQW_Lead_Question_Response__c.LQW_Response_Date__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            <fieldPermissions>
+                
+                <editable>true</editable>
+                
+                <field>LQW_Lead_Question_Response__c.LQW_Last_Modified_Date__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+            
+            
+            <!-- Tab Settings - Make custom tabs visible -->
+
+            <tabSettings>
+                <tab>LQW_Qualification_Question__c</tab>
+                <visibility>Visible</visibility>
+            </tabSettings>
+
+            <tabSettings>
+                <tab>LQW_Lead_Question_Response__c</tab>
+                <visibility>Visible</visibility>
+            </tabSettings>
+
+            <tabSettings>
+                <tab>LQW_Question_List__c</tab>
+                <visibility>Visible</visibility>
+            </tabSettings>
+
+            <tabSettings>
+                <tab>LQW_Question_List_Manager</tab>
+                <visibility>Visible</visibility>
+            </tabSettings><!-- Apex Class Access - Grant access to Apex classes -->
+
+            <classAccesses>
+                <apexClass>LQW_LeadQualificationController</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+            <classAccesses>
+                <apexClass>LQW_QuestionListManagerCtrl</apexClass>
+                <enabled>true</enabled>
+            </classAccesses>
+
+
+            <!-- Run Flow Permission - Required when project has screen flows -->
+
+
+            <!-- Custom Application Access -->
+
+            <applicationVisibilities>
+                <application>LQW_Lead_Qualification_Admin</application>
+                <visible>true</visible>
+            </applicationVisibilities>
+
+
+            <hasActivationRequired>false</hasActivationRequired>
+        </PermissionSet>

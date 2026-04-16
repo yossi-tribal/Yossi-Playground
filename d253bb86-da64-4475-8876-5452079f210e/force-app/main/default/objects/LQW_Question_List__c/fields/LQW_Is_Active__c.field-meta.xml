@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_Is_Active__c</fullName>
+            <label>Is Active</label>
+            <description>Controls whether this question list is active and available for assignment to leads. Inactive question lists will not be displayed in the wizard or available for selection in flows and automation.</description>
+            <type>Checkbox</type>
+            <defaultValue>true</defaultValue>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+        </CustomField>

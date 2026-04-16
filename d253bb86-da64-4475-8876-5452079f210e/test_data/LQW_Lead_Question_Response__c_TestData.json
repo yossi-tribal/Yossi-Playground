@@ -1,0 +1,121 @@
+{
+  "object_api_name": "LQW_Lead_Question_Response__c",
+  "field_metadata": {
+    "LQW_Last_Modified_Date__c": {
+      "type": "datetime",
+      "label": "Last Modified Date",
+      "editable": true,
+      "required": false,
+      "referenced_object": "",
+      "picklist_values": []
+    },
+    "LQW_Lead__c": {
+      "type": "reference",
+      "label": "Lead",
+      "editable": true,
+      "required": false,
+      "referenced_object": "Lead",
+      "picklist_values": []
+    },
+    "LQW_Question_List__c": {
+      "type": "reference",
+      "label": "Question List",
+      "editable": true,
+      "required": false,
+      "referenced_object": "LQW_Question_List__c",
+      "picklist_values": []
+    },
+    "LQW_Question__c": {
+      "type": "reference",
+      "label": "Question",
+      "editable": true,
+      "required": true,
+      "referenced_object": "LQW_Qualification_Question__c",
+      "picklist_values": []
+    },
+    "LQW_Response_Date__c": {
+      "type": "datetime",
+      "label": "Response Date",
+      "editable": true,
+      "required": false,
+      "referenced_object": "",
+      "picklist_values": []
+    },
+    "LQW_Response__c": {
+      "type": "picklist",
+      "label": "Response",
+      "editable": true,
+      "required": false,
+      "referenced_object": "",
+      "picklist_values": [
+        "Yes",
+        "No"
+      ]
+    }
+  },
+  "test_records": [
+    {
+      "LQW_Lead__c": "00Qa500000SfXKrEAN",
+      "LQW_Question__c": "a06a500000tL2C1AAK",
+      "LQW_Question_List__c": "a0Ca50000ANBs7ZEQT",
+      "LQW_Response__c": "Yes",
+      "LQW_Response_Date__c": "2024-01-15T10:30:00Z",
+      "LQW_Last_Modified_Date__c": "2024-01-15T10:30:00Z",
+      "__tribal_row_index": 0,
+      "__tribal_sf_id": "a05a500001o2lVOAAY"
+    },
+    {
+      "LQW_Lead__c": "00Qa500000SfXKsEAN",
+      "LQW_Question__c": "a06a500000tL2C2AAK",
+      "LQW_Question_List__c": "a0Ca50000ANBs7ZEQT",
+      "LQW_Response__c": "No",
+      "LQW_Response_Date__c": "2024-01-16T14:45:00Z",
+      "LQW_Last_Modified_Date__c": "2024-01-16T15:20:00Z",
+      "__tribal_row_index": 1,
+      "__tribal_sf_id": "a05a500001o2lVPAAY"
+    },
+    {
+      "LQW_Lead__c": "00Qa500000SfXKtEAN",
+      "LQW_Question__c": "a06a500000tL2C3AAK",
+      "LQW_Question_List__c": "a0Ca50000ANBs7ZEQT",
+      "LQW_Response__c": "Yes",
+      "LQW_Response_Date__c": "2024-01-17T09:15:00Z",
+      "LQW_Last_Modified_Date__c": "2024-01-17T09:15:00Z",
+      "__tribal_row_index": 2,
+      "__tribal_sf_id": "a05a500001o2lVQAAY"
+    },
+    {
+      "LQW_Lead__c": "00Qa500000SfXKuEAN",
+      "LQW_Question__c": "a06a500000tL2C4AAK",
+      "LQW_Question_List__c": "a0Ca50000ANBs7ZEQT",
+      "LQW_Response__c": "Yes",
+      "LQW_Response_Date__c": "2024-01-18T11:00:00Z",
+      "LQW_Last_Modified_Date__c": "2024-01-18T11:00:00Z",
+      "__tribal_row_index": 3,
+      "__tribal_sf_id": "a05a500001o2lVRAAY"
+    },
+    {
+      "LQW_Lead__c": "00Qa500000SfXKvEAN",
+      "LQW_Question__c": "a06a500000tL2C5AAK",
+      "LQW_Question_List__c": "a0Ca50000ANBs7ZEQT",
+      "LQW_Response__c": "No",
+      "LQW_Response_Date__c": "2024-01-19T16:30:00Z",
+      "LQW_Last_Modified_Date__c": "2024-01-19T16:30:00Z",
+      "__tribal_row_index": 4,
+      "__tribal_sf_id": "a05a500001o2lVSAAY"
+    }
+  ],
+  "placeholder_dependencies": [],
+  "generation_metadata": {
+    "generated_at": "2026-04-08T22:16:07.381088+00:00",
+    "record_count": 5,
+    "reference_data_summary": {
+      "LQW_Lead__c": 22,
+      "LQW_Question_List__c": 1,
+      "LQW_Question__c": 5
+    }
+  },
+  "push_status": "success",
+  "push_errors": [],
+  "pushed_at": "2026-04-08T22:16:29.389779+00:00"
+}

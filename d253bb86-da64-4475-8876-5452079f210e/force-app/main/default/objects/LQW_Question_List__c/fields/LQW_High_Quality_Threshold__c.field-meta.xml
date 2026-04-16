@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>LQW_High_Quality_Threshold__c</fullName>
+            <label>High Quality Threshold</label>
+            <description>Minimum points required for a lead to be ranked as High Quality. Used by the wizard to dynamically determine lead ranking. Auto-suggested based on total possible points (approximately 55% of total).</description>
+            <type>Number</type>
+            <precision>5</precision>
+            <scale>0</scale>
+            <required>false</required>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            
+            <unique>false</unique>
+            <externalId>false</externalId>
+        </CustomField>
