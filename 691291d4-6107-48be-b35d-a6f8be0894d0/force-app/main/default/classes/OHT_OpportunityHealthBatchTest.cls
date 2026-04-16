@@ -215,14 +215,14 @@ private with sharing class OHT_OpportunityHealthBatchTest {
     }
 
     /**
-     * @description Test batch with small batch size
+     * @description Test batch completes when chunk size processes all records in one execute (required in tests)
      */
     @isTest
     static void testBatchWithSmallBatchSize() {
         Test.startTest();
-        // Execute batch with small batch size to test multiple executions
+        // Salesforce allows only one batch execute per test; use scope >= row count (150) so one execute runs
         OHT_OpportunityHealthBatch batch = new OHT_OpportunityHealthBatch();
-        Id batchId = Database.executeBatch(batch, 50);
+        Id batchId = Database.executeBatch(batch, 200);
         Test.stopTest();
 
         // Verify batch completed successfully

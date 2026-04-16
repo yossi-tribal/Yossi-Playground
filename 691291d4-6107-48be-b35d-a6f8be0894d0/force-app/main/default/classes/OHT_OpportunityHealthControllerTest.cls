@@ -226,19 +226,33 @@ private with sharing class OHT_OpportunityHealthControllerTest {
     }
 
     /**
-     * @description Test error handling for invalid opportunity ID
+     * @description Test error handling when no opportunity row is returned (deleted Id is not visible to default SOQL)
      */
     @isTest
     static void testInvalidOpportunityId() {
-        Id fakeOppId = '006000000000000AAA';
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        Opportunity phantom = new Opportunity(
+            Name = 'Phantom Opp',
+            AccountId = testAccount.Id,
+            StageName = 'Prospecting',
+            CloseDate = Date.today().addDays(30),
+            Amount = 1
+        );
+        insert phantom;
+        Id removedId = phantom.Id;
+        delete phantom;
 
         Test.startTest();
         try {
-            OHT_OpportunityHealthController.getOpportunityHealthScore(fakeOppId);
+            OHT_OpportunityHealthController.getOpportunityHealthScore(removedId);
             System.assert(false, 'Should have thrown exception');
         } catch (AuraHandledException e) {
-            System.assert(e.getMessage().contains('Opportunity not found'),
-                'Should throw appropriate error message');
+            // Apex tests often surface AuraHandledException as "Script-thrown exception" instead of the constructor text
+            System.assert(
+                e.getMessage().contains('Opportunity not found')
+                || e.getMessage() == 'Script-thrown exception',
+                'Unexpected message: ' + e.getMessage()
+            );
         }
         Test.stopTest();
     }
@@ -310,6 +324,22 @@ private with sharing class OHT_OpportunityHealthControllerTest {
         ));
 
         insert testOpps;
+
+        // LastActivityDate is derived from completed activities; insert tasks so scoring can distinguish recency
+        insert new List<Task>{
+            new Task(
+                Subject = 'Recent Activity Task',
+                WhatId = testOpps[0].Id,
+                Status = 'Completed',
+                ActivityDate = Date.today().addDays(-3)
+            ),
+            new Task(
+                Subject = 'Old Activity Task',
+                WhatId = testOpps[1].Id,
+                Status = 'Completed',
+                ActivityDate = Date.today().addDays(-20)
+            )
+        };
 
         Test.startTest();
         OHT_OpportunityHealthController.HealthScoreData recentResult =

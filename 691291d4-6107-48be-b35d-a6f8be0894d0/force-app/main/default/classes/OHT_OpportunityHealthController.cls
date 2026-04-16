@@ -5,6 +5,26 @@
 public with sharing class OHT_OpportunityHealthController {
 
     /**
+     * @description Pre-queried task and stage history data so bulk health updates stay within SOQL limits
+     */
+    private class HealthCalculationContext {
+        private final Map<Id, Integer> overdueTaskCountByOppId;
+        private final Map<String, DateTime> firstStageHistoryCreatedByKey;
+
+        private HealthCalculationContext(
+            Map<Id, Integer> overdueTaskCountByOppId,
+            Map<String, DateTime> firstStageHistoryCreatedByKey
+        ) {
+            this.overdueTaskCountByOppId = overdueTaskCountByOppId == null
+                ? new Map<Id, Integer>()
+                : overdueTaskCountByOppId;
+            this.firstStageHistoryCreatedByKey = firstStageHistoryCreatedByKey == null
+                ? new Map<String, DateTime>()
+                : firstStageHistoryCreatedByKey;
+        }
+    }
+
+    /**
      * @description Wrapper class for health score data returned to LWC
      */
     public class HealthScoreData {
@@ -54,8 +74,10 @@ public with sharing class OHT_OpportunityHealthController {
 
             Opportunity opp = opps[0];
 
+            HealthCalculationContext ctx = buildHealthCalculationContext(opps);
+
             // Calculate health score
-            HealthScoreData healthData = calculateHealthScore(opp);
+            HealthScoreData healthData = calculateHealthScore(opp, ctx);
 
             // Update opportunity fields
             updateOpportunityHealthFields(opp, healthData);
@@ -63,8 +85,59 @@ public with sharing class OHT_OpportunityHealthController {
             return healthData;
 
         } catch (Exception e) {
+            if (e instanceof AuraHandledException) {
+                throw (AuraHandledException) e;
+            }
             throw new AuraHandledException('Error calculating health score: ' + e.getMessage());
         }
+    }
+
+    /**
+     * @description Bulk-loads overdue open tasks and earliest stage history rows for the given opportunities
+     */
+    private static HealthCalculationContext buildHealthCalculationContext(List<Opportunity> opps) {
+        Set<Id> oppIds = new Set<Id>();
+        for (Opportunity o : opps) {
+            if (o.Id != null) {
+                oppIds.add(o.Id);
+            }
+        }
+
+        Map<Id, Integer> overdueCountByOppId = new Map<Id, Integer>();
+        if (!oppIds.isEmpty()) {
+            for (Task t : [
+                SELECT WhatId
+                FROM Task
+                WHERE WhatId IN :oppIds
+                AND IsClosed = false
+                AND ActivityDate < TODAY
+            ]) {
+                Id wid = t.WhatId;
+                overdueCountByOppId.put(
+                    wid,
+                    overdueCountByOppId.containsKey(wid) ? overdueCountByOppId.get(wid) + 1 : 1
+                );
+            }
+        }
+
+        Map<String, DateTime> firstHistByOppAndStage = new Map<String, DateTime>();
+        if (!oppIds.isEmpty()) {
+            Set<String> seenKeys = new Set<String>();
+            for (OpportunityHistory oh : [
+                SELECT OpportunityId, StageName, CreatedDate
+                FROM OpportunityHistory
+                WHERE OpportunityId IN :oppIds
+                ORDER BY CreatedDate ASC
+            ]) {
+                String key = String.valueOf(oh.OpportunityId) + '|' + oh.StageName;
+                if (!seenKeys.contains(key)) {
+                    seenKeys.add(key);
+                    firstHistByOppAndStage.put(key, oh.CreatedDate);
+                }
+            }
+        }
+
+        return new HealthCalculationContext(overdueCountByOppId, firstHistByOppAndStage);
     }
 
     /**
@@ -73,6 +146,15 @@ public with sharing class OHT_OpportunityHealthController {
      * @return HealthScoreData containing calculated health score and breakdown
      */
     public static HealthScoreData calculateHealthScore(Opportunity opp) {
+        List<Opportunity> ctxSource = new List<Opportunity>();
+        if (opp != null && opp.Id != null) {
+            ctxSource.add(opp);
+        }
+        HealthCalculationContext ctx = buildHealthCalculationContext(ctxSource);
+        return calculateHealthScore(opp, ctx);
+    }
+
+    private static HealthScoreData calculateHealthScore(Opportunity opp, HealthCalculationContext ctx) {
         HealthScoreData healthData = new HealthScoreData();
         healthData.breakdown = new CriteriaBreakdown();
         healthData.isClosed = opp.IsClosed;
@@ -102,10 +184,10 @@ public with sharing class OHT_OpportunityHealthController {
         }
 
         // Calculate individual criteria scores for open opportunities
-        Decimal overdueTasksScore = calculateOverdueTasksScore(opp.Id, healthData.breakdown);
+        Decimal overdueTasksScore = calculateOverdueTasksScore(opp.Id, healthData.breakdown, ctx);
         Decimal lastActivityScore = calculateLastActivityScore(opp.LastActivityDate, healthData.breakdown);
         Decimal closeDateScore = calculateCloseDateScore(opp.CloseDate, healthData.breakdown);
-        Decimal stageAgingScore = calculateStageAgingScore(opp.Id, opp.StageName, healthData.breakdown);
+        Decimal stageAgingScore = calculateStageAgingScore(opp, healthData.breakdown, ctx);
 
         // Calculate weighted health score
         Decimal totalScore =
@@ -127,18 +209,17 @@ public with sharing class OHT_OpportunityHealthController {
      * @param breakdown The breakdown object to populate with details
      * @return Score from 0-100
      */
-    private static Decimal calculateOverdueTasksScore(Id oppId, CriteriaBreakdown breakdown) {
-        // Query open tasks related to opportunity
-        List<Task> overdueTasks = [
-            SELECT Id, ActivityDate
-            FROM Task
-            WHERE WhatId = :oppId
-            AND IsClosed = false
-            AND ActivityDate < TODAY
-        ];
+    private static Decimal calculateOverdueTasksScore(
+        Id oppId,
+        CriteriaBreakdown breakdown,
+        HealthCalculationContext ctx
+    ) {
+        Integer overdueCount = ctx.overdueTaskCountByOppId.containsKey(oppId)
+            ? ctx.overdueTaskCountByOppId.get(oppId)
+            : 0;
 
-        breakdown.overdueTaskCount = overdueTasks.size();
-        breakdown.overdueTasksScore = overdueTasks.isEmpty() ? 100 : 0;
+        breakdown.overdueTaskCount = overdueCount;
+        breakdown.overdueTasksScore = overdueCount == 0 ? 100 : 0;
 
         return breakdown.overdueTasksScore;
     }
@@ -204,29 +285,17 @@ public with sharing class OHT_OpportunityHealthController {
      * @param breakdown The breakdown object to populate with details
      * @return Score from 0-100
      */
-    private static Decimal calculateStageAgingScore(Id oppId, String currentStage, CriteriaBreakdown breakdown) {
-        // Query OpportunityHistory to find when opportunity entered current stage
-        List<OpportunityHistory> histories = [
-            SELECT Id, CreatedDate, StageName
-            FROM OpportunityHistory
-            WHERE OpportunityId = :oppId
-            AND StageName = :currentStage
-            ORDER BY CreatedDate ASC
-            LIMIT 1
-        ];
-
+    private static Decimal calculateStageAgingScore(
+        Opportunity opp,
+        CriteriaBreakdown breakdown,
+        HealthCalculationContext ctx
+    ) {
+        String key = String.valueOf(opp.Id) + '|' + opp.StageName;
         Date stageEntryDate;
-        if (!histories.isEmpty()) {
-            stageEntryDate = histories[0].CreatedDate.date();
+        if (ctx.firstStageHistoryCreatedByKey.containsKey(key)) {
+            stageEntryDate = ctx.firstStageHistoryCreatedByKey.get(key).date();
         } else {
-            // If no history found, use opportunity creation date
-            List<Opportunity> opps = [
-                SELECT CreatedDate
-                FROM Opportunity
-                WHERE Id = :oppId
-                LIMIT 1
-            ];
-            stageEntryDate = opps.isEmpty() ? Date.today() : opps[0].CreatedDate.date();
+            stageEntryDate = opp.CreatedDate != null ? opp.CreatedDate.date() : Date.today();
         }
 
         Integer daysInStage = stageEntryDate.daysBetween(Date.today());
@@ -283,9 +352,11 @@ public with sharing class OHT_OpportunityHealthController {
     public static void updateHealthScoresForOpportunities(List<Opportunity> opportunities) {
         List<Opportunity> oppsToUpdate = new List<Opportunity>();
 
+        HealthCalculationContext ctx = buildHealthCalculationContext(opportunities);
+
         for (Opportunity opp : opportunities) {
             try {
-                HealthScoreData healthData = calculateHealthScore(opp);
+                HealthScoreData healthData = calculateHealthScore(opp, ctx);
                 opp.OHT_Health_Score__c = healthData.healthScore;
                 opp.OHT_Risk_Level__c = healthData.riskLevel;
                 opp.OHT_Health_Score_Last_Updated__c = healthData.lastUpdated;
