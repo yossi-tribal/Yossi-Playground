@@ -202,7 +202,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
     @AuraEnabled(cacheable=false)
     public static QuestionListData getQuestionList(Id listId) {
         try {
-            LQW_Question_List__c questionList = [
+            List<LQW_Question_List__c> questionLists = [
                 SELECT Id, Name, LQW_List_Name__c, LQW_Description__c, LQW_Is_Active__c,
                        LQW_High_Quality_Threshold__c, LQW_Medium_Quality_Threshold__c,
                        LQW_High_Quality_Label__c, LQW_Medium_Quality_Label__c, LQW_Low_Quality_Label__c,
@@ -212,6 +212,10 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 WHERE Id = :listId
                 LIMIT 1
             ];
+            if (questionLists.isEmpty()) {
+                throw new AuraHandledException('Error retrieving question list: Question list not found.');
+            }
+            LQW_Question_List__c questionList = questionLists[0];
 
             QuestionListData listData = new QuestionListData();
             listData.listId = questionList.Id;
@@ -258,6 +262,8 @@ public with sharing class LQW_QuestionListManagerCtrl {
 
             return listData;
 
+        } catch (AuraHandledException e) {
+            throw e;
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving question list: ' + e.getMessage());
         }
@@ -451,18 +457,22 @@ public with sharing class LQW_QuestionListManagerCtrl {
         SaveResult result = new SaveResult();
 
         try {
-            LQW_Qualification_Question__c question = [
+            List<LQW_Qualification_Question__c> questions = [
                 SELECT Id FROM LQW_Qualification_Question__c WHERE Id = :questionId LIMIT 1
             ];
-            delete question;
+            if (questions.isEmpty()) {
+                throw new AuraHandledException('Error deleting question: Question not found.');
+            }
+            delete questions;
 
             result.success = true;
             result.message = 'Question deleted successfully.';
             return result;
 
+        } catch (AuraHandledException e) {
+            throw e;
         } catch (Exception e) {
-            result.message = 'Error deleting question: ' + e.getMessage();
-            return result;
+            throw new AuraHandledException('Error deleting question: ' + e.getMessage());
         }
     }
 

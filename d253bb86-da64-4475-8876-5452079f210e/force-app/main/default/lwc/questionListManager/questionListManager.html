@@ -2,7 +2,7 @@
     <div class="manager-container">
         <!-- Header -->
         <div class="manager-header">
-            <lightning-icon icon-name="standard:question_feed" size="small" class="header-icon"></lightning-icon>
+            <lightning-icon icon-name="utility:list" size="small" class="header-icon" alternative-text="Question lists"></lightning-icon>
             <span class="header-title">Question List Manager</span>
         </div>
 
@@ -579,7 +579,7 @@
                 <template if:false={hasSelectedList}>
                     <div class="detail-panel empty-detail-panel">
                         <div class="empty-state">
-                            <lightning-icon icon-name="standard:question_feed" size="large" class="empty-state-icon"></lightning-icon>
+                            <lightning-icon icon-name="utility:list" size="large" class="empty-state-icon" alternative-text=""></lightning-icon>
                             <p class="empty-state-text">Select a Question List</p>
                             <p class="empty-state-subtext">Choose a list from the left panel to view and manage its questions</p>
                         </div>
@@ -904,12 +904,12 @@
                                         <div class="conflict-item-body">
                                             <div class="conflict-list-pair">
                                                 <div class="conflict-list-name">
-                                                    <lightning-icon icon-name="standard:question_feed" size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:list" size="x-small" alternative-text=""></lightning-icon>
                                                     <span>{conflict.list1Name}</span>
                                                 </div>
                                                 <lightning-icon icon-name="utility:sync" size="x-small" class="conflict-sync-icon"></lightning-icon>
                                                 <div class="conflict-list-name">
-                                                    <lightning-icon icon-name="standard:question_feed" size="x-small"></lightning-icon>
+                                                    <lightning-icon icon-name="utility:list" size="x-small" alternative-text=""></lightning-icon>
                                                     <span>{conflict.list2Name}</span>
                                                 </div>
                                             </div>

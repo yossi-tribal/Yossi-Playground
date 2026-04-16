@@ -27,6 +27,86 @@
             </div>
         </template>
 
+        <!-- Empty state: no question list on this Lead (configuration, not user error) -->
+        <template if:true={showNoQuestionListEmptyState}>
+            <div class="empty-state-container">
+                <div class="empty-state-card empty-state-card--no-list" role="status">
+                    <div class="empty-state-visual" aria-hidden="true">
+                        <div class="empty-state-icon-ring">
+                            <lightning-icon
+                                icon-name="utility:questions_and_answers"
+                                size="medium"
+                                class="empty-state-hero-icon"
+                            ></lightning-icon>
+                        </div>
+                    </div>
+                    <div class="empty-state-body">
+                        <h2 class="empty-state-title">We’re almost ready for you</h2>
+                        <p class="empty-state-lead">
+                            Nothing is wrong with this lead — the qualification playbook just has not been connected yet.
+                        </p>
+                        <p class="empty-state-copy">
+                            When a <strong>Question List</strong> is assigned on this Lead, you will see guided Yes / No questions here,
+                            a live quality score, and a clear recommended next step. Until then, we would rather pause than guess.
+                        </p>
+                        <div class="empty-state-steps">
+                            <div class="empty-state-step">
+                                <span class="empty-state-step-num">1</span>
+                                <span class="empty-state-step-text">Ask your Salesforce admin (or RevOps owner) to assign the right Question List on this Lead.</span>
+                            </div>
+                            <div class="empty-state-step">
+                                <span class="empty-state-step-num">2</span>
+                                <span class="empty-state-step-text">Save the Lead, then refresh this page — we will load your questions automatically.</span>
+                            </div>
+                        </div>
+                        <p class="empty-state-reassurance">
+                            Take a breath. This is a quick configuration moment, not a dead end.
+                        </p>
+                    </div>
+                </div>
+                <div class="empty-state-footer-actions">
+                    <button type="button" class="response-history-link" onclick={handleShowHistory}>
+                        View response history
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- Empty state: list assigned but no active questions yet -->
+        <template if:true={showNoQuestionsInListEmptyState}>
+            <div class="empty-state-container">
+                <div class="empty-state-card empty-state-card--no-questions" role="status">
+                    <div class="empty-state-visual" aria-hidden="true">
+                        <div class="empty-state-icon-ring empty-state-icon-ring--soft">
+                            <lightning-icon
+                                icon-name="utility:rows"
+                                size="medium"
+                                class="empty-state-hero-icon"
+                            ></lightning-icon>
+                        </div>
+                    </div>
+                    <div class="empty-state-body">
+                        <h2 class="empty-state-title">Your list is linked — questions are on the way</h2>
+                        <p class="empty-state-lead">
+                            This Lead already has a Question List, but there are no active questions to show yet.
+                        </p>
+                        <p class="empty-state-copy">
+                            That usually means your team is still building the questionnaire, or every question is temporarily inactive.
+                            Once at least one question is active on this list, this wizard will light up for you.
+                        </p>
+                        <p class="empty-state-reassurance">
+                            If you expected questions here, your admin can open the Question List Manager and publish a few active items.
+                        </p>
+                    </div>
+                </div>
+                <div class="empty-state-footer-actions">
+                    <button type="button" class="response-history-link" onclick={handleShowHistory}>
+                        View response history
+                    </button>
+                </div>
+            </div>
+        </template>
+
         <!-- Main Content -->
         <template if:true={hasData}>
             <div class="wizard-content">

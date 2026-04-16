@@ -129,13 +129,15 @@ private class LQW_LeadQualificationControllerTest {
     @isTest
     static void testGetQualificationData_WithResponses() {
         Lead testLead = [SELECT Id FROM Lead LIMIT 1];
+        // Use two non-dealbreaker questions so both "Yes" answers earn points (order 2 is a dealbreaker in setup)
         List<LQW_Qualification_Question__c> questions = [
             SELECT Id FROM LQW_Qualification_Question__c
             WHERE LQW_Is_Active__c = true
+            AND LQW_Is_Dealbreaker__c = false
             ORDER BY LQW_Question_Order__c
         ];
 
-        // Create responses for first two questions (both Yes)
+        // Create responses for two scoring questions (both Yes): score values 1 + 2 from setup
         List<LQW_Lead_Question_Response__c> responses = new List<LQW_Lead_Question_Response__c>();
         responses.add(new LQW_Lead_Question_Response__c(
             LQW_Lead__c = testLead.Id,
@@ -160,8 +162,8 @@ private class LQW_LeadQualificationControllerTest {
 
         System.assertEquals(4, result.totalQuestions, 'Should return 4 active questions');
         System.assertEquals(2, result.answeredCount, 'Two questions should be answered');
-        System.assertEquals(2, result.totalScore, 'Total score should be 2 (1+1)');
-        System.assertEquals('Low Quality', result.leadRank, 'Rank should be Low Quality');
+        System.assertEquals(3, result.totalScore, 'Total score should be 3 (1+2)');
+        System.assertEquals('Medium Quality', result.leadRank, 'Rank should be Medium Quality');
     }
 
     /**
@@ -505,12 +507,25 @@ private class LQW_LeadQualificationControllerTest {
         System.assertEquals('Medium Quality', result.leadRank, 'Rank should be Medium Quality (3-4 points)');
     }
 
+    @isTest
+    static void testGetQualificationData_NullLeadId() {
+        Test.startTest();
+        try {
+            LQW_LeadQualificationController.getLeadQualificationData(null);
+            System.assert(false, 'Should have thrown an exception');
+        } catch (Exception e) {
+            System.assertEquals('System.AuraHandledException', e.getTypeName());
+        }
+        Test.stopTest();
+    }
+
     /**
      * @description Test error handling for invalid lead ID
      */
     @isTest
     static void testGetQualificationData_InvalidLeadId() {
-        Id fakeLeadId = '00Q000000000000AAA'; // Invalid Lead ID
+        // Account-shaped Id cannot match a Lead row; avoids collisions with real 00Q Lead Ids in shared dev orgs
+        Id fakeLeadId = '001000000000000AAA';
 
         Test.startTest();
         try {
@@ -518,7 +533,11 @@ private class LQW_LeadQualificationControllerTest {
                 LQW_LeadQualificationController.getLeadQualificationData(fakeLeadId);
             System.assert(false, 'Should have thrown an exception');
         } catch (Exception e) {
-            System.assert(e.getMessage().contains('access'), 'Should be an access error');
+            System.assertEquals(
+                'System.AuraHandledException',
+                e.getTypeName(),
+                'Expected AuraHandledException; message was: ' + e.getMessage()
+            );
         }
         Test.stopTest();
     }

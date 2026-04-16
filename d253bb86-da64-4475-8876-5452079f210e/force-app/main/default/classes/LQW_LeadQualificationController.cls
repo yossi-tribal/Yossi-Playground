@@ -128,23 +128,30 @@ public with sharing class LQW_LeadQualificationController {
         try {
             QualificationSummary summary = new QualificationSummary();
 
-            // Validate lead access
-            if (!isLeadAccessible(leadId)) {
+            if (leadId == null) {
                 throw new AuraHandledException('You do not have access to this lead record.');
             }
 
-            // Get lead status and question list assignment with threshold fields
-            Lead lead = [SELECT Id, Status, Description, LQW_Question_List__c,
-                         LQW_Question_List__r.LQW_List_Name__c,
-                         LQW_Question_List__r.LQW_High_Quality_Threshold__c,
-                         LQW_Question_List__r.LQW_Medium_Quality_Threshold__c,
-                         LQW_Question_List__r.LQW_High_Quality_Label__c,
-                         LQW_Question_List__r.LQW_Medium_Quality_Label__c,
-                         LQW_Question_List__r.LQW_Low_Quality_Label__c,
-                         LQW_Question_List__r.LQW_High_Quality_Recommendation__c,
-                         LQW_Question_List__r.LQW_Medium_Quality_Recommendation__c,
-                         LQW_Question_List__r.LQW_Low_Quality_Recommendation__c
-                         FROM Lead WHERE Id = :leadId LIMIT 1];
+            // Single list query avoids "no rows" exceptions and maps missing leads to the same access message
+            List<Lead> leadRecords = [
+                SELECT Id, Status, Description, LQW_Question_List__c,
+                       LQW_Question_List__r.LQW_List_Name__c,
+                       LQW_Question_List__r.LQW_High_Quality_Threshold__c,
+                       LQW_Question_List__r.LQW_Medium_Quality_Threshold__c,
+                       LQW_Question_List__r.LQW_High_Quality_Label__c,
+                       LQW_Question_List__r.LQW_Medium_Quality_Label__c,
+                       LQW_Question_List__r.LQW_Low_Quality_Label__c,
+                       LQW_Question_List__r.LQW_High_Quality_Recommendation__c,
+                       LQW_Question_List__r.LQW_Medium_Quality_Recommendation__c,
+                       LQW_Question_List__r.LQW_Low_Quality_Recommendation__c
+                FROM Lead
+                WHERE Id = :leadId
+                LIMIT 1
+            ];
+            if (leadRecords.isEmpty()) {
+                throw new AuraHandledException('You do not have access to this lead record.');
+            }
+            Lead lead = leadRecords[0];
             summary.leadStatus = lead.Status;
             summary.isDisqualified = (lead.Status == DISQUALIFIED_STATUS);
             summary.questionListId = lead.LQW_Question_List__c;

@@ -43,6 +43,36 @@ export default class LeadQualificationWizard extends LightningElement {
         return this.qualificationData !== null && this.qualificationData.questions.length > 0;
     }
 
+    /** True when the Lead has a Question List lookup populated (Apex exposes questionListId). */
+    get hasQuestionListAssigned() {
+        const id = this.qualificationData?.questionListId;
+        return id !== null && id !== undefined && String(id).trim() !== '';
+    }
+
+    /**
+     * Lead is not linked to a question list yet — show a calm setup state instead of unrelated org-wide questions.
+     */
+    get showNoQuestionListEmptyState() {
+        return (
+            !this.isLoading &&
+            !this.hasError &&
+            this.qualificationData !== null &&
+            !this.hasQuestionListAssigned
+        );
+    }
+
+    /**
+     * A list is assigned but there are no active questions to display.
+     */
+    get showNoQuestionsInListEmptyState() {
+        const data = this.qualificationData;
+        if (this.isLoading || this.hasError || data === null || !this.hasQuestionListAssigned) {
+            return false;
+        }
+        const count = data.totalQuestions ?? data.questions?.length ?? 0;
+        return count === 0;
+    }
+
     get questions() {
         const rawQuestions = this.qualificationData?.questions || [];
         // Enhance each question with computed properties for the template

@@ -201,6 +201,33 @@ private class LQW_QuestionListManagerCtrlTest {
     }
 
     @isTest
+    static void testSaveQuestionList_UpdateWithInvalidId() {
+        Test.startTest();
+        LQW_QuestionListManagerCtrl.SaveResult result = LQW_QuestionListManagerCtrl.saveQuestionList(
+            '001000000000000AAA',
+            'Any Name',
+            'Description',
+            true,
+            5,
+            3,
+            'High Quality',
+            'Medium Quality',
+            'Low Quality',
+            'Convert to Opportunity',
+            'Manager Review',
+            'Nurture Lead',
+            false
+        );
+        Test.stopTest();
+
+        System.assertEquals(false, result.success, 'Update should fail when list Id does not exist');
+        System.assert(
+            result.message != null && result.message.startsWith('Error saving question list:'),
+            'Expected DML/query error message, got: ' + result.message
+        );
+    }
+
+    @isTest
     static void testDeleteQuestionList() {
         LQW_Question_List__c questionList = [SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Test List 1' LIMIT 1];
         Integer questionCount = [SELECT COUNT() FROM LQW_Qualification_Question__c WHERE LQW_Question_List__c = :questionList.Id];
@@ -468,8 +495,12 @@ private class LQW_QuestionListManagerCtrlTest {
         try {
             LQW_QuestionListManagerCtrl.QuestionListData result = LQW_QuestionListManagerCtrl.getQuestionList('001000000000000AAA');
             System.assert(false, 'Should throw exception for invalid ID');
-        } catch (AuraHandledException e) {
-            System.assert(e.getMessage().contains('Error'), 'Should contain error message');
+        } catch (Exception e) {
+            System.assertEquals(
+                'System.AuraHandledException',
+                e.getTypeName(),
+                'Expected AuraHandledException; message was: ' + e.getMessage()
+            );
         }
         Test.stopTest();
     }
@@ -481,7 +512,11 @@ private class LQW_QuestionListManagerCtrlTest {
             LQW_QuestionListManagerCtrl.SaveResult result = LQW_QuestionListManagerCtrl.deleteQuestion('001000000000000AAA');
             System.assert(false, 'Should throw exception for invalid ID');
         } catch (Exception e) {
-            System.assert(e.getMessage().contains('Error') || e.getMessage().contains('List has no rows'), 'Should contain error message');
+            System.assertEquals(
+                'System.AuraHandledException',
+                e.getTypeName(),
+                'Expected AuraHandledException; message was: ' + e.getMessage()
+            );
         }
         Test.stopTest();
     }
