@@ -523,7 +523,18 @@ private class LQW_QuestionListManagerCtrlTest {
 
     @isTest
     static void testCreateDefaultQuestionList() {
-        // Delete all existing question lists to test the create default list functionality
+        // Wipe existing data so createDefaultQuestionList runs from a clean slate.
+        // Order matters: both LQW_Lead_Question_Response__c.LQW_Question__c and
+        // LQW_Qualification_Question__c.LQW_Question_List__c use deleteConstraint=Restrict,
+        // so children must be removed before their parents.
+        List<LQW_Lead_Question_Response__c> existingResponses = [SELECT Id FROM LQW_Lead_Question_Response__c];
+        if (!existingResponses.isEmpty()) {
+            delete existingResponses;
+        }
+        List<LQW_Qualification_Question__c> existingQuestions = [SELECT Id FROM LQW_Qualification_Question__c];
+        if (!existingQuestions.isEmpty()) {
+            delete existingQuestions;
+        }
         List<LQW_Question_List__c> existingLists = [SELECT Id FROM LQW_Question_List__c];
         if (!existingLists.isEmpty()) {
             delete existingLists;
