@@ -197,10 +197,14 @@ private class LQW_LeadQualificationControllerTest {
         System.assertEquals(1, responses.size(), 'One response should be created');
         System.assertEquals('Yes', responses[0].LQW_Response__c, 'Response should be Yes');
 
-        // Verify Lead Quality field was updated
+        // Verify Lead Quality field was updated.
+        // The field stores the canonical picklist API code ('Low_Quality'),
+        // while the friendly display label ('Low Quality') is exposed via QualificationSummary.leadRank.
         Lead updatedLead = [SELECT Id, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
         System.assertNotEquals(null, updatedLead.LQW_Lead_Quality__c, 'Lead Quality should be populated');
-        System.assertEquals('Low Quality', updatedLead.LQW_Lead_Quality__c, 'Lead Quality should be Low Quality with 1 point');
+        System.assertEquals('Low_Quality', updatedLead.LQW_Lead_Quality__c, 'Lead Quality picklist code should be Low_Quality with 1 point');
+        System.assertEquals('Low Quality', result.updatedSummary.leadRank, 'Display label should be Low Quality');
+        System.assertEquals('Low_Quality', result.updatedSummary.leadQualityCode, 'Picklist code in summary should be Low_Quality');
 
         // Check updated summary
         System.assertNotEquals(null, result.updatedSummary, 'Updated summary should be returned');
@@ -313,15 +317,17 @@ private class LQW_LeadQualificationControllerTest {
         System.assertEquals(true, result.wasDisqualified, 'Should trigger disqualification');
         System.assertEquals('Disqualified', result.newLeadStatus, 'Lead status should be Disqualified');
 
-        // Verify lead status and quality were updated
+        // Verify lead status and quality were updated.
+        // The picklist holds the canonical code 'DISQUALIFIED'; the display label exposed by leadRank is 'Disqualified'.
         Lead updatedLead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
-        System.assertEquals('Disqualified', updatedLead.Status, 'Lead should be disqualified');
-        System.assertEquals('Disqualified', updatedLead.LQW_Lead_Quality__c, 'Lead Quality should be Disqualified');
+        System.assertEquals('Disqualified', updatedLead.Status, 'Lead Status should be Disqualified');
+        System.assertEquals('DISQUALIFIED', updatedLead.LQW_Lead_Quality__c, 'Lead Quality picklist code should be DISQUALIFIED');
         System.assert(updatedLead.Description.contains('[PREV_STATUS:'), 'Description should contain status marker');
 
         // Check updated summary
         System.assertEquals(true, result.updatedSummary.isDisqualified, 'Summary should show disqualified');
-        System.assertEquals('Disqualified', result.updatedSummary.leadRank, 'Rank should be Disqualified');
+        System.assertEquals('Disqualified', result.updatedSummary.leadRank, 'Display label should be Disqualified');
+        System.assertEquals('DISQUALIFIED', result.updatedSummary.leadQualityCode, 'Picklist code in summary should be DISQUALIFIED');
     }
 
     /**
@@ -368,7 +374,7 @@ private class LQW_LeadQualificationControllerTest {
         // Verify lead status and quality were restored
         Lead restoredLead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
         System.assertEquals('Open - Not Contacted', restoredLead.Status, 'Status should be restored');
-        System.assertNotEquals('Disqualified', restoredLead.LQW_Lead_Quality__c, 'Lead Quality should not be Disqualified');
+        System.assertNotEquals('DISQUALIFIED', restoredLead.LQW_Lead_Quality__c, 'Lead Quality picklist code should no longer be DISQUALIFIED');
         System.assertEquals(false, restoredLead.Description.contains('[PREV_STATUS:'), 'Marker should be removed');
     }
 

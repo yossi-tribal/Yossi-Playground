@@ -12,6 +12,15 @@ public with sharing class LQW_LeadQualificationController {
     private static final String DISQUALIFIED_STATUS = 'Disqualified';
     private static final String DEFAULT_STATUS = 'Open - Not Contacted';
 
+    // Canonical picklist API values for Lead.LQW_Lead_Quality__c.
+    // These are the stable, restricted-picklist fullName values stored on the field.
+    // Display labels (potentially admin-customized per Question List) are tracked separately
+    // in QualificationSummary.leadRank and the per-list label fields.
+    public static final String CODE_HIGH_QUALITY = 'High_Quality';
+    public static final String CODE_MEDIUM_QUALITY = 'Medium_Quality';
+    public static final String CODE_LOW_QUALITY = 'Low_Quality';
+    public static final String CODE_DISQUALIFIED = 'DISQUALIFIED';
+
     /**
      * @description Wrapper class for question data with response state
      */
@@ -40,6 +49,9 @@ public with sharing class LQW_LeadQualificationController {
         @AuraEnabled public List<QuestionData> questions;
         @AuraEnabled public Integer totalScore;
         @AuraEnabled public String leadRank;
+        // Canonical picklist API value written to Lead.LQW_Lead_Quality__c.
+        // Stays stable regardless of per-list label customization.
+        @AuraEnabled public String leadQualityCode;
         @AuraEnabled public String leadStatus;
         @AuraEnabled public Boolean isDisqualified;
         @AuraEnabled public String disqualificationReason;
@@ -285,6 +297,8 @@ public with sharing class LQW_LeadQualificationController {
 
             summary.leadRank = calculateLeadRank(totalScore, summary.isDisqualified, highThreshold, mediumThreshold,
                 summary.highQualityLabel, summary.mediumQualityLabel, summary.lowQualityLabel);
+            summary.leadQualityCode = calculateLeadQualityCode(totalScore, summary.isDisqualified,
+                highThreshold, mediumThreshold);
 
             // Extract disqualification reason if applicable
             if (summary.isDisqualified) {
@@ -410,7 +424,7 @@ public with sharing class LQW_LeadQualificationController {
             }
 
             QualificationSummary tempSummary = getLeadQualificationData(leadId);
-            update new Lead(Id = leadId, LQW_Lead_Quality__c = tempSummary.leadRank);
+            update new Lead(Id = leadId, LQW_Lead_Quality__c = tempSummary.leadQualityCode);
 
             if (needsStatusUpdate) {
                 result.newLeadStatus = tempSummary.leadStatus;
@@ -454,6 +468,24 @@ public with sharing class LQW_LeadQualificationController {
             return mediumLabel;
         } else {
             return lowLabel;
+        }
+    }
+
+    /**
+     * @description Returns the canonical picklist API value for Lead.LQW_Lead_Quality__c.
+     * Decoupled from calculateLeadRank so the picklist (restricted) stays valid even when
+     * an admin sets custom display labels on a Question List.
+     */
+    private static String calculateLeadQualityCode(Integer totalScore, Boolean isDisqualified,
+                                                  Decimal highThreshold, Decimal mediumThreshold) {
+        if (isDisqualified) {
+            return CODE_DISQUALIFIED;
+        } else if (totalScore >= highThreshold) {
+            return CODE_HIGH_QUALITY;
+        } else if (totalScore >= mediumThreshold) {
+            return CODE_MEDIUM_QUALITY;
+        } else {
+            return CODE_LOW_QUALITY;
         }
     }
 

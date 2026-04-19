@@ -17,25 +17,25 @@
                     <sorted>false</sorted>
                     
                     <value>
-                        <fullName>High Quality</fullName>
+                        <fullName>High_Quality</fullName>
                         <default>false</default>
                         <label>High Quality</label>
                     </value>
                     
                     <value>
-                        <fullName>Medium Quality</fullName>
+                        <fullName>Medium_Quality</fullName>
                         <default>false</default>
                         <label>Medium Quality</label>
                     </value>
                     
                     <value>
-                        <fullName>Low Quality</fullName>
+                        <fullName>Low_Quality</fullName>
                         <default>false</default>
                         <label>Low Quality</label>
                     </value>
                     
                     <value>
-                        <fullName>Disqualified</fullName>
+                        <fullName>DISQUALIFIED</fullName>
                         <default>false</default>
                         <label>Disqualified</label>
                     </value>
