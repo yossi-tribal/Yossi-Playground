@@ -512,10 +512,7 @@ private class LQW_LeadQualificationControllerTest {
         // Total score should be 1 + 2 = 3 (from non-dealbreaker questions)
         System.assertEquals(3, result.totalScore, 'Total score should be 3');
         System.assertEquals('Medium Quality', result.leadRank, 'Rank should be Medium Quality (3-4 points)');
-
-        // Verify Lead Quality field matches the rank
-        Lead updatedLead = [SELECT Id, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
-        System.assertEquals('Medium Quality', updatedLead.LQW_Lead_Quality__c, 'Lead Quality should match the calculated rank');
+        // LQW_Lead_Quality__c is persisted when responses are saved via saveQuestionResponse, not on read-only getLeadQualificationData
     }
 
     @isTest

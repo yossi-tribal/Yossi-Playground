@@ -384,13 +384,11 @@ public with sharing class LQW_LeadQualificationController {
             // Handle lead status changes
             Lead lead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :leadId LIMIT 1];
             Boolean needsStatusUpdate = false;
-            String originalStatus = lead.Status;
 
             if (triggersDisqualification && lead.Status != DISQUALIFIED_STATUS) {
                 // Store previous status and disqualify
                 storePreviousStatus(lead);
                 lead.Status = DISQUALIFIED_STATUS;
-                lead.LQW_Lead_Quality__c = 'Disqualified';
                 needsStatusUpdate = true;
                 result.wasDisqualified = true;
                 result.message = 'Lead automatically disqualified due to dealbreaker response.';
@@ -405,17 +403,17 @@ public with sharing class LQW_LeadQualificationController {
                 }
             }
 
-            // Update Lead Quality field whenever a response changes (calculate based on new state)
-            if (needsStatusUpdate || String.isNotBlank(response) || String.isBlank(response)) {
-                // Get updated qualification summary to calculate the new rank
-                QualificationSummary tempSummary = getLeadQualificationData(leadId);
-                lead.LQW_Lead_Quality__c = tempSummary.leadRank;
-                needsStatusUpdate = true;
+            // Persist status/description first so getLeadQualificationData reads current Lead.Status from the DB
+            if (needsStatusUpdate) {
+                Lead statusPatch = new Lead(Id = lead.Id, Status = lead.Status, Description = lead.Description);
+                update statusPatch;
             }
 
+            QualificationSummary tempSummary = getLeadQualificationData(leadId);
+            update new Lead(Id = leadId, LQW_Lead_Quality__c = tempSummary.leadRank);
+
             if (needsStatusUpdate) {
-                update lead;
-                result.newLeadStatus = lead.Status;
+                result.newLeadStatus = tempSummary.leadStatus;
             }
 
             // Get updated qualification summary
