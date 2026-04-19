@@ -13,4 +13,9 @@
                 <target>lightningCommunity__Default</target>
                 
             </targets>
+            <targetConfigs>
+                <targetConfig targets="lightning__RecordPage,lightningCommunity__Default">
+                    <property name="recordId" type="String" />
+                </targetConfig>
+            </targetConfigs>
         </LightningComponentBundle>
