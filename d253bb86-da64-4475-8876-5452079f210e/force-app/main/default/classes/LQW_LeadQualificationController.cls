@@ -166,23 +166,52 @@ public with sharing class LQW_LeadQualificationController {
             Lead lead = leadRecords[0];
             summary.leadStatus = lead.Status;
             summary.isDisqualified = (lead.Status == DISQUALIFIED_STATUS);
-            summary.questionListId = lead.LQW_Question_List__c;
-            summary.questionListName = lead.LQW_Question_List__r?.LQW_List_Name__c;
 
-            // Populate threshold and label fields from question list
-            if (lead.LQW_Question_List__c != null) {
-                summary.highQualityLabel = String.isNotBlank(lead.LQW_Question_List__r.LQW_High_Quality_Label__c) ?
-                    lead.LQW_Question_List__r.LQW_High_Quality_Label__c : 'High Quality';
-                summary.mediumQualityLabel = String.isNotBlank(lead.LQW_Question_List__r.LQW_Medium_Quality_Label__c) ?
-                    lead.LQW_Question_List__r.LQW_Medium_Quality_Label__c : 'Medium Quality';
-                summary.lowQualityLabel = String.isNotBlank(lead.LQW_Question_List__r.LQW_Low_Quality_Label__c) ?
-                    lead.LQW_Question_List__r.LQW_Low_Quality_Label__c : 'Low Quality';
-                summary.highQualityRecommendation = String.isNotBlank(lead.LQW_Question_List__r.LQW_High_Quality_Recommendation__c) ?
-                    lead.LQW_Question_List__r.LQW_High_Quality_Recommendation__c : 'Convert to Opportunity';
-                summary.mediumQualityRecommendation = String.isNotBlank(lead.LQW_Question_List__r.LQW_Medium_Quality_Recommendation__c) ?
-                    lead.LQW_Question_List__r.LQW_Medium_Quality_Recommendation__c : 'Convert to Opportunity with Manager Review';
-                summary.lowQualityRecommendation = String.isNotBlank(lead.LQW_Question_List__r.LQW_Low_Quality_Recommendation__c) ?
-                    lead.LQW_Question_List__r.LQW_Low_Quality_Recommendation__c : 'Nurture Lead (Do Not Convert)';
+            // If Lead has no question list assigned, fallback to the default question list
+            Id effectiveQuestionListId = lead.LQW_Question_List__c;
+            LQW_Question_List__c effectiveQuestionList = null;
+
+            if (effectiveQuestionListId != null) {
+                // Lead has an explicit question list assignment
+                effectiveQuestionList = lead.LQW_Question_List__r;
+                summary.questionListId = effectiveQuestionListId;
+                summary.questionListName = lead.LQW_Question_List__r?.LQW_List_Name__c;
+            } else {
+                // Fallback to default question list if no explicit assignment
+                List<LQW_Question_List__c> defaultLists = [
+                    SELECT Id, Name, LQW_List_Name__c,
+                           LQW_High_Quality_Threshold__c, LQW_Medium_Quality_Threshold__c,
+                           LQW_High_Quality_Label__c, LQW_Medium_Quality_Label__c, LQW_Low_Quality_Label__c,
+                           LQW_High_Quality_Recommendation__c, LQW_Medium_Quality_Recommendation__c, LQW_Low_Quality_Recommendation__c
+                    FROM LQW_Question_List__c
+                    WHERE LQW_Is_Active__c = true
+                    AND LQW_Is_Default__c = true
+                    ORDER BY Name ASC
+                    LIMIT 1
+                ];
+
+                if (!defaultLists.isEmpty()) {
+                    effectiveQuestionList = defaultLists[0];
+                    effectiveQuestionListId = effectiveQuestionList.Id;
+                    summary.questionListId = effectiveQuestionListId;
+                    summary.questionListName = effectiveQuestionList.LQW_List_Name__c;
+                }
+            }
+
+            // Populate threshold and label fields from effective question list
+            if (effectiveQuestionList != null) {
+                summary.highQualityLabel = String.isNotBlank(effectiveQuestionList.LQW_High_Quality_Label__c) ?
+                    effectiveQuestionList.LQW_High_Quality_Label__c : 'High Quality';
+                summary.mediumQualityLabel = String.isNotBlank(effectiveQuestionList.LQW_Medium_Quality_Label__c) ?
+                    effectiveQuestionList.LQW_Medium_Quality_Label__c : 'Medium Quality';
+                summary.lowQualityLabel = String.isNotBlank(effectiveQuestionList.LQW_Low_Quality_Label__c) ?
+                    effectiveQuestionList.LQW_Low_Quality_Label__c : 'Low Quality';
+                summary.highQualityRecommendation = String.isNotBlank(effectiveQuestionList.LQW_High_Quality_Recommendation__c) ?
+                    effectiveQuestionList.LQW_High_Quality_Recommendation__c : 'Convert to Opportunity';
+                summary.mediumQualityRecommendation = String.isNotBlank(effectiveQuestionList.LQW_Medium_Quality_Recommendation__c) ?
+                    effectiveQuestionList.LQW_Medium_Quality_Recommendation__c : 'Convert to Opportunity with Manager Review';
+                summary.lowQualityRecommendation = String.isNotBlank(effectiveQuestionList.LQW_Low_Quality_Recommendation__c) ?
+                    effectiveQuestionList.LQW_Low_Quality_Recommendation__c : 'Nurture Lead (Do Not Convert)';
             }
 
             // Count previous responses from different question lists
@@ -199,28 +228,21 @@ public with sharing class LQW_LeadQualificationController {
                 }
             }
 
-            // Get active questions filtered by assigned question list (or all if no list assigned)
+            // Get active questions filtered by effective question list
             List<LQW_Qualification_Question__c> questions;
-            if (lead.LQW_Question_List__c != null) {
+            if (effectiveQuestionListId != null) {
                 questions = [
                     SELECT Id, Name, LQW_Question_Text__c, LQW_Question_Order__c,
                            LQW_Is_Dealbreaker__c, LQW_Dealbreaker_Value__c, LQW_Score_Value__c,
                            LQW_Point_Earning_Answer__c
                     FROM LQW_Qualification_Question__c
                     WHERE LQW_Is_Active__c = true
-                    AND LQW_Question_List__c = :lead.LQW_Question_List__c
+                    AND LQW_Question_List__c = :effectiveQuestionListId
                     ORDER BY LQW_Question_Order__c ASC NULLS LAST, Name ASC
                 ];
             } else {
-                // Fallback to all active questions if no question list is assigned
-                questions = [
-                    SELECT Id, Name, LQW_Question_Text__c, LQW_Question_Order__c,
-                           LQW_Is_Dealbreaker__c, LQW_Dealbreaker_Value__c, LQW_Score_Value__c,
-                           LQW_Point_Earning_Answer__c
-                    FROM LQW_Qualification_Question__c
-                    WHERE LQW_Is_Active__c = true
-                    ORDER BY LQW_Question_Order__c ASC NULLS LAST, Name ASC
-                ];
+                // No question list available - return empty list
+                questions = new List<LQW_Qualification_Question__c>();
             }
 
             summary.totalQuestions = questions.size();

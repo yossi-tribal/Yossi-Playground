@@ -2,7 +2,7 @@
     <div class="manager-container">
         <!-- Header -->
         <div class="manager-header">
-            <lightning-icon icon-name="utility:list" size="small" class="header-icon" alternative-text="Question lists"></lightning-icon>
+            <lightning-icon icon-name="utility:einstein" size="small" class="header-icon" alternative-text="Question lists"></lightning-icon>
             <span class="header-title">Question List Manager</span>
         </div>
 
@@ -16,36 +16,71 @@
 
         <!-- Main Layout -->
         <div class="manager-content">
-            <div class="slds-grid slds-wrap slds-gutters">
 
-            <!-- Left Panel: Question Lists -->
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-large-size_1-of-4">
-                <div class="list-panel">
+            <!-- Welcome State - Full Width (No Lists) -->
+            <template if:false={hasQuestionLists}>
+                <div class="welcome-state">
+                    <lightning-icon icon-name="utility:einstein" size="large" class="welcome-icon" alternative-text="Question lists"></lightning-icon>
+                    <h1 class="welcome-title">Welcome to Question List Manager</h1>
+                    <p class="welcome-subtext">Create your first question list to start qualifying leads. We'll set you up with 9 pre-configured questions.</p>
 
-                    <!-- List Header -->
-                    <div class="list-panel-header">
-                        <h2 class="list-panel-title">Question Lists</h2>
-                        <button class="add-list-button" onclick={handleNewList} title="New List">
-                            <lightning-icon icon-name="utility:add" size="xx-small"></lightning-icon>
-                        </button>
+                    <div class="welcome-checklist">
+                        <div class="welcome-checklist-item">
+                            <lightning-icon icon-name="utility:check" size="x-small" class="checklist-icon"></lightning-icon>
+                            <span>9 qualification questions</span>
+                        </div>
+                        <div class="welcome-checklist-item">
+                            <lightning-icon icon-name="utility:check" size="x-small" class="checklist-icon"></lightning-icon>
+                            <span>Scoring thresholds configured</span>
+                        </div>
+                        <div class="welcome-checklist-item">
+                            <lightning-icon icon-name="utility:check" size="x-small" class="checklist-icon"></lightning-icon>
+                            <span>Dealbreaker rules included</span>
+                        </div>
                     </div>
 
-                    <!-- Search -->
-                    <div class="list-search-container">
-                        <lightning-input
-                            type="search"
-                            label="Search Lists"
-                            value={searchTerm}
-                            onchange={handleSearchChange}
-                            variant="label-hidden"
-                            placeholder="Search lists..."
-                            class="list-search-input">
-                        </lightning-input>
-                    </div>
+                    <button class="welcome-cta-button" onclick={handleGenerateDefaultList}>
+                        Get Started
+                        <lightning-icon icon-name="utility:forward" size="x-small" class="cta-arrow-icon"></lightning-icon>
+                    </button>
 
-                    <!-- List Items -->
-                    <div class="list-container">
-                        <template if:true={hasQuestionLists}>
+                    <button class="welcome-secondary-action" onclick={handleCreateEmptyList}>
+                        or Create Custom List
+                    </button>
+                </div>
+            </template>
+
+            <!-- Master-Detail Layout (Has Lists) -->
+            <template if:true={hasQuestionLists}>
+                <div class="slds-grid slds-wrap slds-gutters">
+
+                <!-- Left Panel: Question Lists -->
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-large-size_1-of-4">
+                    <div class="list-panel">
+
+                        <!-- List Header -->
+                        <div class="list-panel-header">
+                            <h2 class="list-panel-title">Question Lists</h2>
+                            <button class="add-list-button" onclick={handleNewList} title="New List">
+                                <lightning-icon icon-name="utility:add" size="xx-small"></lightning-icon>
+                            </button>
+                        </div>
+
+                        <!-- Search -->
+                        <div class="list-search-container">
+                            <lightning-input
+                                type="search"
+                                label="Search Lists"
+                                value={searchTerm}
+                                onchange={handleSearchChange}
+                                variant="label-hidden"
+                                placeholder="Search lists..."
+                                class="list-search-input">
+                            </lightning-input>
+                        </div>
+
+                        <!-- List Items -->
+                        <div class="list-container">
                             <template for:each={filteredQuestionLists} for:item="list">
                                 <div key={list.listId}
                                      class={list.itemClass}
@@ -64,30 +99,30 @@
                                     </div>
                                 </div>
                             </template>
-                        </template>
-                        <template if:false={hasQuestionLists}>
-                            <div class="empty-state-list">
-                                <lightning-icon icon-name="utility:database" size="large" class="empty-state-icon"></lightning-icon>
-                                <p class="empty-state-text">No question lists found</p>
-                                <p class="empty-state-subtext">Create your first list to get started</p>
-                            </div>
-                        </template>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Right Panel: Question Details -->
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3 slds-large-size_3-of-4">
+                <!-- Right Panel: Question Details -->
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3 slds-large-size_3-of-4">
                 <template if:true={hasSelectedList}>
                     <div class="detail-panel">
 
                         <!-- Detail Header -->
                         <div class="detail-header">
                             <div class="detail-header-content">
-                                <h1 class="detail-title">{selectedList.listName}</h1>
+                                <div class="detail-title-row">
+                                    <h1 class="detail-title">{selectedList.listName}</h1>
+                                </div>
                                 <p class="detail-subtitle">{selectedListSummary}</p>
                             </div>
                             <div class="detail-header-actions">
+                                <div class="list-status-control">
+                                    <div class={toggleSwitchClass} onclick={handleToggleListStatus} title={listStatusToggleTitle} role="switch" tabindex="0">
+                                        <div class="toggle-knob"></div>
+                                    </div>
+                                    <span class="toggle-label">{listStatusText}</span>
+                                </div>
                                 <lightning-button-menu
                                     alternative-text="List Actions"
                                     icon-size="x-small"
@@ -454,6 +489,17 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Empty State CTA - Inline -->
+                            <template if:false={hasQuestions}>
+                                <div class="overview-empty-state">
+                                    <p class="overview-empty-text">This list is ready — add questions to start qualifying leads.</p>
+                                    <button class="empty-state-cta-button" onclick={handleNewQuestion}>
+                                        <span class="empty-state-button-plus">+</span>
+                                        Add Your First Question
+                                    </button>
+                                </div>
+                            </template>
                         </div>
 
                         <!-- Questions Table -->
@@ -564,14 +610,6 @@
                             </div>
                         </template>
 
-                        <template if:false={hasQuestions}>
-                            <div class="empty-state">
-                                <lightning-icon icon-name="utility:questions_and_answers" size="large" class="empty-state-icon"></lightning-icon>
-                                <p class="empty-state-text">No Questions Yet</p>
-                                <p class="empty-state-subtext">Add your first question to this list to get started</p>
-                            </div>
-                        </template>
-
                     </div>
                 </template>
 
@@ -579,31 +617,36 @@
                 <template if:false={hasSelectedList}>
                     <div class="detail-panel empty-detail-panel">
                         <div class="empty-state">
-                            <lightning-icon icon-name="utility:list" size="large" class="empty-state-icon" alternative-text=""></lightning-icon>
+                            <lightning-icon icon-name="utility:einstein" size="large" class="empty-state-icon" alternative-text=""></lightning-icon>
                             <p class="empty-state-text">Select a Question List</p>
                             <p class="empty-state-subtext">Choose a list from the left panel to view and manage its questions</p>
                         </div>
                     </div>
                 </template>
-            </div>
+                </div>
 
-        </div>
+            </div>
+            </template>
         </div>
 
         <!-- List Modal -->
         <template if:true={showListModal}>
             <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
-                <div class="slds-modal__container">
-                    <header class="slds-modal__header">
+                <div class="slds-modal__container custom-modal-container">
+                    <header class="slds-modal__header custom-modal-header">
+                        <lightning-icon icon-name="utility:list" size="small"></lightning-icon>
+                        <h2 class="slds-modal__title slds-hyphenate">{listModalTitle}</h2>
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseListModal}>
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                         </button>
-                        <h2 class="slds-modal__title slds-hyphenate">{listModalTitle}</h2>
                     </header>
-                    <div class="slds-modal__content slds-p-around_medium">
+                    <div class="slds-modal__content custom-modal-body">
                         <!-- Basic Information Section -->
-                        <div class="slds-m-bottom_medium">
-                            <h3 class="slds-text-heading_small slds-m-bottom_small">Basic Information</h3>
+                        <div class="modal-section">
+                            <div class="modal-section-header">
+                                <lightning-icon icon-name="utility:info" size="x-small"></lightning-icon>
+                                <h3 class="modal-section-title">Basic Information</h3>
+                            </div>
                             <lightning-input
                                 label="List Name"
                                 value={listFormData.listName}
@@ -617,21 +660,15 @@
                                 data-field="description"
                                 onchange={handleListFieldChange}>
                             </lightning-textarea>
-                            <lightning-input
-                                type="checkbox"
-                                label="Active"
-                                checked={listFormData.isActive}
-                                data-field="isActive"
-                                onchange={handleListFieldChange}>
-                            </lightning-input>
                         </div>
 
                         <!-- Threshold Configuration Section -->
-                        <div class="threshold-config-section">
-                            <div class="slds-m-bottom_small">
-                                <h3 class="slds-text-heading_small">Quality Thresholds</h3>
-                                <p class="slds-text-body_small slds-text-color_weak">Configure scoring thresholds and labels for lead quality classification</p>
+                        <div class="modal-section">
+                            <div class="modal-section-header">
+                                <lightning-icon icon-name="utility:chart" size="x-small"></lightning-icon>
+                                <h3 class="modal-section-title">Quality Thresholds</h3>
                             </div>
+                            <p class="modal-section-description">Configure scoring thresholds and labels for lead quality classification</p>
 
                             <!-- Validation Message -->
                             <template if:false={isThresholdValid}>
@@ -755,9 +792,9 @@
                             </div>
                         </div>
                     </div>
-                    <footer class="slds-modal__footer">
-                        <lightning-button label="Cancel" onclick={handleCloseListModal}></lightning-button>
-                        <lightning-button variant="brand" label="Save" onclick={handleSaveList}></lightning-button>
+                    <footer class="slds-modal__footer custom-modal-footer">
+                        <lightning-button label="Cancel" onclick={handleCloseListModal} class="modal-footer-cancel"></lightning-button>
+                        <lightning-button variant="brand" label="Save" onclick={handleSaveList} class="modal-footer-save"></lightning-button>
                     </footer>
                 </div>
             </section>
@@ -767,80 +804,111 @@
         <!-- Question Modal -->
         <template if:true={showQuestionModal}>
             <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
-                <div class="slds-modal__container">
-                    <header class="slds-modal__header">
+                <div class="slds-modal__container custom-modal-container">
+                    <header class="slds-modal__header custom-modal-header">
+                        <lightning-icon icon-name="utility:questions_and_answers" size="small"></lightning-icon>
+                        <h2 class="slds-modal__title slds-hyphenate">{questionModalTitle}</h2>
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseQuestionModal}>
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                         </button>
-                        <h2 class="slds-modal__title slds-hyphenate">{questionModalTitle}</h2>
                     </header>
-                    <div class="slds-modal__content slds-p-around_medium">
-                        <div class="slds-grid slds-wrap slds-gutters">
-                            <div class="slds-col slds-size_1-of-1">
-                                <lightning-textarea
-                                    label="Question Text"
-                                    value={questionFormData.questionText}
-                                    data-field="questionText"
-                                    onchange={handleQuestionFieldChange}
-                                    required>
-                                </lightning-textarea>
+                    <div class="slds-modal__content custom-modal-body">
+                        <!-- Question Details Section -->
+                        <div class="modal-section">
+                            <div class="modal-section-header">
+                                <lightning-icon icon-name="utility:text" size="x-small"></lightning-icon>
+                                <h3 class="modal-section-title">Question Details</h3>
                             </div>
-                            <div class="slds-col slds-size_1-of-1">
-                                <lightning-input
-                                    type="number"
-                                    label="Score Value"
-                                    value={questionFormData.scoreValue}
-                                    data-field="scoreValue"
-                                    onchange={handleQuestionFieldChange}
-                                    min="0"
-                                    required>
-                                </lightning-input>
+                            <div class="slds-grid slds-wrap slds-gutters">
+                                <div class="slds-col slds-size_1-of-1">
+                                    <lightning-textarea
+                                        label="Question Text"
+                                        value={questionFormData.questionText}
+                                        data-field="questionText"
+                                        onchange={handleQuestionFieldChange}
+                                        required>
+                                    </lightning-textarea>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1">
+                                    <lightning-input
+                                        type="number"
+                                        label="Score Value"
+                                        value={questionFormData.scoreValue}
+                                        data-field="scoreValue"
+                                        onchange={handleQuestionFieldChange}
+                                        min="0"
+                                        required>
+                                    </lightning-input>
+                                </div>
                             </div>
-                            <div class="slds-col slds-size_1-of-2">
-                                <lightning-combobox
-                                    label="Point Earning Answer"
-                                    value={questionFormData.pointEarningAnswer}
-                                    placeholder="Select answer type"
-                                    options={pointEarningAnswerOptions}
-                                    data-field="pointEarningAnswer"
-                                    onchange={handleQuestionFieldChange}>
-                                </lightning-combobox>
+                        </div>
+
+                        <!-- Behavior Settings Section -->
+                        <div class="modal-section">
+                            <div class="modal-section-header">
+                                <lightning-icon icon-name="utility:settings" size="x-small"></lightning-icon>
+                                <h3 class="modal-section-title">Behavior Settings</h3>
                             </div>
-                            <div class="slds-col slds-size_1-of-2">
-                                <lightning-input
-                                    type="checkbox"
-                                    label="Is Dealbreaker"
-                                    checked={questionFormData.isDealbreaker}
-                                    data-field="isDealbreaker"
-                                    onchange={handleQuestionFieldChange}>
-                                </lightning-input>
-                            </div>
-                            <template if:true={questionFormData.isDealbreaker}>
+
+                            <!-- Row 1: Point Earning Answer and Active -->
+                            <div class="slds-grid slds-wrap slds-gutters behavior-settings-row">
                                 <div class="slds-col slds-size_1-of-2">
                                     <lightning-combobox
-                                        label="Dealbreaker Value"
-                                        value={questionFormData.dealbreakerValue}
-                                        placeholder="Select dealbreaker answer"
-                                        options={dealbreakerValueOptions}
-                                        data-field="dealbreakerValue"
+                                        label="Point Earning Answer"
+                                        value={questionFormData.pointEarningAnswer}
+                                        placeholder="Select answer type"
+                                        options={pointEarningAnswerOptions}
+                                        data-field="pointEarningAnswer"
                                         onchange={handleQuestionFieldChange}>
                                     </lightning-combobox>
                                 </div>
-                            </template>
-                            <div class="slds-col slds-size_1-of-2">
-                                <lightning-input
-                                    type="checkbox"
-                                    label="Active"
-                                    checked={questionFormData.isActive}
-                                    data-field="isActive"
-                                    onchange={handleQuestionFieldChange}>
-                                </lightning-input>
+                                <div class="slds-col slds-size_1-of-2 active-checkbox-col">
+                                    <lightning-input
+                                        type="checkbox"
+                                        label="Active"
+                                        checked={questionFormData.isActive}
+                                        data-field="isActive"
+                                        onchange={handleQuestionFieldChange}>
+                                    </lightning-input>
+                                </div>
+                            </div>
+
+                            <!-- Dealbreaker Configuration Sub-Card -->
+                            <div class="dealbreaker-config-card">
+                                <div class="dealbreaker-config-header">
+                                    <lightning-icon icon-name="utility:warning" size="x-small"></lightning-icon>
+                                    <h4 class="dealbreaker-config-title">Dealbreaker Configuration</h4>
+                                </div>
+                                <p class="dealbreaker-helper-text">When enabled, a specific answer will auto-disqualify the lead</p>
+                                <div class="slds-grid slds-wrap slds-gutters">
+                                    <div class="slds-col slds-size_1-of-1">
+                                        <lightning-input
+                                            type="checkbox"
+                                            label="Is Dealbreaker"
+                                            checked={questionFormData.isDealbreaker}
+                                            data-field="isDealbreaker"
+                                            onchange={handleQuestionFieldChange}>
+                                        </lightning-input>
+                                    </div>
+                                    <template if:true={questionFormData.isDealbreaker}>
+                                        <div class="slds-col slds-size_1-of-1">
+                                            <lightning-combobox
+                                                label="Dealbreaker Value"
+                                                value={questionFormData.dealbreakerValue}
+                                                placeholder="Select dealbreaker answer"
+                                                options={dealbreakerValueOptions}
+                                                data-field="dealbreakerValue"
+                                                onchange={handleQuestionFieldChange}>
+                                            </lightning-combobox>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <footer class="slds-modal__footer">
-                        <lightning-button label="Cancel" onclick={handleCloseQuestionModal}></lightning-button>
-                        <lightning-button variant="brand" label="Save" onclick={handleSaveQuestion}></lightning-button>
+                    <footer class="slds-modal__footer custom-modal-footer">
+                        <lightning-button label="Cancel" onclick={handleCloseQuestionModal} class="modal-footer-cancel"></lightning-button>
+                        <lightning-button variant="brand" label="Save" onclick={handleSaveQuestion} class="modal-footer-save"></lightning-button>
                     </footer>
                 </div>
             </section>
@@ -850,14 +918,19 @@
         <!-- Clone Modal -->
         <template if:true={showCloneModal}>
             <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
-                <div class="slds-modal__container">
-                    <header class="slds-modal__header">
+                <div class="slds-modal__container custom-modal-container">
+                    <header class="slds-modal__header custom-modal-header">
+                        <lightning-icon icon-name="utility:copy" size="small"></lightning-icon>
+                        <h2 class="slds-modal__title slds-hyphenate">Clone Question List</h2>
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseCloneModal}>
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                         </button>
-                        <h2 class="slds-modal__title slds-hyphenate">Clone Question List</h2>
                     </header>
-                    <div class="slds-modal__content slds-p-around_medium">
+                    <div class="slds-modal__content custom-modal-body">
+                        <p class="modal-section-description">
+                            Create a complete copy of this question list, including all questions, scoring thresholds, and configuration settings.
+                            The new list will be independent and can be customized separately.
+                        </p>
                         <lightning-input
                             label="New List Name"
                             value={cloneListName}
@@ -865,9 +938,9 @@
                             required>
                         </lightning-input>
                     </div>
-                    <footer class="slds-modal__footer">
-                        <lightning-button label="Cancel" onclick={handleCloseCloneModal}></lightning-button>
-                        <lightning-button variant="brand" label="Clone" onclick={handleSaveClone}></lightning-button>
+                    <footer class="slds-modal__footer custom-modal-footer">
+                        <lightning-button label="Cancel" onclick={handleCloseCloneModal} class="modal-footer-cancel"></lightning-button>
+                        <lightning-button variant="brand" label="Clone" onclick={handleSaveClone} class="modal-footer-save"></lightning-button>
                     </footer>
                 </div>
             </section>

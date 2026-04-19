@@ -1,77 +1,161 @@
-# Lead Qualification Wizard — Release Notes
+## 1. Post-Deployment Setup
 
-## 1. Manual configuration steps
+### A. Permission Set Assignment
 
-1. **Assign permission sets**
-   - `LQW_Lead_Qualification_Access` — internal sales users who use the wizard on Leads.
-   - `LQW_Lead_Qualification_Full_Access` — admins who manage lists, questions, and related setup.
-   - `LQW_Lead_Qualification_Portal_Access` — Experience Cloud / external users who qualify Leads in the portal (ensure sharing and page access are correct for your org).
+Assign the right permission set based on user role:
 
-2. **Place the Lightning components**
-   - Add **`leadQualificationWizard`** to the **Lead record page** (Lightning App Builder) where reps should qualify.
-   - For portal users, add the same component to the **appropriate Lead (or equivalent) record** experience page, with the portal permission set and sharing in place.
-   - Admins use the **Lead Qualification Admin** app → **Question List Manager** tab (Flexipage) for **`questionListManager`** (no separate page assembly required beyond the app tab).
+- **LQW_Lead_Qualification_Access** — internal sales reps who use the wizard on Lead records.
+- **LQW_Lead_Qualification_Full_Access** — sales managers and admins who manage question lists.
+- **LQW_Lead_Qualification_Portal_Access** — Experience Cloud (portal/community) users.
 
-3. **Question lists and questions**
-   - Open **Lead Qualification Admin** → **Question List Manager**.
-   - **Starter content:** If the org has **no** `LQW_Question_List__c` rows yet, the **Lead assignment trigger** path can auto-create a default list named **“General Qualification”** with **nine** sample questions the first time that logic runs (for example on Lead insert/update). Treat this as a **starting point**; review wording, scoring, dealbreakers, and thresholds, then add lists for segments (Enterprise, SMB, Partner, etc.) as needed.
-   - Mark **one** list as the **default** (`Is Default`) for assignment fallback.
-   - Configure **High / Medium / Low** thresholds, **labels**, and **recommendation** text per list. The **Scoring Guide** in Question List Manager is where admins preview tier logic—not an end-user screen on the Lead.
+**Steps:** 
 
-4. **Lead assignment (optional but recommended)**
-   - Keep **`LQW_LeadAssignmentTrigger`** **active** so Leads can receive a **`LQW_Question_List__c`** automatically from **assignment criteria** stored on each list (evaluated in `LQW_LeadAssignmentTriggerHandler`).
-   - When no rule matches, the handler assigns the **default** list when one is defined.
-   - Criteria and JSON sync are maintained through your **Question List Manager / Tribal** configuration workflow—not by editing the trigger file.
+In Tribal:
+Press the Manage Permission Set button → Select a permission set → Select users to assign the permission set → Press the Assign button 
 
-5. **Validate in a sandbox first**
-   - Open a Lead with the wizard on the page: confirm **permission** gating (users without access should not see or use the wizard).
-   - With **no question list** on the Lead, confirm the **guided empty state** (assign list / contact admin) appears instead of a blank panel.
-   - With a list assigned, answer questions: confirm **progress**, **tier / recommended action**, **dealbreaker** confirmation and **Disqualified** status, and **restore** behavior when changing answers.
-   - Use **Response history** from the wizard where applicable.
+OR 
+
+In Salesforce:
+Go to Salesforce → Setup → Permission Sets → click the permission set → Manage Assignments → Add Assignments → select users.
+
+### B. Lead Page Layout (Recommended)
+
+Add these fields to your Lead page layouts and list views so users and reports can see qualification results:
+
+1. **Lead Quality** (`LQW_Lead_Quality__c`) — picklist showing the calculated quality tier (`High_Quality`, `Medium_Quality`, `Low_Quality`, `DISQUALIFIED`).
+2. **Question List** (`LQW_Question_List__c`) — lookup to the Question List automatically assigned to this lead.
+
+Steps: Setup → Object Manager → Lead → Page Layouts → edit the layouts your sales team uses → drag both fields into a section.
+
+### C. Verify the Lead Qualification Wizard is on the Page
+
+For each Lead page (Lightning record page **and** any Experience Cloud site like Partner Sales):
+
+1. Open a Lead record.
+2. Confirm the **Lead Qualification Wizard** appears on the page.
+3. If missing on a new layout: edit the page in Lightning App Builder, drag the **Lead Qualification Wizard** component into a region, save and activate.
+
+### D. Question List Configuration
+
+If this is a fresh install (no question lists yet), the system auto-creates a starter list called **General Qualification** with 9 sample questions on the first lead insert/update.
+
+If you're upgrading and already have questions, your existing data is preserved.
+
+To customize:
+
+1. Open the **Lead Qualification Admin** app from the App Launcher.
+2. Click the **Question List Manager** tab.
+3. Edit the default list, or use **Clone List** to create variations for different lead types (Enterprise, SMB, Partner, etc.).
+4. For each list set:
+   - **Is Active** — turn on/off the list.
+   - **Is Default** — only one list should be the fallback when no other criteria match.
+   - **High Quality Threshold** / **Medium Quality Threshold** — points required to reach each tier.
+   - **Quality Labels** — customize the friendly tier names (e.g., "Hot Lead" instead of "High Quality").
+   - **Recommended Actions** — the guidance text shown to reps for each tier.
+
+### E. Auto-Assignment Rules
+
+The system automatically assigns a Question List to each new or updated lead based on rules in your codebase. The current rules use Lead Source, Industry, and other lead attributes.
+
+**To change the rules:** ask your Tribal developer to edit `LQW_LeadAssignmentTriggerHandler.evaluateLeadCriteria()`. The Question List Manager will display the current rules in plain English under each list's **Assignment Rules** section.
+
+### F. One-Time Org Configuration
+
+The deploy assumes the **Question Order** field on Qualification Question allows duplicates (so different lists can each have a question #1, #2, etc.). If you ever re-add the unique constraint, the wizard's clone and multi-list features will break. Leave it unchecked.
+
+### G. Smoke Test (do this right after deploy)
+
+Walk through this 5-minute check to confirm everything works:
+
+1. Open any Lead record. The wizard should display the assigned question list.
+2. Click **Yes** or **No** on a question. The response should save instantly.
+3. Watch the **Lead Quality** indicator change as you answer. Confirm the **Recommended Action** text updates.
+4. Find a question with the warning badge (a dealbreaker). Answer it with the trigger response and confirm the lead's standard **Status** field flips to **Disqualified**.
+5. Click the same dealbreaker answer again to remove it. Confirm the Status restores to its previous value.
+6. Open the **Lead Qualification Admin** → **Question List Manager** tab. Confirm you can see your lists and edit a question.
+7. If you use Experience Cloud: log in as a portal user and confirm the wizard renders correctly there too.
+
+### Note on Reports & List Views
+
+The **Lead Quality** picklist stores values in all-caps `DISQUALIFIED` format and friendly `High_Quality` / `Medium_Quality` / `Low_Quality` API codes. The wizard displays these as "Disqualified" / "High Quality" / etc. Use the API codes (with underscores) in report filters, list view filters, and any automation. The friendly labels are for display only.
 
 ---
 
-## 2. How to use this solution
+## 2. How to Use the Solution
 
-### For sales representatives
+### For Sales Representatives
 
-1. **Open the wizard**  
-   On a Lead record, scroll to **Lead Qualification Wizard** (after your admin has placed the component on the page).
+**Answering Questions**
 
-2. **If nothing loads yet**  
-   If the Lead has **no question list**, you’ll see a short **setup message** (assign a list on the Lead, save, refresh). This is expected configuration, not a personal error.
+1. Open a Lead record. The **Lead Qualification Wizard** appears on the page.
+2. For each question, click **Yes** (green) or **No** (red). Your answer saves automatically.
+3. Click the same button again to remove your answer.
+4. You can answer in any order. Come back later — the wizard remembers your progress.
 
-3. **Answer questions**  
-   Use **Yes** / **No**. Answers save as you go. Click the **same** answer again to **clear** that response. **Progress** shows answered vs. unanswered.
+**Reading the Results**
 
-4. **Read the outcome**  
-   **Lead quality** shows the current **tier** (labels come from the assigned list). **Recommended action** reflects that tier. Use the **info** help next to **Lead quality** for how scoring relates to tiers.
+- **Lead Quality** (top-left) — the current tier based on your answers (e.g., High Quality, Medium Quality, Low Quality, or Disqualified).
+- **Recommended Action** (top-right) — what to do next based on the lead's quality tier.
+- **Progress bar** — how many questions you've answered.
+- Each question card shows the points it's worth (e.g., "+1 pt").
 
-5. **Dealbreakers**  
-   Questions marked **Dealbreaker** explain the risk inline. A **browser confirmation** runs before a disqualifying answer is saved. Disqualification can set the Lead to **Disqualified**; changing or removing the answer can **restore** the prior status when the product rules allow.
+**Dealbreaker Questions (the ⚠ warning badge)**
 
-6. **Partial completion**  
-   You can stop and return later; saved answers and progress remain.
+- Hover over the badge to see which answer auto-disqualifies the lead.
+- A confirmation dialog appears before saving a dealbreaker response.
+- If triggered, the standard Lead **Status** flips to **Disqualified** and the lead's previous status is saved.
+- Clear the dealbreaker answer to restore the lead to its previous status.
 
-### For administrators
+### For Sales Managers and Admins
 
-1. **Question List Manager**  
-   Create lists, set **default**, thresholds, tier labels, recommendations, and **assignment criteria**. Add/reorder questions, **points**, **point-earning answer** (Yes / No / Both), **dealbreakers**, and **active** flags. Use the **Scoring Guide** section here to explain tiers to your team—it is **not** shown on the Lead wizard.
+**Managing Question Lists**
 
-2. **Lead Responses tab**  
-   Use **Lead Qualification Admin** → **Lead Responses** (`LQW_Lead_Question_Response__c`) to review stored responses and timestamps.
+1. App Launcher → **Lead Qualification Admin** → **Question List Manager**.
+2. Left panel: all your question lists. Click any list to view it.
+3. Right panel: edit list settings, add/edit/delete questions, and reorder them.
+4. **List Actions menu** (top right of each list) — Edit, Clone, Delete, Activate/Deactivate all questions.
+5. **Assignment Rules** section — shows the rules that automatically route leads to this list.
 
-3. **Portal**  
-   Same wizard behavior for permitted portal users; you must still deploy **pages**, **sharing**, and **membership** appropriate to your Experience Cloud site.
+**Editing Questions**
+
+- Add a new question with the **Add Question** row at the bottom of the questions table.
+- Edit text, order number, point value, point-earning answer (Yes / No / Both), and dealbreaker setting inline.
+- Toggle **Active** to show/hide a question without deleting it.
+
+**Customizing Quality Tiers per List**
+
+Each list can have its own tier thresholds and labels. Example: an Enterprise list might require 7 points for "High Quality" with a "Convert to Opportunity" recommendation, while an SMB list requires only 3 points with a "Schedule Demo" recommendation.
+
+Edit a list to set thresholds, labels, and recommendations. Changes apply only to leads assigned to that list.
+
+**Reviewing Lead Responses**
+
+App Launcher → **Lead Qualification Admin** → **Lead Responses** tab. Filter and report on all responses across all leads.
 
 ---
 
-## 3. Technical summary
+## 3. What This Solution Does (Plain English)
 
-This package adds **three custom objects** — `LQW_Question_List__c`, `LQW_Qualification_Question__c`, and `LQW_Lead_Question_Response__c` — plus a **Lead** lookup **`LQW_Question_List__c`**. Two **LWCs** ship with the package: **`leadQualificationWizard`** (Lead / portal qualification UX with progress, tier, recommendations, dealbreaker flows, response history, and **empty states** when no list or no active questions) and **`questionListManager`** (admin master–detail for lists and questions). **Apex** includes **`LQW_LeadQualificationController`**, **`LQW_QuestionListManagerCtrl`**, and **`LQW_LeadAssignmentTriggerHandler`** (with **`LQW_LeadAssignmentTrigger`**), supporting per-list **dynamic thresholds and labels**, **dealbreaker-driven status** updates with **Description marker** storage for restore paths, and **portal-facing** permission sets.
+This release upgrades the Lead Qualification Wizard from a single-list tool to a flexible, multi-list system that adapts to different lead types. Here's what's new and how it works.
 
-The **Lead** LWC uses **Lightning Data Service** (`getRecord` on Lead fields and **`notifyRecordUpdateAvailable`** after saves) so the **record layout** can refresh when status changes, while **qualification payloads** are loaded via **Apex**. The assignment handler can **seed** a **default list and nine sample questions** when the org has no lists, then **evaluate JSON criteria**, assign **`LQW_Question_List__c`** on Leads, and **sync** criteria representation on lists. The UI uses **SLDS-style** styling (CSS custom properties), **responsive** layouts, and **ARIA** on key controls (for example the progress region). **Automated Apex tests** cover controllers and the assignment handler/trigger paths for regression safety.
+**For sales reps:** A guided question-and-answer wizard on every Lead page. Answer Yes/No, get a quality tier and recommended action in real time. Dealbreaker questions can auto-disqualify obviously-unfit leads while preserving the option to undo.
 
----
+**For admins:** A drag-and-drop admin app (**Question List Manager**) where you build different question lists for different lead types — Enterprise vs. SMB, Partner vs. Direct, etc. — each with its own scoring thresholds, tier labels, and recommended actions. No code required for day-to-day list management.
 
-*Optional footer:* After go-live, remove or archive sample questions if they are not on-brand, and replace assignment criteria with production rules before broad rollout.
+**For your developer:** Lead-to-list assignment rules live in code (`LQW_LeadAssignmentTriggerHandler`) so you can route leads based on any combination of fields. The rules are auto-displayed in plain English in the admin UI for transparency.
+
+**Built-in safety:**
+
+- Dealbreaker confirmations prevent accidental disqualification.
+- Auto-disqualification stores the lead's prior status so you can roll back.
+- Multiple-dealbreaker logic prevents premature restoration.
+- The page refreshes automatically when the wizard updates the lead — no manual reload needed.
+
+**Components added:**
+
+- 1 new custom object (**Question List**) plus new fields on existing objects.
+- 1 new admin Lightning component (**Question List Manager**) and updates to the existing wizard.
+- 1 new app (**Lead Qualification Admin**) with 4 tabs.
+- 1 new permission grant per existing permission set for the new components.
+- 1 lead trigger that auto-routes new and updated leads to the right question list.
+- Apex test coverage above 79% on every deployed class.

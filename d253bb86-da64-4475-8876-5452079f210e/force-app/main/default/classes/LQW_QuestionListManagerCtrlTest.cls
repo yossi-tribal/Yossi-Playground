@@ -520,4 +520,75 @@ private class LQW_QuestionListManagerCtrlTest {
         }
         Test.stopTest();
     }
+
+    @isTest
+    static void testCreateDefaultQuestionList() {
+        // Delete all existing question lists to test the create default list functionality
+        List<LQW_Question_List__c> existingLists = [SELECT Id FROM LQW_Question_List__c];
+        if (!existingLists.isEmpty()) {
+            delete existingLists;
+        }
+
+        Test.startTest();
+        LQW_QuestionListManagerCtrl.SaveResult result = LQW_QuestionListManagerCtrl.createDefaultQuestionList();
+        Test.stopTest();
+
+        System.assertEquals(true, result.success, 'Create default list should succeed');
+        System.assertNotEquals(null, result.recordId, 'New list ID should be returned');
+        System.assert(result.message.contains('9'), 'Message should mention 9 questions');
+
+        // Verify the default list was created with correct properties
+        LQW_Question_List__c defaultList = [SELECT LQW_List_Name__c, LQW_Description__c, LQW_Is_Active__c,
+                                             LQW_Is_Default__c, LQW_High_Quality_Threshold__c,
+                                             LQW_Medium_Quality_Threshold__c
+                                             FROM LQW_Question_List__c WHERE Id = :result.recordId];
+        System.assertEquals('General Qualification', defaultList.LQW_List_Name__c, 'Default list name should be General Qualification');
+        System.assertEquals(true, defaultList.LQW_Is_Active__c, 'Default list should be active');
+        System.assertEquals(true, defaultList.LQW_Is_Default__c, 'List should be marked as default');
+        System.assertEquals(5, defaultList.LQW_High_Quality_Threshold__c, 'High quality threshold should be 5');
+        System.assertEquals(3, defaultList.LQW_Medium_Quality_Threshold__c, 'Medium quality threshold should be 3');
+
+        // Verify 9 questions were created
+        Integer questionCount = [SELECT COUNT() FROM LQW_Qualification_Question__c WHERE LQW_Question_List__c = :result.recordId];
+        System.assertEquals(9, questionCount, 'Should have 9 pre-configured questions');
+
+        // Verify questions have correct properties
+        List<LQW_Qualification_Question__c> questions = [SELECT LQW_Question_Text__c, LQW_Question_Order__c,
+                                                          LQW_Score_Value__c, LQW_Point_Earning_Answer__c,
+                                                          LQW_Is_Dealbreaker__c, LQW_Dealbreaker_Value__c,
+                                                          LQW_Is_Active__c
+                                                          FROM LQW_Qualification_Question__c
+                                                          WHERE LQW_Question_List__c = :result.recordId
+                                                          ORDER BY LQW_Question_Order__c ASC];
+
+        // Verify first question (dealbreaker)
+        System.assertEquals(1, questions[0].LQW_Question_Order__c, 'First question should have order 1');
+        System.assertEquals(1, questions[0].LQW_Score_Value__c, 'First question should have score value 1');
+        System.assertEquals(true, questions[0].LQW_Is_Dealbreaker__c, 'First question should be a dealbreaker');
+        System.assertEquals('Yes', questions[0].LQW_Dealbreaker_Value__c, 'First question dealbreaker value should be Yes');
+        System.assertEquals('No', questions[0].LQW_Point_Earning_Answer__c, 'First question point earning answer should be No');
+        System.assertEquals(true, questions[0].LQW_Is_Active__c, 'First question should be active');
+
+        // Verify all questions are active
+        for (LQW_Qualification_Question__c q : questions) {
+            System.assertEquals(true, q.LQW_Is_Active__c, 'All default questions should be active');
+        }
+    }
+
+    @isTest
+    static void testCreateDefaultQuestionList_DuplicatePrevention() {
+        // Create a default list first
+        LQW_Question_List__c defaultList = new LQW_Question_List__c();
+        defaultList.LQW_List_Name__c = 'Existing Default';
+        defaultList.LQW_Is_Default__c = true;
+        defaultList.LQW_Is_Active__c = true;
+        insert defaultList;
+
+        Test.startTest();
+        LQW_QuestionListManagerCtrl.SaveResult result = LQW_QuestionListManagerCtrl.createDefaultQuestionList();
+        Test.stopTest();
+
+        System.assertEquals(false, result.success, 'Should not create duplicate default list');
+        System.assert(result.message.contains('already exists'), 'Message should indicate default list already exists');
+    }
 }

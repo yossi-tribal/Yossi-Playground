@@ -43,14 +43,15 @@ export default class LeadQualificationWizard extends LightningElement {
         return this.qualificationData !== null && this.qualificationData.questions.length > 0;
     }
 
-    /** True when the Lead has a Question List lookup populated (Apex exposes questionListId). */
+    /** True when the Lead has a Question List (explicit assignment or default fallback). */
     get hasQuestionListAssigned() {
         const id = this.qualificationData?.questionListId;
         return id !== null && id !== undefined && String(id).trim() !== '';
     }
 
     /**
-     * Lead is not linked to a question list yet — show a calm setup state instead of unrelated org-wide questions.
+     * Lead has no question list assigned and no default list exists — show setup guidance.
+     * This should be rare since the trigger auto-creates a default list.
      */
     get showNoQuestionListEmptyState() {
         return (

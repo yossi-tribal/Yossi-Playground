@@ -12,6 +12,7 @@ import getPointEarningAnswerPicklistValues from '@salesforce/apex/LQW_QuestionLi
 import getDealbreakerValuePicklistValues from '@salesforce/apex/LQW_QuestionListManagerCtrl.getDealbreakerValuePicklistValues';
 import detectCriteriaConflicts from '@salesforce/apex/LQW_QuestionListManagerCtrl.detectCriteriaConflicts';
 import reorderQuestions from '@salesforce/apex/LQW_QuestionListManagerCtrl.reorderQuestions';
+import createDefaultQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.createDefaultQuestionList';
 
 export default class QuestionListManager extends LightningElement {
     @track questionLists = [];
@@ -38,7 +39,7 @@ export default class QuestionListManager extends LightningElement {
         listId: null,
         listName: '',
         description: '',
-        isActive: true,
+        isActive: false,
         highQualityThreshold: 5,
         mediumQualityThreshold: 3,
         highQualityLabel: 'High Quality',
@@ -368,6 +369,33 @@ export default class QuestionListManager extends LightningElement {
         }
     }
 
+    get canActivateList() {
+        if (!this.selectedList) return false;
+        // Can activate if: (1) has criteria OR (2) is default fallback
+        return this.hasAssignmentCriteria || this.selectedList.isDefault;
+    }
+
+    get listStatusText() {
+        return this.selectedList?.isActive ? 'Live' : 'Off';
+    }
+
+    get toggleSwitchClass() {
+        return this.selectedList?.isActive ? 'toggle-switch active' : 'toggle-switch';
+    }
+
+    get listStatusToggleTitle() {
+        if (!this.selectedList) return '';
+        if (this.selectedList.isActive) {
+            return 'Click to deactivate this list';
+        } else {
+            if (this.canActivateList) {
+                return 'Click to activate this list';
+            } else {
+                return 'Cannot activate - no assignment criteria set';
+            }
+        }
+    }
+
     formatOperator(operator) {
         const operatorMap = {
             'equals': 'equals',
@@ -403,7 +431,7 @@ export default class QuestionListManager extends LightningElement {
             listId: null,
             listName: '',
             description: '',
-            isActive: true,
+            isActive: false,
             highQualityThreshold: 5,
             mediumQualityThreshold: 3,
             highQualityLabel: 'High Quality',
@@ -807,6 +835,80 @@ export default class QuestionListManager extends LightningElement {
         this.isAssignmentRulesExpanded = !this.isAssignmentRulesExpanded;
     }
 
+    async handleToggleListStatus() {
+        if (!this.selectedList) return;
+
+        const newStatus = !this.selectedList.isActive;
+
+        // Guard logic: prevent activation if no criteria AND not default
+        if (newStatus && !this.canActivateList) {
+            this.showToast(
+                'Cannot Activate List',
+                'This list can\'t be activated without assignment criteria. Configure rules in Tribal first.',
+                'error'
+            );
+            return;
+        }
+
+        // OPTIMISTIC UPDATE: Update local state immediately for instant UI feedback
+        // Save the original state in case we need to revert on error
+        const originalSelectedList = { ...this.selectedList };
+        const originalQuestionLists = [...this.questionLists];
+
+        // Update selectedList immediately (toggle animation shows instantly)
+        this.selectedList = {
+            ...this.selectedList,
+            isActive: newStatus
+        };
+
+        // Update the matching item in questionLists array
+        this.questionLists = this.questionLists.map(list => {
+            if (list.listId === this.selectedList.listId) {
+                return {
+                    ...list,
+                    isActive: newStatus
+                };
+            }
+            return list;
+        });
+
+        // Save to backend silently in the background (no isLoading spinner)
+        try {
+            const result = await saveQuestionList({
+                listId: this.selectedList.listId,
+                listName: this.selectedList.listName,
+                description: this.selectedList.description,
+                isActive: newStatus,
+                highQualityThreshold: this.selectedList.highQualityThreshold,
+                mediumQualityThreshold: this.selectedList.mediumQualityThreshold,
+                highQualityLabel: this.selectedList.highQualityLabel,
+                mediumQualityLabel: this.selectedList.mediumQualityLabel,
+                lowQualityLabel: this.selectedList.lowQualityLabel,
+                highQualityRecommendation: this.selectedList.highQualityRecommendation,
+                mediumQualityRecommendation: this.selectedList.mediumQualityRecommendation,
+                lowQualityRecommendation: this.selectedList.lowQualityRecommendation,
+                isDefault: this.selectedList.isDefault
+            });
+
+            if (result.success) {
+                const statusText = newStatus ? 'activated' : 'deactivated';
+                this.showToast('Success', `List ${statusText} successfully`, 'success');
+                // Local state is already correct - no need to refresh
+            } else {
+                // Revert local state on error
+                this.selectedList = originalSelectedList;
+                this.questionLists = originalQuestionLists;
+                this.showToast('Error', result.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error toggling list status:', error);
+            // Revert local state on error
+            this.selectedList = originalSelectedList;
+            this.questionLists = originalQuestionLists;
+            this.showToast('Error', 'Failed to update list status', 'error');
+        }
+    }
+
     handleConfigureInTribal() {
         // This is a placeholder URL - in production, this would navigate to Tribal's configuration panel
         // Since we don't have the actual Tribal URL, we'll show a message
@@ -814,6 +916,35 @@ export default class QuestionListManager extends LightningElement {
 
         // In a real implementation, you would use:
         // window.open('https://tribal-config-url.com/assignment-rules', '_blank');
+    }
+
+    async handleGenerateDefaultList() {
+        this.isLoading = true;
+        try {
+            const result = await createDefaultQuestionList();
+            if (result.success) {
+                this.showToast('Success', result.message, 'success');
+                // Refresh the question lists to load the new default list
+                await refreshApex(this.wiredQuestionListsResult);
+                // Auto-select the newly created default list
+                const defaultList = this.questionLists.find(list => list.listId === result.recordId);
+                if (defaultList) {
+                    this.selectedList = defaultList;
+                }
+            } else {
+                this.showToast('Error', result.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error generating default list:', error);
+            this.showToast('Error', 'Failed to generate default question list', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    handleCreateEmptyList() {
+        // Delegates to handleNewList to open the modal for creating an empty list
+        this.handleNewList();
     }
 
     // Drag and Drop Event Handlers

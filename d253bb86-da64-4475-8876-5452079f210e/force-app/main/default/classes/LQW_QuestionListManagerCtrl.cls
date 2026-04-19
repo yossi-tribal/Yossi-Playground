@@ -858,6 +858,152 @@ public with sharing class LQW_QuestionListManagerCtrl {
     }
 
     /**
+     * @description Creates a default question list with 9 pre-configured questions
+     * This method replicates the same logic as ensureExampleListExists() from the trigger handler
+     * Allows admin UI to bootstrap the default list on demand
+     * @return SaveResult Result of the create operation with the new list ID
+     */
+    @AuraEnabled(cacheable=false)
+    public static SaveResult createDefaultQuestionList() {
+        SaveResult result = new SaveResult();
+
+        try {
+            // Check if a default list already exists
+            List<LQW_Question_List__c> existingDefaultLists = [
+                SELECT Id, LQW_List_Name__c
+                FROM LQW_Question_List__c
+                WHERE LQW_Is_Default__c = true
+                LIMIT 1
+            ];
+
+            if (!existingDefaultLists.isEmpty()) {
+                result.message = 'A default question list already exists: ' + existingDefaultLists[0].LQW_List_Name__c;
+                return result;
+            }
+
+            // Create the "General Qualification" default list
+            LQW_Question_List__c defaultList = new LQW_Question_List__c();
+            defaultList.LQW_List_Name__c = 'General Qualification';
+            defaultList.LQW_Description__c = 'Default qualification questions for all leads';
+            defaultList.LQW_Is_Active__c = true;
+            defaultList.LQW_Is_Default__c = true;
+            defaultList.LQW_High_Quality_Threshold__c = 5;
+            defaultList.LQW_Medium_Quality_Threshold__c = 3;
+            defaultList.LQW_High_Quality_Label__c = 'High Quality';
+            defaultList.LQW_Medium_Quality_Label__c = 'Medium Quality';
+            defaultList.LQW_Low_Quality_Label__c = 'Low Quality';
+            defaultList.LQW_High_Quality_Recommendation__c = 'Convert to Opportunity';
+            defaultList.LQW_Medium_Quality_Recommendation__c = 'Convert to Opportunity with Manager Review';
+            defaultList.LQW_Low_Quality_Recommendation__c = 'Nurture Lead (Do Not Convert)';
+            insert defaultList;
+
+            // Create the 9 pre-configured qualification questions
+            List<LQW_Qualification_Question__c> defaultQuestions = new List<LQW_Qualification_Question__c>();
+
+            // Question 1: Dealbreaker - Low purchasing volume
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Is the customer purchasing volume lower than $25K annually?',
+                1, 1, 'No', true, 'Yes'
+            ));
+
+            // Question 2: Dealbreaker - Contracts
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Are they under any contracts that would prevent them from doing business with us?',
+                2, 1, 'No', true, 'Yes'
+            ));
+
+            // Question 3: Competitive product
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Is the customer using a competitive product or a product we can upgrade?',
+                3, 1, 'Yes', false, null
+            ));
+
+            // Question 4: Multiple categories
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Does the customer purchases across more than one of our categories?',
+                4, 1, 'Yes', false, null
+            ));
+
+            // Question 5: Compelling event
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Is there a compelling event or reason to act within a reasonable window (e.g., 3–6 months)?',
+                5, 1, 'Yes', false, null
+            ));
+
+            // Question 6: Solution fit
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Does our solution address the core need without significant gaps?',
+                6, 1, 'Yes', false, null
+            ));
+
+            // Question 7: Delivery capability
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Can we deliver within their required timeframe and scope?',
+                7, 1, 'Yes', false, null
+            ));
+
+            // Question 8: Budget
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Does the lead have budget already allocated OR a viable path to obtain budget?',
+                8, 1, 'Yes', false, null
+            ));
+
+            // Question 9: Decision maker
+            defaultQuestions.add(createDefaultQuestion(
+                defaultList.Id,
+                'Have you identified the decision maker or someone directly involved in the decision?',
+                9, 1, 'Yes', false, null
+            ));
+
+            insert defaultQuestions;
+
+            result.success = true;
+            result.recordId = defaultList.Id;
+            result.message = 'Default question list created successfully with 9 pre-configured questions.';
+            return result;
+
+        } catch (Exception e) {
+            result.message = 'Error creating default question list: ' + e.getMessage();
+            return result;
+        }
+    }
+
+    /**
+     * @description Helper method to create a default qualification question
+     * @param listId The question list ID
+     * @param questionText The question text
+     * @param order The question order
+     * @param scoreValue The point value
+     * @param pointEarningAnswer Which answer earns points
+     * @param isDealbreaker Whether this is a dealbreaker
+     * @param dealbreakerValue The dealbreaker value
+     * @return LQW_Qualification_Question__c The created question
+     */
+    private static LQW_Qualification_Question__c createDefaultQuestion(
+        Id listId, String questionText, Integer order, Integer scoreValue,
+        String pointEarningAnswer, Boolean isDealbreaker, String dealbreakerValue
+    ) {
+        LQW_Qualification_Question__c question = new LQW_Qualification_Question__c();
+        question.LQW_Question_List__c = listId;
+        question.LQW_Question_Text__c = questionText;
+        question.LQW_Question_Order__c = order;
+        question.LQW_Score_Value__c = scoreValue;
+        question.LQW_Point_Earning_Answer__c = pointEarningAnswer;
+        question.LQW_Is_Dealbreaker__c = isDealbreaker;
+        question.LQW_Dealbreaker_Value__c = dealbreakerValue;
+        question.LQW_Is_Active__c = true;
+        return question;
+    }
+
+    /**
      * @description Helper method to map Question SObject to wrapper class
      * @param question The question SObject
      * @return QuestionData The wrapper class instance

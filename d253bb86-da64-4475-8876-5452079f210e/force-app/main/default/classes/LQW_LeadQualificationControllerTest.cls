@@ -705,4 +705,64 @@ private class LQW_LeadQualificationControllerTest {
         System.assertEquals(testLead.LQW_Question_List__c, savedResponse.LQW_Question_List__c,
             'Question list snapshot should match lead\'s current question list');
     }
+
+    /**
+     * @description Test default question list fallback when lead has no explicit assignment
+     */
+    @isTest
+    static void testDefaultQuestionListFallback() {
+        // Create default question list
+        LQW_Question_List__c defaultList = new LQW_Question_List__c(
+            LQW_List_Name__c = 'Default Qualification',
+            LQW_Description__c = 'Default question list for all leads',
+            LQW_Is_Active__c = true,
+            LQW_Is_Default__c = true,
+            LQW_High_Quality_Threshold__c = 5,
+            LQW_Medium_Quality_Threshold__c = 3
+        );
+        insert defaultList;
+
+        // Create questions for default list
+        List<LQW_Qualification_Question__c> defaultQuestions = new List<LQW_Qualification_Question__c>();
+        defaultQuestions.add(new LQW_Qualification_Question__c(
+            LQW_Question_Text__c = 'Default question 1',
+            LQW_Is_Active__c = true,
+            LQW_Question_Order__c = 1,
+            LQW_Score_Value__c = 1,
+            LQW_Point_Earning_Answer__c = 'Both',
+            LQW_Question_List__c = defaultList.Id
+        ));
+        defaultQuestions.add(new LQW_Qualification_Question__c(
+            LQW_Question_Text__c = 'Default question 2',
+            LQW_Is_Active__c = true,
+            LQW_Question_Order__c = 2,
+            LQW_Score_Value__c = 1,
+            LQW_Point_Earning_Answer__c = 'Both',
+            LQW_Question_List__c = defaultList.Id
+        ));
+        insert defaultQuestions;
+
+        // Create lead WITHOUT explicit question list assignment
+        Lead leadWithoutList = new Lead(
+            FirstName = 'Jane',
+            LastName = 'Smith',
+            Company = 'Test Company 2',
+            Status = 'Open - Not Contacted',
+            Email = 'jane.smith@testcompany.com'
+            // Note: LQW_Question_List__c is intentionally not set
+        );
+        insert leadWithoutList;
+
+        Test.startTest();
+        LQW_LeadQualificationController.QualificationSummary result =
+            LQW_LeadQualificationController.getLeadQualificationData(leadWithoutList.Id);
+        Test.stopTest();
+
+        // Should fallback to default question list
+        System.assertNotEquals(null, result.questionListId, 'Should have fallback to default question list');
+        System.assertEquals(defaultList.Id, result.questionListId, 'Should use default question list ID');
+        System.assertEquals('Default Qualification', result.questionListName, 'Should use default question list name');
+        System.assertEquals(2, result.totalQuestions, 'Should return 2 questions from default list');
+        System.assertEquals(2, result.questions.size(), 'Questions list should have 2 items');
+    }
 }
