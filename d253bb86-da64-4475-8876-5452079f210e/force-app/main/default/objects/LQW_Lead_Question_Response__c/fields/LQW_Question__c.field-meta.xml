@@ -6,8 +6,8 @@
             <type>Lookup</type>
             <required>true</required>
             <referenceTo>LQW_Qualification_Question__c</referenceTo>
-            <relationshipLabel>Lead Responses</relationshipLabel>
-            <relationshipName>LQW_Lead_Responses</relationshipName>
+            <relationshipLabel>Lead Question Responses</relationshipLabel>
+            <relationshipName>LQW_Question_Responses</relationshipName>
             <deleteConstraint>Restrict</deleteConstraint>
             <trackHistory>false</trackHistory>
             

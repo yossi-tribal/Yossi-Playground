@@ -3,3 +3,6 @@
 
 # Node (Jest in package subdirectory)
 node_modules/
+
+# Local working dir for project comparison/analysis (do not commit)
+.compare-tmp/
