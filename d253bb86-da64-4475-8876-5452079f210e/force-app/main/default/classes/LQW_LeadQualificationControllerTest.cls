@@ -197,6 +197,11 @@ private class LQW_LeadQualificationControllerTest {
         System.assertEquals(1, responses.size(), 'One response should be created');
         System.assertEquals('Yes', responses[0].LQW_Response__c, 'Response should be Yes');
 
+        // Verify Lead Quality field was updated
+        Lead updatedLead = [SELECT Id, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
+        System.assertNotEquals(null, updatedLead.LQW_Lead_Quality__c, 'Lead Quality should be populated');
+        System.assertEquals('Low Quality', updatedLead.LQW_Lead_Quality__c, 'Lead Quality should be Low Quality with 1 point');
+
         // Check updated summary
         System.assertNotEquals(null, result.updatedSummary, 'Updated summary should be returned');
         System.assertEquals(1, result.updatedSummary.answeredCount, 'One question should be answered');
@@ -308,9 +313,10 @@ private class LQW_LeadQualificationControllerTest {
         System.assertEquals(true, result.wasDisqualified, 'Should trigger disqualification');
         System.assertEquals('Disqualified', result.newLeadStatus, 'Lead status should be Disqualified');
 
-        // Verify lead status was updated
-        Lead updatedLead = [SELECT Id, Status, Description FROM Lead WHERE Id = :testLead.Id];
+        // Verify lead status and quality were updated
+        Lead updatedLead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
         System.assertEquals('Disqualified', updatedLead.Status, 'Lead should be disqualified');
+        System.assertEquals('Disqualified', updatedLead.LQW_Lead_Quality__c, 'Lead Quality should be Disqualified');
         System.assert(updatedLead.Description.contains('[PREV_STATUS:'), 'Description should contain status marker');
 
         // Check updated summary
@@ -359,9 +365,10 @@ private class LQW_LeadQualificationControllerTest {
         System.assertEquals(true, result.wasRestored, 'Should trigger restoration');
         System.assertEquals('Open - Not Contacted', result.newLeadStatus, 'Status should be restored');
 
-        // Verify lead status was restored
-        Lead restoredLead = [SELECT Id, Status, Description FROM Lead WHERE Id = :testLead.Id];
+        // Verify lead status and quality were restored
+        Lead restoredLead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
         System.assertEquals('Open - Not Contacted', restoredLead.Status, 'Status should be restored');
+        System.assertNotEquals('Disqualified', restoredLead.LQW_Lead_Quality__c, 'Lead Quality should not be Disqualified');
         System.assertEquals(false, restoredLead.Description.contains('[PREV_STATUS:'), 'Marker should be removed');
     }
 
@@ -505,6 +512,10 @@ private class LQW_LeadQualificationControllerTest {
         // Total score should be 1 + 2 = 3 (from non-dealbreaker questions)
         System.assertEquals(3, result.totalScore, 'Total score should be 3');
         System.assertEquals('Medium Quality', result.leadRank, 'Rank should be Medium Quality (3-4 points)');
+
+        // Verify Lead Quality field matches the rank
+        Lead updatedLead = [SELECT Id, LQW_Lead_Quality__c FROM Lead WHERE Id = :testLead.Id];
+        System.assertEquals('Medium Quality', updatedLead.LQW_Lead_Quality__c, 'Lead Quality should match the calculated rank');
     }
 
     @isTest

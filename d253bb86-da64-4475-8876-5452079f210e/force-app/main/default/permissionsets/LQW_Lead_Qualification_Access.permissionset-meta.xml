@@ -99,6 +99,14 @@
 
                 <editable>true</editable>
 
+                <field>Lead.LQW_Lead_Quality__c</field>
+                <readable>true</readable>
+            </fieldPermissions>
+
+            <fieldPermissions>
+
+                <editable>true</editable>
+
                 <field>LQW_Lead_Question_Response__c.LQW_Lead__c</field>
                 <readable>true</readable>
             </fieldPermissions>

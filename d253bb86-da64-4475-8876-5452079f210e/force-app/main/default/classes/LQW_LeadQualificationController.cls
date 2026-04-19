@@ -382,7 +382,7 @@ public with sharing class LQW_LeadQualificationController {
             }
 
             // Handle lead status changes
-            Lead lead = [SELECT Id, Status, Description FROM Lead WHERE Id = :leadId LIMIT 1];
+            Lead lead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :leadId LIMIT 1];
             Boolean needsStatusUpdate = false;
             String originalStatus = lead.Status;
 
@@ -390,6 +390,7 @@ public with sharing class LQW_LeadQualificationController {
                 // Store previous status and disqualify
                 storePreviousStatus(lead);
                 lead.Status = DISQUALIFIED_STATUS;
+                lead.LQW_Lead_Quality__c = 'Disqualified';
                 needsStatusUpdate = true;
                 result.wasDisqualified = true;
                 result.message = 'Lead automatically disqualified due to dealbreaker response.';
@@ -402,6 +403,14 @@ public with sharing class LQW_LeadQualificationController {
                     result.wasRestored = true;
                     result.message = 'Lead status restored after dealbreaker removal.';
                 }
+            }
+
+            // Update Lead Quality field whenever a response changes (calculate based on new state)
+            if (needsStatusUpdate || String.isNotBlank(response) || String.isBlank(response)) {
+                // Get updated qualification summary to calculate the new rank
+                QualificationSummary tempSummary = getLeadQualificationData(leadId);
+                lead.LQW_Lead_Quality__c = tempSummary.leadRank;
+                needsStatusUpdate = true;
             }
 
             if (needsStatusUpdate) {
