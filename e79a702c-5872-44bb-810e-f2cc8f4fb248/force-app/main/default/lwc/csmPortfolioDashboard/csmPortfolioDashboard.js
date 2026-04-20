@@ -1,5 +1,5 @@
-import { LightningElement, track } from 'lwc';
-import { NavigationMixin } from 'lightning/navigation';
+import { LightningElement, track, wire } from 'lwc';
+import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getPortfolioSummary from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioSummary';
 import getPortfolioAccounts from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioAccounts';
@@ -92,10 +92,127 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track upcomingEventsList = [];
     @track detailListsLoaded = false;
 
+    /**
+     * Demo mode — when the page URL has ?c__demo=<name> we skip Apex and
+     * seed tracked state directly so reviewers can see any empty/error
+     * screen without having to mutate real data.
+     * See _applyDemoState() for the supported names.
+     */
+    _demoState = null;
+
+    @wire(CurrentPageReference)
+    _handlePageRef(pageRef) {
+        if (!pageRef) return;
+        const demo =
+            (pageRef.state && (pageRef.state.c__demo || pageRef.state.demo)) ||
+            null;
+        if (demo) {
+            this._demoState = String(demo).toLowerCase();
+        }
+    }
+
     connectedCallback() {
         this._applySnapshotPreferenceFromStorage();
         this._hideAppPageHeader();
+        if (this._applyDemoState(this._demoState)) {
+            // Demo mode took over — no Apex call needed.
+            return;
+        }
         this.loadPortfolioData();
+    }
+
+    /**
+     * Returns true when we handled the named demo state (and therefore the
+     * normal Apex load should be skipped). Supported names:
+     *   - 'onboarding'           → user has no accounts as Primary CSM
+     *   - 'filter-empty'         → has accounts, filter hides them all
+     *   - 'error'                → fatal load error (full-page)
+     *   - 'permission'           → permission-denied error (full-page)
+     *   - 'not-assessed-banner'  → portfolio has accounts, all Not Assessed
+     */
+    _applyDemoState(name) {
+        if (!name) return false;
+        this.isLoading = false;
+        this.error = null;
+
+        switch (name) {
+            case 'onboarding':
+                this.summary = {
+                    totalAccounts: 0,
+                    notAssessedAccounts: 0,
+                    currentUserName: 'Demo User'
+                };
+                this.accounts = [];
+                return true;
+
+            case 'filter-empty':
+                this.summary = {
+                    totalAccounts: 3,
+                    healthyAccounts: 2,
+                    needsAttentionAccounts: 1,
+                    atRiskAccounts: 0,
+                    notAssessedAccounts: 0,
+                    currentUserName: 'Demo User'
+                };
+                this.accounts = [];
+                this.currentFilter = 'at-risk';
+                return true;
+
+            case 'error':
+                this.summary = null;
+                this.error = {
+                    body: { message: 'Simulated load failure (demo mode).' },
+                    message: 'Simulated load failure (demo mode).'
+                };
+                return true;
+
+            case 'permission':
+                this.summary = null;
+                this.error = {
+                    body: {
+                        message:
+                            'INSUFFICIENT_ACCESS: insufficient access rights on cross-reference id (demo mode).'
+                    },
+                    message: 'INSUFFICIENT_ACCESS (demo mode).'
+                };
+                return true;
+
+            case 'not-assessed-banner':
+                this.summary = {
+                    totalAccounts: 3,
+                    notAssessedAccounts: 3,
+                    healthyAccounts: 0,
+                    needsAttentionAccounts: 0,
+                    atRiskAccounts: 0,
+                    currentUserName: 'Demo User'
+                };
+                this.accounts = [
+                    {
+                        accountId: 'demo-1',
+                        accountName: 'Acme Corp',
+                        healthBand: 'Not Assessed',
+                        healthScore: null
+                    },
+                    {
+                        accountId: 'demo-2',
+                        accountName: 'Globex LLC',
+                        healthBand: 'Not Assessed',
+                        healthScore: null
+                    },
+                    {
+                        accountId: 'demo-3',
+                        accountName: 'Umbrella Inc',
+                        healthBand: 'Not Assessed',
+                        healthScore: null
+                    }
+                ];
+                this.totalAccountCount = 3;
+                return true;
+
+            default:
+                // Unknown demo value — fall through to real load.
+                return false;
+        }
     }
 
     /**
@@ -112,28 +229,92 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
      * two instances of the LWC coexist briefly during nav transitions).
      */
     _hideAppPageHeader() {
-        const STYLE_ID = 'csd-hide-app-page-header';
         if (typeof document === 'undefined') {
             return;
         }
-        if (document.getElementById(STYLE_ID)) {
-            return;
+        // Step 1 — inject a broad style. Our LWC deliberately does NOT use
+        // .slds-page-header anywhere, so it's safe to hide that class while
+        // this dashboard is mounted. We also target several aura/flexipage
+        // wrappers we've seen in the wild.
+        const STYLE_ID = 'csd-hide-app-page-header';
+        if (!document.getElementById(STYLE_ID)) {
+            try {
+                const style = document.createElement('style');
+                style.id = STYLE_ID;
+                style.textContent = [
+                    '.slds-page-header',
+                    '.slds-page-header_joined',
+                    '.forceAppBuilderAppPageHeader',
+                    '.appBuilderPageHeader',
+                    '.forceCommunityThemeLayout .slds-page-header',
+                    '.oneCenterStage > .slds-page-header',
+                    'div[data-component-id="flexipage_appHomeTemplateDesktop"] > .slds-page-header',
+                    'div[data-aura-class*="AppHomeTemplate"] > .slds-page-header'
+                ].join(',\n                    ')
+                    + ' { display: none !important; }';
+                document.head.appendChild(style);
+            } catch (_) {
+                /* no-op */
+            }
         }
+
+        // Step 2 — DOM-walk fallback. Some LEX builds render the App Page
+        // banner with class names our selectors don't catch (e.g. Aura-
+        // generated class names that change between releases). We walk up
+        // from our host, crossing shadow boundaries, and hide any nearby
+        // element that looks like a page header (banner role, or a class
+        // name containing "pageHeader").  We do this once on mount and
+        // again after 200ms to catch LEX's post-mount re-render.
+        this._walkAndHideHeaderSiblings();
+        setTimeout(() => this._walkAndHideHeaderSiblings(), 200);
+        setTimeout(() => this._walkAndHideHeaderSiblings(), 800);
+    }
+
+    _walkAndHideHeaderSiblings() {
         try {
-            const style = document.createElement('style');
-            style.id = STYLE_ID;
-            style.textContent = [
-                // Salesforce AppPage banner variants we've seen in LEX.
-                '.slds-page-header_joined',
-                '.forceAppBuilderAppPageHeader',
-                '.appBuilderPageHeader',
-                '.oneCenterStage > .slds-page-header',
-                'div[data-component-id="flexipage_appHomeTemplateDesktop"] > .slds-page-header',
-                'div[data-aura-class*="AppHomeTemplate"] > .slds-page-header'
-            ].join(', ') + ' { display: none !important; }';
-            document.head.appendChild(style);
+            let node = this.template && this.template.host;
+            let hops = 0;
+            const HEADER_HINT = /page.?header|PageHeader|highlightsPanel/i;
+            while (node && hops < 15) {
+                hops += 1;
+                const root = node.getRootNode ? node.getRootNode() : null;
+                const parent =
+                    node.parentNode || (root && root.host ? root.host : null);
+                if (!parent) break;
+                if (parent.querySelectorAll) {
+                    const candidates = parent.querySelectorAll('*');
+                    candidates.forEach((el) => {
+                        if (
+                            el === node ||
+                            (el.contains && el.contains(node)) ||
+                            (node.contains && node.contains(el))
+                        ) {
+                            return;
+                        }
+                        // className on HTMLElement is a string, on SVG it's
+                        // an SVGAnimatedString — coerce defensively.
+                        const clsRaw =
+                            el.getAttribute && el.getAttribute('class');
+                        const cls = clsRaw ? String(clsRaw) : '';
+                        const role = el.getAttribute && el.getAttribute('role');
+                        const hasHeaderClass = cls && HEADER_HINT.test(cls);
+                        const hasBannerRole = role === 'banner';
+                        if (hasHeaderClass || hasBannerRole) {
+                            try {
+                                el.style.display = 'none';
+                            } catch (_) {
+                                /* elements without writeable style, skip */
+                            }
+                        }
+                    });
+                }
+                node =
+                    root && root.host && root.host !== parent
+                        ? root.host
+                        : parent;
+            }
         } catch (_) {
-            /* no-op — hiding the banner is a nice-to-have, never critical */
+            /* no-op */
         }
     }
 

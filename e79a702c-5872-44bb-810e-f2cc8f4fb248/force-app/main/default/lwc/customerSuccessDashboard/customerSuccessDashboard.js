@@ -1,5 +1,5 @@
-import { LightningElement, api, track } from 'lwc';
-import { NavigationMixin } from 'lightning/navigation';
+import { LightningElement, api, track, wire } from 'lwc';
+import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getDashboardSummary from '@salesforce/apex/CSD_CSDashboardController.getDashboardSummary';
 import getOpenCases from '@salesforce/apex/CSD_CSDashboardController.getOpenCases';
@@ -93,13 +93,73 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track _lastUpdatedTick = 0;
     _lastUpdatedInterval = null;
 
+    /**
+     * Demo mode — when the page URL has ?c__demo=<name> we skip Apex and
+     * seed tracked state directly so reviewers can see any empty/error
+     * screen without having to mutate real data. Account-level supports
+     * 'error' and 'permission'. Portfolio-level supports more states; see
+     * csmPortfolioDashboard._applyDemoState.
+     */
+    _demoState = null;
+
+    @wire(CurrentPageReference)
+    _handlePageRef(pageRef) {
+        if (!pageRef) return;
+        const demo =
+            (pageRef.state && (pageRef.state.c__demo || pageRef.state.demo)) ||
+            null;
+        if (demo) {
+            this._demoState = String(demo).toLowerCase();
+        }
+    }
+
     connectedCallback() {
         this._applySnapshotPreferenceFromStorage();
+        if (this._applyDemoState(this._demoState)) {
+            // Demo mode took over — skip Apex load.
+            return;
+        }
         this.loadDashboardData();
         // Re-render the relative timestamp every minute so "just now" becomes "1 min ago" etc.
         this._lastUpdatedInterval = setInterval(() => {
             this._lastUpdatedTick += 1;
         }, 60000);
+    }
+
+    /**
+     * Returns true when we handled the named demo state (and therefore the
+     * normal Apex load should be skipped). Supported:
+     *   - 'error'       → fatal load error (full-page)
+     *   - 'permission'  → permission-denied error (full-page)
+     */
+    _applyDemoState(name) {
+        if (!name) return false;
+        this.isLoading = false;
+        this.error = null;
+
+        switch (name) {
+            case 'error':
+                this.summary = null;
+                this.error = {
+                    body: { message: 'Simulated load failure (demo mode).' },
+                    message: 'Simulated load failure (demo mode).'
+                };
+                return true;
+
+            case 'permission':
+                this.summary = null;
+                this.error = {
+                    body: {
+                        message:
+                            'INSUFFICIENT_ACCESS: insufficient access rights on cross-reference id (demo mode).'
+                    },
+                    message: 'INSUFFICIENT_ACCESS (demo mode).'
+                };
+                return true;
+
+            default:
+                return false;
+        }
     }
 
     _applySnapshotPreferenceFromStorage() {

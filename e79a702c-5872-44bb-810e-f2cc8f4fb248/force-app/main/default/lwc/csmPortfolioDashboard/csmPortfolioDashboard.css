@@ -115,11 +115,16 @@
 }
 
 /*
- * Pink tile hosting the trophy glyph. Matches the visual weight of the
- * CustomTab's "Custom48: Trophy" motif we were originally showing in
- * the Lightning App Page banner above this LWC (that banner is now
- * hidden — see _hideAppPageHeader in the controller). The tile anchors
- * the header and makes "My Portfolio" feel branded instead of generic.
+ * Blue tile hosting an inline-SVG trophy glyph. Replaces the small
+ * standard:work_capacity_usage icon that used to sit here, and the
+ * CustomTab's "Custom48: Trophy" banner we hide via _hideAppPageHeader
+ * in the controller. 48x48 is visually equivalent to the CustomTab
+ * motif, so "My Portfolio" still reads as branded at a glance.
+ *
+ * The trophy is inline SVG (not lightning-icon) because utility:trophy
+ * doesn't exist in SLDS, and custom:custom48 has a baked-in salmon
+ * background we can't easily override. Inline gives us full control
+ * over the tile color (blue, matching --csd-blue gradient buttons).
  */
 .portfolio-brand-tile {
     display: inline-flex;
@@ -128,15 +133,21 @@
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #EC6B74 0%, #D85666 100%);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+    background: linear-gradient(
+        135deg,
+        var(--csd-blue, #1B96FF) 0%,
+        var(--csd-blue-dark, #0B5CAB) 100%
+    );
+    box-shadow: 0 2px 6px rgba(27, 150, 255, 0.25),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.08);
     flex-shrink: 0;
 }
 
 .portfolio-brand-tile__glyph {
-    --sds-c-icon-color-foreground-default: #FFFFFF;
-    --sds-c-icon-color-foreground: #FFFFFF;
+    width: 28px;
+    height: 28px;
+    color: #FFFFFF;
+    display: block;
 }
 
 @media (max-width: 640px) {
@@ -144,6 +155,10 @@
         width: 40px;
         height: 40px;
         border-radius: 10px;
+    }
+    .portfolio-brand-tile__glyph {
+        width: 22px;
+        height: 22px;
     }
 }
 
