@@ -94,7 +94,47 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     connectedCallback() {
         this._applySnapshotPreferenceFromStorage();
+        this._hideAppPageHeader();
         this.loadPortfolioData();
+    }
+
+    /**
+     * Lightning App Pages render a banner above the flexipage with the
+     * CustomTab's motif icon and label ("My Portfolio" with the pink
+     * trophy in our case). We surface our own, richer header inside the
+     * LWC, so that duplicate banner is just visual noise.
+     *
+     * Since the banner lives outside our shadow root we can't style it
+     * directly from component CSS — instead we inject a one-time <style>
+     * into document.head. It's idempotent (guarded by an id) and only
+     * active while a csmPortfolioDashboard is mounted anywhere on the
+     * page (we keep it in place; removing it would flash the banner if
+     * two instances of the LWC coexist briefly during nav transitions).
+     */
+    _hideAppPageHeader() {
+        const STYLE_ID = 'csd-hide-app-page-header';
+        if (typeof document === 'undefined') {
+            return;
+        }
+        if (document.getElementById(STYLE_ID)) {
+            return;
+        }
+        try {
+            const style = document.createElement('style');
+            style.id = STYLE_ID;
+            style.textContent = [
+                // Salesforce AppPage banner variants we've seen in LEX.
+                '.slds-page-header_joined',
+                '.forceAppBuilderAppPageHeader',
+                '.appBuilderPageHeader',
+                '.oneCenterStage > .slds-page-header',
+                'div[data-component-id="flexipage_appHomeTemplateDesktop"] > .slds-page-header',
+                'div[data-aura-class*="AppHomeTemplate"] > .slds-page-header'
+            ].join(', ') + ' { display: none !important; }';
+            document.head.appendChild(style);
+        } catch (_) {
+            /* no-op — hiding the banner is a nice-to-have, never critical */
+        }
     }
 
     _applySnapshotPreferenceFromStorage() {

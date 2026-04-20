@@ -4,7 +4,14 @@
         <!-- Header -->
         <div class="portfolio-header">
             <div class="portfolio-header-left">
-                <lightning-icon icon-name="standard:work_capacity_usage" size="small" class="portfolio-header-icon"></lightning-icon>
+                <span class="portfolio-brand-tile" aria-hidden="true">
+                    <lightning-icon
+                        icon-name="utility:trophy"
+                        size="medium"
+                        class="portfolio-brand-tile__glyph"
+                        alternative-text=""
+                    ></lightning-icon>
+                </span>
                 <div class="portfolio-header-titles">
                     <h1 class="portfolio-title">My Portfolio</h1>
                     <template if:true={hasSummary}>

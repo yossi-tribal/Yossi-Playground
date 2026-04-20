@@ -114,6 +114,39 @@
     color: var(--csd-blue);
 }
 
+/*
+ * Pink tile hosting the trophy glyph. Matches the visual weight of the
+ * CustomTab's "Custom48: Trophy" motif we were originally showing in
+ * the Lightning App Page banner above this LWC (that banner is now
+ * hidden — see _hideAppPageHeader in the controller). The tile anchors
+ * the header and makes "My Portfolio" feel branded instead of generic.
+ */
+.portfolio-brand-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #EC6B74 0%, #D85666 100%);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+    flex-shrink: 0;
+}
+
+.portfolio-brand-tile__glyph {
+    --sds-c-icon-color-foreground-default: #FFFFFF;
+    --sds-c-icon-color-foreground: #FFFFFF;
+}
+
+@media (max-width: 640px) {
+    .portfolio-brand-tile {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+    }
+}
+
 .portfolio-header-titles {
     display: flex;
     flex-direction: column;
