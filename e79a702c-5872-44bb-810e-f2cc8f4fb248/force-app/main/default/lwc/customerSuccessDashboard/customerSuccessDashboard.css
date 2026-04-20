@@ -141,6 +141,27 @@
     font-weight: 500;
 }
 
+.dashboard-header-csm-name--muted {
+    color: var(--csd-text-tertiary, #706e6b);
+    font-style: italic;
+}
+
+.dashboard-header-csm-sep {
+    margin: 0 6px;
+    color: var(--csd-text-tertiary, #706e6b);
+}
+
+.dashboard-header-csm-cta {
+    color: var(--csd-brand, #0176d3);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.dashboard-header-csm-cta:hover,
+.dashboard-header-csm-cta:focus {
+    text-decoration: underline;
+}
+
 .refresh-button {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -319,6 +340,14 @@
     font-size: 11px;
     opacity: 0.75;
     margin-bottom: 4px;
+}
+
+.hero-not-assessed-body {
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: 0.92;
+    margin: 8px 0 10px 0;
+    text-align: left;
 }
 
 /* Button inside hero card */
@@ -926,6 +955,21 @@
 
 .empty-state--compact {
     padding: var(--csd-space-6) var(--csd-space-4);
+}
+
+.empty-state--actionable {
+    gap: 8px;
+}
+
+.empty-state--actionable .empty-text {
+    max-width: 420px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--csd-text-secondary);
+}
+
+.empty-state--actionable .custom-btn--link {
+    margin-top: 4px;
 }
 
 /* Table Styles */
@@ -1842,6 +1886,16 @@ button:focus-visible,
     line-height: 1.35;
 }
 
+.commercial-kpi--empty {
+    border-style: dashed;
+    background: transparent;
+}
+
+.commercial-kpi-sub--cta {
+    color: var(--csd-brand, #0176d3);
+    font-weight: 600;
+}
+
 
 .commercial-kpi-value-unit {
     font-size: var(--csd-text-sm);
@@ -2109,6 +2163,18 @@ button:focus-visible,
         flex: 1 1 0%;
         min-width: 0;
     }
+}
+
+/* Caption shown when a 12-month chart has only 1-2 data points so the user
+   understands the chart is still filling up. */
+.trend-chart-caption {
+    margin: 8px 0 0 0;
+    padding: 6px 10px;
+    border-left: 2px dashed var(--csd-gray-300, #c9c7c5);
+    font-size: var(--csd-text-xs, 12px);
+    color: var(--csd-text-tertiary, #706e6b);
+    font-style: italic;
+    line-height: 1.4;
 }
 
 .snapshot-left-card .commercial-kpi,

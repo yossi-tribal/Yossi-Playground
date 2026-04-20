@@ -774,4 +774,44 @@ private class CSD_CSMPortfolioControllerTest {
         }
         Test.stopTest();
     }
+
+    /**
+     * @description recalculatePortfolioHealthScores should return the count of accounts
+     * the handler recalculated, which equals the number of accounts where the current
+     * user is the Primary CSM (3 in the @testSetup). Full behavior is covered by the
+     * handler's own tests - this test only exercises the AuraEnabled wrapper.
+     */
+    @isTest
+    static void testRecalculatePortfolioHealthScores() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+        Integer updatedCount;
+        Test.startTest();
+        System.runAs(testUser) {
+            updatedCount = CSD_CSMPortfolioController.recalculatePortfolioHealthScores();
+        }
+        Test.stopTest();
+        System.assertEquals(3, updatedCount,
+            'Should recalculate all 3 accounts where the running user is Primary CSM');
+    }
+
+    /**
+     * @description PortfolioSummary should expose the running user's name and the count
+     * of Not Assessed accounts so the LWC can render an onboarding/recalculate state
+     * without a second round-trip.
+     */
+    @isTest
+    static void testGetPortfolioSummary_CurrentUserNameAndNotAssessed() {
+        Test.startTest();
+        CSD_CSMPortfolioController.PortfolioSummary summary =
+            CSD_CSMPortfolioController.getPortfolioSummary();
+        Test.stopTest();
+        System.assertNotEquals(null, summary.currentUserName,
+            'currentUserName should be populated');
+        System.assertNotEquals('', summary.currentUserName,
+            'currentUserName should not be blank');
+        System.assertNotEquals(null, summary.notAssessedAccounts,
+            'notAssessedAccounts should be populated');
+        System.assert(summary.notAssessedAccounts >= 0,
+            'notAssessedAccounts should be a non-negative integer');
+    }
 }

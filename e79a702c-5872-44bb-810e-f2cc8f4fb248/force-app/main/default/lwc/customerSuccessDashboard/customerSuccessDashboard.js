@@ -18,6 +18,7 @@ import getClosedWonForMonth from '@salesforce/apex/CSD_CSDashboardController.get
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
+import recalculateHealthScore from '@salesforce/apex/CSD_CSDashboardController.recalculateHealthScore';
 import { formatAverageResolutionHours } from 'c/csdResolutionFormat';
 import currentUserId from '@salesforce/user/Id';
 
@@ -40,6 +41,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track kpiModalType = ''; // 'cases', 'tasks', 'opportunities', 'closedWon', 'recentCases'
     @track kpiModalScope = ''; // '' | 'ALL_TIME' | 'YTD' | 'PRIOR_YEAR' for closed-won drilldown
     @track kpiModalEmptyMessage = '';
+    @track isRecalculatingHealth = false;
 
     @track showActivityModal = false;
     @track activityModalObjectApiName = '';
@@ -69,8 +71,9 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         contacts: false
     };
 
-    /** Commercial snapshot KPI block expanded (default open) */
-    @track commercialSnapshotExpanded = true;
+    /** Commercial snapshot KPI block (default collapsed; preference in localStorage) */
+    @track commercialSnapshotExpanded = false;
+    _snapshotStorageKey = 'csd.account.snapshotExpanded';
 
     /** Active tooltip key for trend chart hover */
     @track _activeTooltipKey = null;
@@ -91,11 +94,33 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     _lastUpdatedInterval = null;
 
     connectedCallback() {
+        this._applySnapshotPreferenceFromStorage();
         this.loadDashboardData();
         // Re-render the relative timestamp every minute so "just now" becomes "1 min ago" etc.
         this._lastUpdatedInterval = setInterval(() => {
             this._lastUpdatedTick += 1;
         }, 60000);
+    }
+
+    _applySnapshotPreferenceFromStorage() {
+        try {
+            const v = localStorage.getItem(this._snapshotStorageKey);
+            if (v === 'true') {
+                this.commercialSnapshotExpanded = true;
+            } else if (v === 'false') {
+                this.commercialSnapshotExpanded = false;
+            }
+        } catch (e) {
+            // localStorage may be unavailable in some contexts
+        }
+    }
+
+    _persistSnapshotPreference() {
+        try {
+            localStorage.setItem(this._snapshotStorageKey, String(this.commercialSnapshotExpanded));
+        } catch (e) {
+            // ignore
+        }
     }
 
     disconnectedCallback() {
@@ -244,6 +269,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     handleToggleCommercialSnapshot() {
         this.commercialSnapshotExpanded = !this.commercialSnapshotExpanded;
+        this._persistSnapshotPreference();
     }
 
     /**
@@ -359,7 +385,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalTitle = 'Open Cases';
         this.kpiModalType = 'cases';
         this.kpiModalScope = '';
-        this.kpiModalEmptyMessage = 'Great job! No open cases.';
+        this.kpiModalEmptyMessage = 'No open cases for this account — support is clear.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -380,7 +406,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalTitle = 'Open Tasks';
         this.kpiModalType = 'tasks';
         this.kpiModalScope = '';
-        this.kpiModalEmptyMessage = 'No open tasks — great job!';
+        this.kpiModalEmptyMessage = 'No open tasks — add one to plan your next touchpoint.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -401,7 +427,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalTitle = 'Open opportunities';
         this.kpiModalType = 'opportunities';
         this.kpiModalScope = '';
-        this.kpiModalEmptyMessage = 'No open opportunities.';
+        this.kpiModalEmptyMessage = 'No open opportunities — create one to track pipeline for this account.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -427,7 +453,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalTitle = title;
         this.kpiModalType = 'closedWon';
         this.kpiModalScope = scope;
-        this.kpiModalEmptyMessage = 'No closed-won opportunities in this period.';
+        this.kpiModalEmptyMessage = 'No closed-won opportunities in this period — nothing to drill into yet.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -754,6 +780,77 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return this.summary.csmName;
     }
 
+    /**
+     * True when a Primary CSM is set on the account. Used to swap the header label
+     * from a static "Not Assigned" into an actionable "Assign CSM" link.
+     */
+    get isCsmAssigned() {
+        return !!(this.summary && this.summary.csmName && this.summary.csmName !== 'Not Assigned');
+    }
+
+    /**
+     * Opens the standard Account record page in edit mode so the user can assign the
+     * Primary CSM without leaving the console. Using the standard record page keeps us
+     * aligned with Salesforce permission model and page layout configuration.
+     */
+    handleAssignCsm(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: this.recordId,
+                objectApiName: 'Account',
+                actionName: 'edit'
+            }
+        });
+    }
+
+    /**
+     * True when the account has never been health-scored (or is explicitly Not Assessed).
+     * The hero card swaps to an explainer + Recalculate CTA in this state because the
+     * usual trend and "Updated X ago" text is misleading when no score has ever been produced.
+     */
+    get isHealthNotAssessed() {
+        if (!this.summary) return false;
+        const score = this.summary.accountHealthScore;
+        return !score || score === 'Not Assessed';
+    }
+
+    /**
+     * Calls CSD_CSDashboardController.recalculateHealthScore for the current account, then
+     * reloads the dashboard so every section reflects the new score and trend.
+     */
+    handleRecalculateHealth() {
+        if (this.isRecalculatingHealth || !this.recordId) return;
+        this.isRecalculatingHealth = true;
+        recalculateHealthScore({ accountId: this.recordId })
+            .then(() => {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Health score recalculated',
+                    message: 'We refreshed this account from the latest data.',
+                    variant: 'success'
+                }));
+                this.handleRefresh();
+            })
+            .catch((error) => {
+                const message =
+                    (error && error.body && error.body.message) ||
+                    (error && error.message) ||
+                    'Unknown error';
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Could not recalculate',
+                    message: message,
+                    variant: 'error'
+                }));
+            })
+            .finally(() => {
+                this.isRecalculatingHealth = false;
+            });
+    }
+
     get secOpenTasks() {
         return this.sectionExpanded.openTasks;
     }
@@ -932,6 +1029,60 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get showInactivityWarning() {
         return this.summary && this.summary.daysSinceLastActivity && this.summary.daysSinceLastActivity > 30;
+    }
+
+    /**
+     * Shown in the Health Breakdown modal when the account has zero logged activity.
+     * This is distinct from "No activity in over 30 days" (which implies there is old
+     * activity) - no activity ever is a stronger signal and deserves its own copy/tone.
+     */
+    // ── Top-level dashboard error / permission state ──
+    // These only render when the initial summary load failed (so there's no dashboard
+    // to hide anything useful). The Retry button re-runs loadDashboardData via handleRefresh.
+
+    /** True when the current error looks like an INSUFFICIENT_ACCESS / permission issue. */
+    get isPermissionError() {
+        return this._errorLooksLikePermission(this.error);
+    }
+
+    get showTopLevelPermissionState() {
+        return !!this.error && !this.summary && this.isPermissionError;
+    }
+
+    get showTopLevelErrorState() {
+        return !!this.error && !this.summary && !this.isPermissionError;
+    }
+
+    get permissionErrorBody() {
+        return "Your user doesn't have access to the Customer Success Dashboard data model. Ask your admin to assign the 'CSD CS Dashboard Full Access' permission set and refresh.";
+    }
+
+    get topLevelErrorDetail() {
+        const e = this.error;
+        if (!e) return '';
+        if (e.body && e.body.message) return e.body.message;
+        if (e.message) return e.message;
+        try { return JSON.stringify(e); } catch (_) { return String(e); }
+    }
+
+    _errorLooksLikePermission(e) {
+        if (!e) return false;
+        const msg =
+            (e.body && e.body.message) ||
+            (e.body && e.body.stackTrace) ||
+            e.message || '';
+        const s = String(msg || '').toUpperCase();
+        return s.indexOf('INSUFFICIENT_ACCESS') !== -1
+            || s.indexOf('INSUFFICIENT_OBJECT_ACCESS') !== -1
+            || s.indexOf('FIELD_CUSTOM_VALIDATION_EXCEPTION: ACCESS') !== -1
+            || s.indexOf('NOT AUTHORIZED') !== -1
+            || s.indexOf('NO ACCESS') !== -1;
+    }
+
+    get showNoActivityEverNote() {
+        if (!this.summary) return false;
+        const days = this.summary.daysSinceLastActivity;
+        return days === null || days === undefined;
     }
 
     /**
@@ -1411,6 +1562,25 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return false;
     }
 
+    /** Count of months (out of 12) with at least one case. Used to flag sparse data. */
+    get caseMonthDataPoints() {
+        if (!this.summary) return 0;
+        let n = 0;
+        for (let i = 1; i <= 12; i++) {
+            if (Number(this.summary[`caseMonth${i}`] || 0) > 0) n++;
+        }
+        return n;
+    }
+
+    /**
+     * True when the case trend has 1-2 data points. A 12-month chart with a single
+     * bar is visually misleading (looks like a downturn), so we annotate it.
+     */
+    get showSparseCaseCaption() {
+        const n = this.caseMonthDataPoints;
+        return n > 0 && n < 3;
+    }
+
     /** Trailing 12-month closed-won revenue: single-series bar array with tooltip data */
     get revenueMonthBars() {
         if (!this.summary) return [];
@@ -1450,6 +1620,21 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
             if (Number(this.summary[`wonMonth${i}`] || 0) > 0) return true;
         }
         return false;
+    }
+
+    /** Count of months (out of 12) with closed-won revenue > 0. */
+    get revenueMonthDataPoints() {
+        if (!this.summary) return 0;
+        let n = 0;
+        for (let i = 1; i <= 12; i++) {
+            if (Number(this.summary[`wonMonth${i}`] || 0) > 0) n++;
+        }
+        return n;
+    }
+
+    get showSparseRevenueCaption() {
+        const n = this.revenueMonthDataPoints;
+        return n > 0 && n < 3;
     }
 
     formatCompactCurrency(value) {

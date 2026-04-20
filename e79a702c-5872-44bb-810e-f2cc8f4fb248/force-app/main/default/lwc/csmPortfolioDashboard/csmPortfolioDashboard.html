@@ -33,6 +33,56 @@
         <template if:false={isLoading}>
             <div class="dashboard-content">
 
+                <!-- Top-level error / permission state (renders when initial load failed) -->
+                <template if:true={showTopLevelPermissionState}>
+                    <c-csd-empty-state
+                        variant="onboarding"
+                        icon="utility:lock"
+                        title-text="You don't have access to this dashboard yet"
+                        body-text={permissionErrorBody}
+                        primary-label="Try again"
+                        primary-variant="brand"
+                        onprimaryclick={handleRefresh}>
+                    </c-csd-empty-state>
+                </template>
+
+                <template if:true={showTopLevelErrorState}>
+                    <c-csd-empty-state
+                        variant="error"
+                        icon="utility:error"
+                        title-text="We couldn't load your portfolio"
+                        body-text="Something went wrong while fetching the data. Try again, and if the error continues reach out to your admin with the technical details below."
+                        primary-label="Try again"
+                        primary-variant="brand"
+                        error-detail={topLevelErrorDetail}
+                        onprimaryclick={handleRefresh}>
+                    </c-csd-empty-state>
+                </template>
+
+                <!-- Portfolio-wide banner: every account is Not Assessed -->
+                <template if:true={showAllNotAssessedBanner}>
+                    <div class="portfolio-banner portfolio-banner--not-assessed" role="status">
+                        <div class="portfolio-banner-main">
+                            <lightning-icon icon-name="utility:info" size="small" class="portfolio-banner-icon"></lightning-icon>
+                            <div class="portfolio-banner-text">
+                                <strong class="portfolio-banner-title">No accounts have been health-scored yet</strong>
+                                <span class="portfolio-banner-body">
+                                    Every account in your portfolio is currently "Not Assessed." Recalculate to generate scores from the latest data — this typically takes a few seconds.
+                                </span>
+                            </div>
+                        </div>
+                        <div class="portfolio-banner-actions">
+                            <button type="button"
+                                    class="custom-btn custom-btn--primary"
+                                    onclick={handleRecalculateAll}
+                                    disabled={isRecalculatingAll}>
+                                <template if:true={isRecalculatingAll}>Recalculating…</template>
+                                <template if:false={isRecalculatingAll}>Recalculate all</template>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
                 <!-- Portfolio Hero: Health Card + Suggested Actions -->
                 <template if:true={hasSummary}>
                     <div class="portfolio-hero">
@@ -206,21 +256,21 @@
                                     <div class="commercial-kpi-row">
                                         <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotLifetimeValueClick}>
                                             <span class="commercial-kpi-label">Lifetime value</span>
-                                            <span class="commercial-kpi-value">
+                                            <span class={lifetimeValueClass}>
                                                 <lightning-formatted-number value={summary.totalClosedWonAmount} format-style="currency" currency-code="USD"></lightning-formatted-number>
                                             </span>
                                             <span class="commercial-kpi-sub">Total closed-won across portfolio</span>
                                         </div>
                                         <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotWonYtdClick}>
                                             <span class="commercial-kpi-label">Won this year ({currentYear})</span>
-                                            <span class="commercial-kpi-value">
+                                            <span class={wonYtdValueClass}>
                                                 <lightning-formatted-number value={summary.totalYtdClosedWon} format-style="currency" currency-code="USD"></lightning-formatted-number>
                                             </span>
                                             <span class="commercial-kpi-sub">Prior year: <lightning-formatted-number value={summary.priorYearWonRevenue} format-style="currency" currency-code="USD"></lightning-formatted-number></span>
                                         </div>
                                         <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotPipelineClick}>
                                             <span class="commercial-kpi-label">Open pipeline</span>
-                                            <span class="commercial-kpi-value">
+                                            <span class={openPipelineValueClass}>
                                                 <lightning-formatted-number value={summary.totalOpenPipeline} format-style="currency" currency-code="USD"></lightning-formatted-number>
                                             </span>
                                             <span class="commercial-kpi-sub">Weighted: <lightning-formatted-number value={summary.totalWeightedPipeline} format-style="currency" currency-code="USD"></lightning-formatted-number></span>
@@ -291,17 +341,17 @@
                                     <div class="commercial-kpi-row">
                                         <div class={supportCasesYearClickClass} onclick={handleSnapshotYtdCasesClick}>
                                             <span class="commercial-kpi-label">Cases this year ({currentYear})</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.ytdCaseCount}</span>
+                                            <span class={ytdCasesValueClass}>{summary.ytdCaseCount}</span>
                                             <span class="commercial-kpi-sub">Prior year: {summary.priorYearCaseCount}</span>
                                         </div>
                                         <div class="commercial-kpi commercial-kpi--click" onclick={handleSnapshotRecentCasesClick}>
                                             <span class="commercial-kpi-label">Cases (90 days)</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.casesOpenedLast90Days}</span>
+                                            <span class={cases90ValueClass}>{summary.casesOpenedLast90Days}</span>
                                             <span class="commercial-kpi-sub">Opened across portfolio</span>
                                         </div>
                                         <div class="commercial-kpi">
                                             <span class="commercial-kpi-label">Escalated (90 days)</span>
-                                            <span class="commercial-kpi-value commercial-kpi-value--num">{summary.escalatedCasesLast90Days}</span>
+                                            <span class={escalated90ValueClass}>{summary.escalatedCasesLast90Days}</span>
                                             <span class="commercial-kpi-sub">of {summary.casesOpenedLast90Days} cases</span>
                                         </div>
                                         <template if:true={hasCaseResolutionData}>
@@ -646,11 +696,41 @@
 
                     <!-- Empty State -->
                     <template if:false={hasAccounts}>
-                        <div class="empty-state">
-                            <lightning-icon icon-name="utility:search" size="medium" class="empty-icon"></lightning-icon>
-                            <p class="empty-text">No accounts found</p>
-                            <p class="empty-hint">Try adjusting your filters or check your portfolio assignments</p>
-                        </div>
+                        <!-- 1. User has no portfolio at all (onboarding) -->
+                        <template if:true={isPortfolioEmpty}>
+                            <c-csd-empty-state
+                                variant="onboarding"
+                                icon="standard:account"
+                                title-text={noPortfolioTitle}
+                                body-text="You aren't listed as Primary CSM on any accounts yet. Ask your admin to assign accounts to you, or open an account and set yourself as Primary CSM to populate this view."
+                                primary-label="Learn how to get assigned"
+                                primary-variant="brand"
+                                onprimaryclick={handleOpenOnboardingDocs}>
+                                <span slot="meta" class="empty-state-meta-chip">Running as: {userNameForMeta}</span>
+                            </c-csd-empty-state>
+                        </template>
+
+                        <!-- 2. User has a portfolio but the current filter hides everything -->
+                        <template if:true={isFilterHidingAccounts}>
+                            <c-csd-empty-state
+                                variant="empty"
+                                icon="utility:filter"
+                                title-text={filterEmptyTitle}
+                                body-text="No accounts match the current filter. Clear it to see your whole portfolio."
+                                primary-label="Clear filters"
+                                primary-variant="brand"
+                                onprimaryclick={handleClearFilters}>
+                            </c-csd-empty-state>
+                        </template>
+
+                        <!-- 3. Fallback for any other case (e.g., accounts load returned empty unexpectedly) -->
+                        <template if:true={isGenericAccountsEmpty}>
+                            <div class="empty-state">
+                                <lightning-icon icon-name="utility:search" size="medium" class="empty-icon"></lightning-icon>
+                                <p class="empty-text">No accounts found</p>
+                                <p class="empty-hint">Try refreshing or contact your admin if this looks wrong.</p>
+                            </div>
+                        </template>
                     </template>
                 </div>
 

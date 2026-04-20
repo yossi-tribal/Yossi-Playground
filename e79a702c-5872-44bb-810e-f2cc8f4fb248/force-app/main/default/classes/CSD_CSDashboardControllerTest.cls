@@ -1195,4 +1195,41 @@ private class CSD_CSDashboardControllerTest {
         Event created = [SELECT Subject, IsAllDayEvent, ActivityDate FROM Event WHERE Id = :eventId];
         System.assertEquals(true, created.IsAllDayEvent);
     }
+
+    /**
+     * @description Verify that recalculateHealthScore() refreshes the account's score field
+     * and returns the new value. The handler has its own detailed tests; here we just want
+     * to exercise the AuraEnabled wrapper end-to-end.
+     */
+    @isTest
+    static void testRecalculateHealthScore_ReturnsValue() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        Test.startTest();
+        String result = CSD_CSDashboardController.recalculateHealthScore(testAccount.Id);
+        Test.stopTest();
+
+        System.assertNotEquals(null, result, 'Recalculate should return a non-null score');
+        System.assert(
+            new Set<String>{ 'Healthy', 'Needs Attention', 'At Risk', 'Not Assessed' }.contains(result),
+            'Recalculate should return a valid picklist value, got: ' + result
+        );
+    }
+
+    /**
+     * @description Null account id should raise an AuraHandledException so the LWC can
+     * surface a friendly error to the user instead of silently failing.
+     */
+    @isTest
+    static void testRecalculateHealthScore_NullAccountId() {
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            CSD_CSDashboardController.recalculateHealthScore(null);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'Null account id should throw AuraHandledException');
+    }
 }

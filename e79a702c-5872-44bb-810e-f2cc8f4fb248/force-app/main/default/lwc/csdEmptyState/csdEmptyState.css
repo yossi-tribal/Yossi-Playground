@@ -1,0 +1,112 @@
+.csd-empty {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    border-radius: 0.5rem;
+    max-width: 32rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.csd-empty--compact {
+    padding: 0.75rem 0.5rem;
+    max-width: none;
+    text-align: left;
+}
+
+.csd-empty__icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.csd-empty--compact .csd-empty__icon {
+    justify-content: flex-start;
+}
+
+.csd-empty--empty .csd-empty__lightning-icon {
+    --sds-c-icon-color-foreground-default: #747474;
+}
+
+.csd-empty--degraded .csd-empty__lightning-icon,
+.csd-empty--degraded {
+    --tone: #fe9339;
+}
+.csd-empty--degraded .csd-empty__lightning-icon {
+    --sds-c-icon-color-foreground-default: var(--tone, #fe9339);
+}
+.csd-empty--degraded {
+    background: rgba(254, 147, 57, 0.08);
+    border: 1px solid rgba(254, 147, 57, 0.25);
+}
+
+.csd-empty--error .csd-empty__lightning-icon {
+    --sds-c-icon-color-foreground-default: #ea001e;
+}
+.csd-empty--error {
+    background: rgba(234, 0, 30, 0.06);
+    border: 1px solid rgba(234, 0, 30, 0.2);
+}
+
+.csd-empty--onboarding .csd-empty__lightning-icon {
+    --sds-c-icon-color-foreground-default: #1589ee;
+}
+.csd-empty--onboarding {
+    background: var(--lwc-colorBackgroundAlt, #fafaf9);
+    border: 1px solid var(--lwc-colorBorder, #dddbda);
+}
+
+.csd-empty__title {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0 0 0.5rem 0;
+    color: var(--lwc-colorTextDefault, #080707);
+}
+
+.csd-empty__body {
+    font-size: 0.875rem;
+    line-height: 1.4;
+    margin: 0 0 0.75rem 0;
+    color: var(--lwc-colorTextDefault, #3e3e3c);
+}
+
+.csd-empty__meta {
+    margin-bottom: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--lwc-colorTextWeak, #706e6b);
+}
+
+.csd-empty__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.csd-empty--compact .csd-empty__actions {
+    justify-content: flex-start;
+}
+
+.csd-empty__btn + .csd-empty__btn {
+    margin-left: 0;
+}
+
+.csd-empty__details {
+    margin-top: 0.75rem;
+    text-align: left;
+    max-width: 100%;
+}
+.csd-empty__details-summary {
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--lwc-colorTextLink, #0176d3);
+}
+.csd-empty__details-body {
+    font-size: 0.65rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 6rem;
+    overflow: auto;
+    margin: 0.5rem 0 0 0;
+    text-align: left;
+}

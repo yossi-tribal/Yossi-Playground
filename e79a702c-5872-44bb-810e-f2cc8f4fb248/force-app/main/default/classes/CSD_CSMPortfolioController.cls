@@ -13,6 +13,8 @@ public with sharing class CSD_CSMPortfolioController {
      * @description Wrapper class for portfolio summary KPIs
      */
     public class PortfolioSummary {
+        @AuraEnabled public String currentUserName { get; set; }
+        @AuraEnabled public Integer notAssessedAccounts { get; set; }
         @AuraEnabled public Integer totalAccounts { get; set; }
         @AuraEnabled public Integer atRiskAccounts { get; set; }
         @AuraEnabled public Integer needsAttentionAccounts { get; set; }
@@ -342,11 +344,26 @@ public with sharing class CSD_CSMPortfolioController {
             summary.closedCasesAllTimeCount = 0;
             summary.openTasksCount = 0;
 
+            // Current user name (used by the LWC to greet the user on empty-portfolio states)
+            List<User> currentUsers = [
+                SELECT Name FROM User WHERE Id = :currentUserId LIMIT 1
+            ];
+            summary.currentUserName = currentUsers.isEmpty() ? '' : currentUsers[0].Name;
+
             // Total accounts assigned to current user
             summary.totalAccounts = [
                 SELECT COUNT()
                 FROM Account
                 WHERE CSD_Primary_CSM__c = :currentUserId
+            ];
+
+            // Accounts with no health assessment yet - used to surface a "recalculate" banner
+            summary.notAssessedAccounts = [
+                SELECT COUNT()
+                FROM Account
+                WHERE CSD_Primary_CSM__c = :currentUserId
+                AND (CSD_Account_Health_Score__c = null
+                     OR CSD_Account_Health_Score__c = 'Not Assessed')
             ];
 
             // At-risk accounts (Health Score = At Risk)
@@ -2101,6 +2118,34 @@ public with sharing class CSD_CSMPortfolioController {
             return rows;
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving YTD cases: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Recalculates health scores for every account where the current user
+     * is the Primary CSM. Used by the portfolio "Recalculate all" CTA that appears when
+     * every account in the portfolio is still Not Assessed.
+     * @return Number of accounts that were recalculated.
+     */
+    @AuraEnabled(cacheable=false)
+    public static Integer recalculatePortfolioHealthScores() {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+            Set<Id> accountIds = new Set<Id>();
+            for (Account acc : [
+                SELECT Id
+                FROM Account
+                WHERE CSD_Primary_CSM__c = :currentUserId
+            ]) {
+                accountIds.add(acc.Id);
+            }
+            if (accountIds.isEmpty()) {
+                return 0;
+            }
+            CSD_AccountHealthScoreHandler.calculateHealthScores(accountIds);
+            return accountIds.size();
+        } catch (Exception e) {
+            throw new AuraHandledException('Error recalculating portfolio health scores: ' + e.getMessage());
         }
     }
 }

@@ -1315,6 +1315,35 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
+     * @description On-demand recalculation for a single account. Wraps
+     * CSD_AccountHealthScoreHandler.calculateHealthScores so the LWC can trigger
+     * a refresh when the user clicks "Recalculate now" on a Not Assessed / stale account.
+     * @param accountId The Account Id to recalculate.
+     * @return The new CSD_Account_Health_Score__c value after recalculation.
+     */
+    @AuraEnabled(cacheable=false)
+    public static String recalculateHealthScore(Id accountId) {
+        try {
+            if (accountId == null) {
+                throw new AuraHandledException('Account ID is required');
+            }
+            CSD_AccountHealthScoreHandler.calculateHealthScores(new Set<Id>{ accountId });
+            List<Account> refreshed = [
+                SELECT CSD_Account_Health_Score__c
+                FROM Account
+                WHERE Id = :accountId
+                LIMIT 1
+            ];
+            if (refreshed.isEmpty() || refreshed[0].CSD_Account_Health_Score__c == null) {
+                return 'Not Assessed';
+            }
+            return refreshed[0].CSD_Account_Health_Score__c;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error recalculating health score: ' + e.getMessage());
+        }
+    }
+
+    /**
      * @description Determines trend direction based on old and new health score values
      * @param oldValue Previous health score value
      * @param newValue Current health score value

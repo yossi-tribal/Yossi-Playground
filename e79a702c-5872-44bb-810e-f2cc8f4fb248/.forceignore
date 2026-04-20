@@ -1,0 +1,4 @@
+# LWC Jest tests should never be deployed to the org.
+**/lwc/**/__tests__/**
+**/*.test.js
+**/jest.config.js

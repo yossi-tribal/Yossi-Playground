@@ -16,6 +16,7 @@ import getClosedWonOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortf
 import getCasesOpenedInLastDaysForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getCasesOpenedInLastDaysForPortfolio';
 import getCasesOpenedYtdForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getCasesOpenedYtdForPortfolio';
 import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingEventsForPortfolio';
+import recalculatePortfolioHealthScores from '@salesforce/apex/CSD_CSMPortfolioController.recalculatePortfolioHealthScores';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
@@ -41,7 +42,9 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track showAccountModal = false;
     @track selectedAccountId = null;
     @track selectedAccountName = '';
-    @track snapshotExpanded = true;
+    @track snapshotExpanded = false;
+    _snapshotStorageKey = 'csd.portfolio.snapshotExpanded';
+    @track isRecalculatingAll = false;
 
     @track _activeTooltipKey = null;
     _touchTimer = null;
@@ -90,7 +93,29 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track detailListsLoaded = false;
 
     connectedCallback() {
+        this._applySnapshotPreferenceFromStorage();
         this.loadPortfolioData();
+    }
+
+    _applySnapshotPreferenceFromStorage() {
+        try {
+            const v = localStorage.getItem(this._snapshotStorageKey);
+            if (v === 'true') {
+                this.snapshotExpanded = true;
+            } else if (v === 'false') {
+                this.snapshotExpanded = false;
+            }
+        } catch (e) {
+            // localStorage may be unavailable
+        }
+    }
+
+    _persistSnapshotPreference() {
+        try {
+            localStorage.setItem(this._snapshotStorageKey, String(this.snapshotExpanded));
+        } catch (e) {
+            // ignore
+        }
     }
 
     loadPortfolioData() {
@@ -453,7 +478,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         if (factorType === 'overdueTasks') {
             this.kpiModalTitle = `Overdue Tasks — ${accountName}`;
             this.kpiModalType = 'tasks';
-            this.kpiModalEmptyMessage = 'No overdue tasks for this account.';
+            this.kpiModalEmptyMessage = 'No overdue tasks for this account — all follow-ups are on track.';
             this.kpiModalData = [];
             this.showKpiModal = true;
 
@@ -470,7 +495,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         } else if (factorType === 'highPriCases') {
             this.kpiModalTitle = `High-Priority Cases — ${accountName}`;
             this.kpiModalType = 'cases';
-            this.kpiModalEmptyMessage = 'No high-priority cases for this account.';
+            this.kpiModalEmptyMessage = 'No high-priority cases for this account — no escalations right now.';
             this.kpiModalData = [];
             this.showKpiModal = true;
 
@@ -513,6 +538,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     handleSnapshotToggle() {
         this.snapshotExpanded = !this.snapshotExpanded;
+        this._persistSnapshotPreference();
     }
 
     handleBarMouseEnter(event) {
@@ -623,7 +649,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     handleOpenCasesClick() {
         this.kpiModalTitle = 'Open Cases';
         this.kpiModalType = 'cases';
-        this.kpiModalEmptyMessage = 'Great job! No open cases.';
+        this.kpiModalEmptyMessage = 'No open cases across your portfolio — support is clear.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -640,7 +666,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     handleOpenTasksClick() {
         this.kpiModalTitle = 'Overdue Tasks';
         this.kpiModalType = 'tasks';
-        this.kpiModalEmptyMessage = 'No overdue tasks. Nice work.';
+        this.kpiModalEmptyMessage = 'No overdue tasks across your portfolio — nice work keeping up.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -657,7 +683,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     handleOpenPipelineClick() {
         this.kpiModalTitle = 'Open Pipeline';
         this.kpiModalType = 'opportunities';
-        this.kpiModalEmptyMessage = 'No open opportunities.';
+        this.kpiModalEmptyMessage = 'No open opportunities across your portfolio — open an account to create one.';
         this.kpiModalData = [];
         this.showKpiModal = true;
 
@@ -728,6 +754,204 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     get currentYear() { return new Date().getFullYear(); }
     get hasAccounts() { return this.accounts && this.accounts.length > 0; }
     get hasRenewals() { return this.renewals && this.renewals.length > 0; }
+
+    // ── Portfolio-level empty-state disambiguation ──
+    // We distinguish three reasons the accounts list can be empty:
+    //   1. Onboarding: the user is not Primary CSM on any account at all.
+    //   2. Filter: the user has a portfolio, but the current filter hides everything.
+    //   3. Generic: summary not yet loaded or data returned unexpectedly empty.
+    // Each state needs a different message + CTA, so we gate them with explicit getters.
+
+    /** True when the user has no accounts assigned as Primary CSM. */
+    get isPortfolioEmpty() {
+        return !!(this.summary && !this.summary.totalAccounts);
+    }
+
+    /** True when the user has a portfolio but the active filter is hiding it. */
+    get isFilterHidingAccounts() {
+        return !!(this.summary && this.summary.totalAccounts > 0 && !this.hasAccounts
+            && this.currentFilter && this.currentFilter !== 'all');
+    }
+
+    /**
+     * True when none of the more specific empty states apply - this is the catch-all
+     * (e.g. summary hasn't loaded yet, or the accounts query unexpectedly returned zero
+     * rows even though totalAccounts is > 0 with filter = all).
+     */
+    get isGenericAccountsEmpty() {
+        return !this.hasAccounts && !this.isPortfolioEmpty && !this.isFilterHidingAccounts;
+    }
+
+    /** Greeting used in the onboarding card title. Falls back gracefully. */
+    get noPortfolioTitle() {
+        const name = this.summary && this.summary.currentUserName;
+        if (name) {
+            const firstName = name.split(' ')[0];
+            return `Welcome, ${firstName} — your portfolio is empty`;
+        }
+        return 'Your portfolio is empty';
+    }
+
+    /** Title shown when a filter is hiding the whole portfolio. */
+    get filterEmptyTitle() {
+        const label = this.filterDisplayLabel;
+        if (label) {
+            return `No accounts match "${label}"`;
+        }
+        return 'No accounts match the current filter';
+    }
+
+    /** User-friendly label for whichever filter is active. */
+    get filterDisplayLabel() {
+        const map = {
+            'at-risk': 'At Risk',
+            'needs-attention': 'Needs Attention',
+            'healthy': 'Healthy',
+            'inactive': 'Inactive',
+            'overdue': 'Overdue tasks',
+            'highpri': 'High priority cases'
+        };
+        return map[this.currentFilter] || '';
+    }
+
+    /** Small meta chip shown in the onboarding card to confirm whose portfolio this is. */
+    get userNameForMeta() {
+        return (this.summary && this.summary.currentUserName) || 'You';
+    }
+
+    handleClearFilters() {
+        if (this.currentFilter !== 'all') {
+            this.applyAccountFocus('all');
+        }
+    }
+
+    // ── Zero-tone helpers ──
+    // When a snapshot tile's value is 0, we want it rendered in a muted tone so the user
+    // doesn't misread it as an alert or a failure. Each getter returns the class list for
+    // the <span class="commercial-kpi-value"> element of that specific tile.
+
+    get lifetimeValueClass() {
+        return this._valueClassForNumber(this.summary && this.summary.totalClosedWonAmount);
+    }
+    get wonYtdValueClass() {
+        return this._valueClassForNumber(this.summary && this.summary.totalYtdClosedWon);
+    }
+    get openPipelineValueClass() {
+        return this._valueClassForNumber(this.summary && this.summary.totalOpenPipeline);
+    }
+    get ytdCasesValueClass() {
+        return this._valueClassForNumber(this.summary && this.summary.ytdCaseCount, 'commercial-kpi-value commercial-kpi-value--num');
+    }
+    get cases90ValueClass() {
+        return this._valueClassForNumber(this.summary && this.summary.casesOpenedLast90Days, 'commercial-kpi-value commercial-kpi-value--num');
+    }
+    get escalated90ValueClass() {
+        return this._valueClassForNumber(this.summary && this.summary.escalatedCasesLast90Days, 'commercial-kpi-value commercial-kpi-value--num');
+    }
+
+    _valueClassForNumber(value, base = 'commercial-kpi-value') {
+        const numeric = Number(value) || 0;
+        if (numeric === 0) {
+            return `${base} commercial-kpi-value--zero`;
+        }
+        return base;
+    }
+
+    // ── Top-level error / permission state ──
+
+    get isPermissionError() {
+        return this._errorLooksLikePermission(this.error);
+    }
+
+    get showTopLevelPermissionState() {
+        return !!this.error && !this.summary && this.isPermissionError;
+    }
+
+    get showTopLevelErrorState() {
+        return !!this.error && !this.summary && !this.isPermissionError;
+    }
+
+    get permissionErrorBody() {
+        return "Your user doesn't have access to the CSM Portfolio Dashboard data model. Ask your admin to assign the 'CSD CS Dashboard Full Access' permission set and refresh.";
+    }
+
+    get topLevelErrorDetail() {
+        const e = this.error;
+        if (!e) return '';
+        if (e.body && e.body.message) return e.body.message;
+        if (e.message) return e.message;
+        try { return JSON.stringify(e); } catch (_) { return String(e); }
+    }
+
+    _errorLooksLikePermission(e) {
+        if (!e) return false;
+        const msg =
+            (e.body && e.body.message) ||
+            (e.body && e.body.stackTrace) ||
+            e.message || '';
+        const s = String(msg || '').toUpperCase();
+        return s.indexOf('INSUFFICIENT_ACCESS') !== -1
+            || s.indexOf('INSUFFICIENT_OBJECT_ACCESS') !== -1
+            || s.indexOf('FIELD_CUSTOM_VALIDATION_EXCEPTION: ACCESS') !== -1
+            || s.indexOf('NOT AUTHORIZED') !== -1
+            || s.indexOf('NO ACCESS') !== -1;
+    }
+
+    /**
+     * True only when the user has a portfolio AND none of their accounts have a real
+     * health score yet. Surfaces a one-click "Recalculate all" banner. We don't show
+     * the banner on a partially-assessed portfolio because per-account recalculation
+     * already lives on the account dashboard.
+     */
+    get showAllNotAssessedBanner() {
+        if (!this.summary) return false;
+        const total = this.summary.totalAccounts || 0;
+        const unassessed = this.summary.notAssessedAccounts || 0;
+        return total > 0 && unassessed === total;
+    }
+
+    /**
+     * Trigger recalculation for every account in the user's portfolio and refresh
+     * the dashboard. Safe to click multiple times - the button is disabled while in flight.
+     */
+    handleRecalculateAll() {
+        if (this.isRecalculatingAll) return;
+        this.isRecalculatingAll = true;
+        recalculatePortfolioHealthScores()
+            .then((count) => {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Portfolio recalculated',
+                    message: `Refreshed ${count} account${count === 1 ? '' : 's'} from the latest data.`,
+                    variant: 'success'
+                }));
+                this.handleRefresh();
+            })
+            .catch((error) => {
+                const message =
+                    (error && error.body && error.body.message) ||
+                    (error && error.message) ||
+                    'Unknown error';
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Could not recalculate portfolio',
+                    message: message,
+                    variant: 'error'
+                }));
+            })
+            .finally(() => {
+                this.isRecalculatingAll = false;
+            });
+    }
+
+    handleOpenOnboardingDocs() {
+        // No in-app help article yet, so we surface an informational toast and keep the
+        // user on the page. When help docs are published we can swap this for a link.
+        this.dispatchEvent(new ShowToastEvent({
+            title: 'Need accounts in your portfolio?',
+            message: 'Ask your admin to set you as Primary CSM on the accounts you own, or open an account and set yourself as Primary CSM.',
+            variant: 'info',
+            mode: 'sticky'
+        }));
+    }
 
     // ── Health Distribution ──
 
