@@ -58,9 +58,11 @@
                                 icon="utility:lock"
                                 title-text="You don't have access to this dashboard yet"
                                 body-text={permissionErrorBody}
-                                primary-label="Try again"
+                                primary-label="Copy permission set name"
                                 primary-variant="brand"
-                                onprimaryclick={handleRefresh}>
+                                secondary-label="Try again"
+                                onprimaryclick={handleCopyPermissionSetName}
+                                onsecondaryclick={handleRefresh}>
                             </c-csd-empty-state>
                         </template>
 

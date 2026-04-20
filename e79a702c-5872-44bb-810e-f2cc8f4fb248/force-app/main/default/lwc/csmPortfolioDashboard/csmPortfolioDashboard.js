@@ -891,8 +891,43 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return !this.showFullPageEmpty;
     }
 
+    /** Permission set that unlocks this dashboard. Surfaced as the secondary
+     *  "copy to clipboard" action so users can paste it straight to their admin. */
+    get permissionSetName() {
+        return 'CSD CS Dashboard Full Access';
+    }
+
     get permissionErrorBody() {
-        return "Your user doesn't have access to the CSM Portfolio Dashboard data model. Ask your admin to assign the 'CSD CS Dashboard Full Access' permission set and refresh.";
+        return `Your user doesn't have access to the CSM Portfolio Dashboard data model. Ask your admin to assign the '${this.permissionSetName}' permission set, then try again.`;
+    }
+
+    /**
+     * Secondary CTA on the permission error. Copies the permission-set name
+     * to the clipboard so the user can paste it into a Slack/email to their
+     * admin. Falls back to a toast if the Clipboard API isn't available.
+     */
+    handleCopyPermissionSetName() {
+        const name = this.permissionSetName;
+        const showSuccess = () => this.dispatchEvent(new ShowToastEvent({
+            title: 'Copied',
+            message: `"${name}" is on your clipboard — paste it in a message to your admin.`,
+            variant: 'success'
+        }));
+        const showFallback = () => this.dispatchEvent(new ShowToastEvent({
+            title: 'Permission set name',
+            message: name,
+            variant: 'info',
+            mode: 'sticky'
+        }));
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(name).then(showSuccess, showFallback);
+            } else {
+                showFallback();
+            }
+        } catch (_) {
+            showFallback();
+        }
     }
 
     get topLevelErrorDetail() {
@@ -962,15 +997,20 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             });
     }
 
-    handleOpenOnboardingDocs() {
-        // No in-app help article yet, so we surface an informational toast and keep the
-        // user on the page. When help docs are published we can swap this for a link.
-        this.dispatchEvent(new ShowToastEvent({
-            title: 'Need accounts in your portfolio?',
-            message: 'Ask your admin to set you as Primary CSM on the accounts you own, or open an account and set yourself as Primary CSM.',
-            variant: 'info',
-            mode: 'sticky'
-        }));
+    /**
+     * Primary CTA on the empty-portfolio onboarding state. Takes the user
+     * straight to the Accounts list view where they can open an account and
+     * set themselves as Primary CSM — which is the action that actually
+     * populates this dashboard.
+     */
+    handleBrowseAccounts() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Account',
+                actionName: 'list'
+            }
+        });
     }
 
     // ── Health Distribution ──

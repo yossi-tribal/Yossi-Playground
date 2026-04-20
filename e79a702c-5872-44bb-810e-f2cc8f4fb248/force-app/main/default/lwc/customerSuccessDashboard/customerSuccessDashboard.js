@@ -1066,8 +1066,42 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return !this.showFullPageEmpty;
     }
 
+    /** Permission set that unlocks this dashboard. Used by the copy-to-clipboard
+     *  secondary CTA on the permission empty state. */
+    get permissionSetName() {
+        return 'CSD CS Dashboard Full Access';
+    }
+
     get permissionErrorBody() {
-        return "Your user doesn't have access to the Customer Success Dashboard data model. Ask your admin to assign the 'CSD CS Dashboard Full Access' permission set and refresh.";
+        return `Your user doesn't have access to the Customer Success Dashboard data model. Ask your admin to assign the '${this.permissionSetName}' permission set, then try again.`;
+    }
+
+    /**
+     * Secondary CTA on the permission error. Copies the permission-set name
+     * so the user can paste it into a message to their admin.
+     */
+    handleCopyPermissionSetName() {
+        const name = this.permissionSetName;
+        const showSuccess = () => this.dispatchEvent(new ShowToastEvent({
+            title: 'Copied',
+            message: `"${name}" is on your clipboard — paste it in a message to your admin.`,
+            variant: 'success'
+        }));
+        const showFallback = () => this.dispatchEvent(new ShowToastEvent({
+            title: 'Permission set name',
+            message: name,
+            variant: 'info',
+            mode: 'sticky'
+        }));
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(name).then(showSuccess, showFallback);
+            } else {
+                showFallback();
+            }
+        } catch (_) {
+            showFallback();
+        }
     }
 
     get topLevelErrorDetail() {

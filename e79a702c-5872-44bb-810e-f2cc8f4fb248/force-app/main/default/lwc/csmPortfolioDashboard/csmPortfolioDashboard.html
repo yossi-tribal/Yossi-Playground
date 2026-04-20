@@ -49,9 +49,11 @@
                                 icon="utility:lock"
                                 title-text="You don't have access to this dashboard yet"
                                 body-text={permissionErrorBody}
-                                primary-label="Try again"
+                                primary-label="Copy permission set name"
                                 primary-variant="brand"
-                                onprimaryclick={handleRefresh}>
+                                secondary-label="Try again"
+                                onprimaryclick={handleCopyPermissionSetName}
+                                onsecondaryclick={handleRefresh}>
                             </c-csd-empty-state>
                         </template>
 
@@ -75,10 +77,10 @@
                                 variant="onboarding"
                                 icon="standard:account"
                                 title-text={noPortfolioTitle}
-                                body-text="You aren't listed as Primary CSM on any accounts yet. Ask your admin to assign accounts to you, or open an account and set yourself as Primary CSM to populate this view."
-                                primary-label="Learn how to get assigned"
+                                body-text="You aren't listed as Primary CSM on any accounts yet. Open an account and set yourself as Primary CSM, or ask your admin to assign accounts to you."
+                                primary-label="Browse accounts"
                                 primary-variant="brand"
-                                onprimaryclick={handleOpenOnboardingDocs}>
+                                onprimaryclick={handleBrowseAccounts}>
                                 <span slot="meta" class="empty-state-meta-chip">Running as: {userNameForMeta}</span>
                             </c-csd-empty-state>
                         </template>
