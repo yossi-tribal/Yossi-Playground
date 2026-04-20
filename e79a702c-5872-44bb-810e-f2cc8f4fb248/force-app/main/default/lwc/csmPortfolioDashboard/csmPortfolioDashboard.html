@@ -33,32 +33,64 @@
         <template if:false={isLoading}>
             <div class="dashboard-content">
 
-                <!-- Top-level error / permission state (renders when initial load failed) -->
-                <template if:true={showTopLevelPermissionState}>
-                    <c-csd-empty-state
-                        variant="onboarding"
-                        icon="utility:lock"
-                        title-text="You don't have access to this dashboard yet"
-                        body-text={permissionErrorBody}
-                        primary-label="Try again"
-                        primary-variant="brand"
-                        onprimaryclick={handleRefresh}>
-                    </c-csd-empty-state>
+                <!--
+                    Full-page takeover. When the user has no portfolio, or the
+                    initial load failed (permission / generic error), we hide
+                    every data section and render just one big empty-state card
+                    so the page has a single clear message instead of a
+                    dashboard full of zeros.
+                -->
+                <template if:true={showFullPageEmpty}>
+                    <div class="portfolio-empty-page">
+                        <template if:true={showTopLevelPermissionState}>
+                            <c-csd-empty-state
+                                size="full"
+                                variant="onboarding"
+                                icon="utility:lock"
+                                title-text="You don't have access to this dashboard yet"
+                                body-text={permissionErrorBody}
+                                primary-label="Try again"
+                                primary-variant="brand"
+                                onprimaryclick={handleRefresh}>
+                            </c-csd-empty-state>
+                        </template>
+
+                        <template if:true={showTopLevelErrorState}>
+                            <c-csd-empty-state
+                                size="full"
+                                variant="error"
+                                icon="utility:error"
+                                title-text="We couldn't load your portfolio"
+                                body-text="Something went wrong while fetching the data. Try again, and if the error continues reach out to your admin with the technical details below."
+                                primary-label="Try again"
+                                primary-variant="brand"
+                                error-detail={topLevelErrorDetail}
+                                onprimaryclick={handleRefresh}>
+                            </c-csd-empty-state>
+                        </template>
+
+                        <template if:true={isPortfolioEmpty}>
+                            <c-csd-empty-state
+                                size="full"
+                                variant="onboarding"
+                                icon="standard:account"
+                                title-text={noPortfolioTitle}
+                                body-text="You aren't listed as Primary CSM on any accounts yet. Ask your admin to assign accounts to you, or open an account and set yourself as Primary CSM to populate this view."
+                                primary-label="Learn how to get assigned"
+                                primary-variant="brand"
+                                onprimaryclick={handleOpenOnboardingDocs}>
+                                <span slot="meta" class="empty-state-meta-chip">Running as: {userNameForMeta}</span>
+                            </c-csd-empty-state>
+                        </template>
+                    </div>
                 </template>
 
-                <template if:true={showTopLevelErrorState}>
-                    <c-csd-empty-state
-                        variant="error"
-                        icon="utility:error"
-                        title-text="We couldn't load your portfolio"
-                        body-text="Something went wrong while fetching the data. Try again, and if the error continues reach out to your admin with the technical details below."
-                        primary-label="Try again"
-                        primary-variant="brand"
-                        error-detail={topLevelErrorDetail}
-                        onprimaryclick={handleRefresh}>
-                    </c-csd-empty-state>
-                </template>
-
+                <!--
+                    Main dashboard content. Hidden entirely when we're in a
+                    full-page empty state so the user doesn't see empty tiles
+                    behind the takeover.
+                -->
+                <template if:true={showDashboardContent}>
                 <!-- Portfolio-wide banner: every account is Not Assessed -->
                 <template if:true={showAllNotAssessedBanner}>
                     <div class="portfolio-banner portfolio-banner--not-assessed" role="status">
@@ -694,23 +726,11 @@
                         </div>
                     </template>
 
-                    <!-- Empty State -->
+                    <!-- Empty State (note: the portfolio-wide "no accounts
+                         assigned" case is now rendered as a full-page takeover
+                         above, not here). -->
                     <template if:false={hasAccounts}>
-                        <!-- 1. User has no portfolio at all (onboarding) -->
-                        <template if:true={isPortfolioEmpty}>
-                            <c-csd-empty-state
-                                variant="onboarding"
-                                icon="standard:account"
-                                title-text={noPortfolioTitle}
-                                body-text="You aren't listed as Primary CSM on any accounts yet. Ask your admin to assign accounts to you, or open an account and set yourself as Primary CSM to populate this view."
-                                primary-label="Learn how to get assigned"
-                                primary-variant="brand"
-                                onprimaryclick={handleOpenOnboardingDocs}>
-                                <span slot="meta" class="empty-state-meta-chip">Running as: {userNameForMeta}</span>
-                            </c-csd-empty-state>
-                        </template>
-
-                        <!-- 2. User has a portfolio but the current filter hides everything -->
+                        <!-- Active filter hides everything -->
                         <template if:true={isFilterHidingAccounts}>
                             <c-csd-empty-state
                                 variant="empty"
@@ -723,7 +743,8 @@
                             </c-csd-empty-state>
                         </template>
 
-                        <!-- 3. Fallback for any other case (e.g., accounts load returned empty unexpectedly) -->
+                        <!-- Fallback for any other case (accounts query
+                             returned an empty list unexpectedly). -->
                         <template if:true={isGenericAccountsEmpty}>
                             <div class="empty-state">
                                 <lightning-icon icon-name="utility:search" size="medium" class="empty-icon"></lightning-icon>
@@ -983,6 +1004,9 @@
 
                 </div>
                 </template>
+
+                </template>
+                <!-- /showDashboardContent -->
 
                 <!-- Watermark -->
                 <div class="csd-watermark">Made by Tribal</div>

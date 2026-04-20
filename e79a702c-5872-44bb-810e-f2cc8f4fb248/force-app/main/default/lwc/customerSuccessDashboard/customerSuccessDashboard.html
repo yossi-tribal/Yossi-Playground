@@ -43,31 +43,45 @@
         <template if:false={isLoading}>
             <div class="dashboard-content">
 
-                <!-- Top-level error / permission state (blocks dashboard rendering when summary failed to load) -->
-                <template if:true={showTopLevelPermissionState}>
-                    <c-csd-empty-state
-                        variant="onboarding"
-                        icon="utility:lock"
-                        title-text="You don't have access to this dashboard yet"
-                        body-text={permissionErrorBody}
-                        primary-label="Try again"
-                        primary-variant="brand"
-                        onprimaryclick={handleRefresh}>
-                    </c-csd-empty-state>
+                <!--
+                    Full-page takeover for permission denied / fatal load
+                    error. When we can't even load the summary, it's more
+                    honest to show a single big message than a dashboard full
+                    of zeros behind a smaller error banner.
+                -->
+                <template if:true={showFullPageEmpty}>
+                    <div class="dashboard-empty-page">
+                        <template if:true={showTopLevelPermissionState}>
+                            <c-csd-empty-state
+                                size="full"
+                                variant="onboarding"
+                                icon="utility:lock"
+                                title-text="You don't have access to this dashboard yet"
+                                body-text={permissionErrorBody}
+                                primary-label="Try again"
+                                primary-variant="brand"
+                                onprimaryclick={handleRefresh}>
+                            </c-csd-empty-state>
+                        </template>
+
+                        <template if:true={showTopLevelErrorState}>
+                            <c-csd-empty-state
+                                size="full"
+                                variant="error"
+                                icon="utility:error"
+                                title-text="We couldn't load this dashboard"
+                                body-text="Something went wrong while fetching the data. Try again, and if the error continues reach out to your admin with the technical details below."
+                                primary-label="Try again"
+                                primary-variant="brand"
+                                error-detail={topLevelErrorDetail}
+                                onprimaryclick={handleRefresh}>
+                            </c-csd-empty-state>
+                        </template>
+                    </div>
                 </template>
 
-                <template if:true={showTopLevelErrorState}>
-                    <c-csd-empty-state
-                        variant="error"
-                        icon="utility:error"
-                        title-text="We couldn't load this dashboard"
-                        body-text="Something went wrong while fetching the data. Try again, and if the error continues reach out to your admin with the technical details below."
-                        primary-label="Try again"
-                        primary-variant="brand"
-                        error-detail={topLevelErrorDetail}
-                        onprimaryclick={handleRefresh}>
-                    </c-csd-empty-state>
-                </template>
+                <!-- Main dashboard content (hidden entirely during a full-page takeover) -->
+                <template if:true={showDashboardContent}>
 
                 <!-- Premium 3-Zone Header Layout -->
                 <template if:true={hasSummary}>
@@ -744,6 +758,9 @@
 
                 </div>
                 </template>
+
+                </template>
+                <!-- /showDashboardContent -->
 
             </div>
         </template>

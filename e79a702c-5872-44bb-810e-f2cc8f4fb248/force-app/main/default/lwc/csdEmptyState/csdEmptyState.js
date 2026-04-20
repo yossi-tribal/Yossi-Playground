@@ -18,6 +18,13 @@ export default class CsdEmptyState extends LightningElement {
     @api secondaryLabel = '';
     @api errorDetail = '';
     @api compact = false;
+    /**
+     * Visual size. 'default' shows a normal inline empty-state card.
+     * 'full' renders the card as a full-page takeover (big padding, centered
+     * in the viewport, large icon + title). Use 'full' when the rest of the
+     * surrounding dashboard should not render.
+     */
+    @api size = 'default';
     @track _hasMeta = false;
 
     @api
@@ -51,10 +58,15 @@ export default class CsdEmptyState extends LightningElement {
         return [
             'csd-empty',
             `csd-empty--${this.variant}`,
-            this.compact ? 'csd-empty--compact' : ''
+            this.compact ? 'csd-empty--compact' : '',
+            this.size === 'full' ? 'csd-empty--full' : ''
         ]
             .filter(Boolean)
             .join(' ');
+    }
+
+    get iconSize() {
+        return this.size === 'full' ? 'large' : 'small';
     }
 
     get hasActions() {

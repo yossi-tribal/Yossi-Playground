@@ -871,6 +871,26 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return !!this.error && !this.summary && !this.isPermissionError;
     }
 
+    /**
+     * True when we should hide the entire dashboard and show only a full-page
+     * empty state. Covers:
+     *   - user's portfolio is empty (no accounts where they are Primary CSM)
+     *   - permission error on initial load
+     *   - fatal load error on initial load
+     */
+    get showFullPageEmpty() {
+        return (
+            this.showTopLevelPermissionState ||
+            this.showTopLevelErrorState ||
+            this.isPortfolioEmpty
+        );
+    }
+
+    /** Inverse of showFullPageEmpty, used to gate the normal dashboard sections. */
+    get showDashboardContent() {
+        return !this.showFullPageEmpty;
+    }
+
     get permissionErrorBody() {
         return "Your user doesn't have access to the CSM Portfolio Dashboard data model. Ask your admin to assign the 'CSD CS Dashboard Full Access' permission set and refresh.";
     }

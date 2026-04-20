@@ -1053,6 +1053,19 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return !!this.error && !this.summary && !this.isPermissionError;
     }
 
+    /**
+     * True when the whole dashboard should be replaced by a full-page empty
+     * state (permission denied or fatal load error before any data arrived).
+     */
+    get showFullPageEmpty() {
+        return this.showTopLevelPermissionState || this.showTopLevelErrorState;
+    }
+
+    /** Inverse, used to gate every normal dashboard section. */
+    get showDashboardContent() {
+        return !this.showFullPageEmpty;
+    }
+
     get permissionErrorBody() {
         return "Your user doesn't have access to the Customer Success Dashboard data model. Ask your admin to assign the 'CSD CS Dashboard Full Access' permission set and refresh.";
     }

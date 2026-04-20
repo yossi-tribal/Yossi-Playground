@@ -2992,3 +2992,19 @@ button:focus-visible,
     padding-top: var(--csd-space-3);
     border-top: 1px solid var(--csd-gray-100);
 }
+
+/* Full-page empty-state takeover wrapper */
+.portfolio-empty-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 2rem 1rem;
+}
+
+.portfolio-empty-page c-csd-empty-state {
+    display: block;
+    width: 100%;
+    max-width: 36rem;
+}
+

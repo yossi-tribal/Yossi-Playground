@@ -2424,3 +2424,19 @@ button:focus-visible,
     opacity: 0.6;
     user-select: none;
 }
+
+/* Full-page empty-state takeover wrapper */
+.dashboard-empty-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 2rem 1rem;
+}
+
+.dashboard-empty-page c-csd-empty-state {
+    display: block;
+    width: 100%;
+    max-width: 36rem;
+}
+
