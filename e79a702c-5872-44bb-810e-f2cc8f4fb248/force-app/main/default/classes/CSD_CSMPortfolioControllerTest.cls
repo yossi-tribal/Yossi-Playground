@@ -696,6 +696,35 @@ private class CSD_CSMPortfolioControllerTest {
     }
 
     /**
+     * @description getCasesOpenedYtdForPortfolio returns calendar-YTD cases scoped to the
+     * caller's portfolio and matches the same row shape used by the existing drilldown.
+     */
+    @isTest
+    static void testGetCasesOpenedYtdForPortfolio() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+
+        Test.startTest();
+        System.runAs(testUser) {
+            List<CSD_CSMPortfolioController.PortfolioCaseRow> rows =
+                CSD_CSMPortfolioController.getCasesOpenedYtdForPortfolio();
+
+            System.assertNotEquals(null, rows, 'Rows list should not be null');
+            // Every case created in @testSetup lands in the current calendar year, so the
+            // YTD drilldown should include the same portfolio cases as the unbounded list.
+            System.assert(rows.size() >= 1, 'Should return at least one YTD case for the portfolio');
+
+            for (CSD_CSMPortfolioController.PortfolioCaseRow row : rows) {
+                System.assertNotEquals(null, row.caseId, 'Case ID should be populated');
+                System.assertNotEquals(null, row.caseNumber, 'Case number should be populated');
+                System.assertNotEquals(null, row.accountName, 'Account name should be populated');
+                System.assertNotEquals(null, row.accountId, 'Account ID should be populated');
+                System.assert(row.age >= 0, 'Case age should be non-negative');
+            }
+        }
+        Test.stopTest();
+    }
+
+    /**
      * @description Test AccountRow health factor fields and recent activities are populated
      */
     @isTest
