@@ -46,7 +46,7 @@
                                     <span class="trend-arrow">{trendIcon}</span>
                                     {trendText}
                                 </div>
-                                <div class="hero-updated">Updated 2 hours ago</div>
+                                <div class="hero-updated">{lastUpdatedText}</div>
                                 <button class="custom-btn custom-btn--secondary" onclick={handleViewBreakdown}>
                                     View Breakdown
                                 </button>
@@ -367,6 +367,11 @@
                         <template if:true={secOpenTasks}>
                             <div class="section-accordion-body">
                                 <template if:true={hasOpenTasksList}>
+                                    <template if:true={hasMoreOpenTasksThanShown}>
+                                        <div class="section-accordion-actions">
+                                            <button class="custom-btn custom-btn--link" onclick={handleOpenTasksClick}>View all</button>
+                                        </div>
+                                    </template>
                                     <div class="activity-list">
                                         <template for:each={openTasksDecorated} for:item="task">
                                             <div key={task.activityId} data-id={task.activityId} onclick={handleActivityClick} class={task.rowClass}>
@@ -754,7 +759,7 @@
 
                             <!-- Last Updated -->
                             <div class="breakdown-footer">
-                                <p class="breakdown-timestamp">Last updated: 2 hours ago</p>
+                                <p class="breakdown-timestamp">{lastUpdatedModalText}</p>
                             </div>
                         </div>
                     </div>

@@ -12,6 +12,7 @@ import getContacts from '@salesforce/apex/CSD_CSDashboardController.getContacts'
 import getOpenOpportunities from '@salesforce/apex/CSD_CSDashboardController.getOpenOpportunities';
 import getClosedWonOpportunities from '@salesforce/apex/CSD_CSDashboardController.getClosedWonOpportunities';
 import getCasesOpenedInLastDays from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedInLastDays';
+import getCasesOpenedYtd from '@salesforce/apex/CSD_CSDashboardController.getCasesOpenedYtd';
 import getCasesForMonth from '@salesforce/apex/CSD_CSDashboardController.getCasesForMonth';
 import getClosedWonForMonth from '@salesforce/apex/CSD_CSDashboardController.getClosedWonForMonth';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
@@ -83,8 +84,25 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     @track areContactsLoaded = false;
     @track areOpportunitiesLoaded = false;
 
+    /** Wall-clock time (ms) of the most recent successful summary load; drives lastUpdatedText */
+    @track _summaryLoadedAt = null;
+    /** Tick counter used to re-evaluate lastUpdatedText without changing its source of truth */
+    @track _lastUpdatedTick = 0;
+    _lastUpdatedInterval = null;
+
     connectedCallback() {
         this.loadDashboardData();
+        // Re-render the relative timestamp every minute so "just now" becomes "1 min ago" etc.
+        this._lastUpdatedInterval = setInterval(() => {
+            this._lastUpdatedTick += 1;
+        }, 60000);
+    }
+
+    disconnectedCallback() {
+        if (this._lastUpdatedInterval) {
+            clearInterval(this._lastUpdatedInterval);
+            this._lastUpdatedInterval = null;
+        }
     }
 
     /**
@@ -120,6 +138,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         getDashboardSummary({ accountId: this.recordId })
             .then(result => {
                 this.summary = result;
+                this._summaryLoadedAt = Date.now();
                 this.isSummaryLoaded = true;
                 this.checkAllLoaded();
             })
@@ -436,10 +455,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         this.kpiModalData = [];
         this.showKpiModal = true;
 
-        const daysIntoYear = Math.ceil(
-            (Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 86400000
-        );
-        getCasesOpenedInLastDays({ accountId: this.recordId, days: daysIntoYear })
+        getCasesOpenedYtd({ accountId: this.recordId })
             .then(result => {
                 this.kpiModalData = result || [];
             })
@@ -733,7 +749,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get csmDisplayName() {
         if (!this.summary || !this.summary.csmName) {
-            return 'Not assigned';
+            return 'Not Assigned';
         }
         return this.summary.csmName;
     }
@@ -900,12 +916,51 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
         return this.openTasks ? this.openTasks.length : 0;
     }
 
+    /**
+     * True when the account has more open tasks than we render inline (recordLimit is 10).
+     * Drives the "View all" link inside the Open Tasks accordion body.
+     */
+    get hasMoreOpenTasksThanShown() {
+        if (!this.summary || !this.openTasks) return false;
+        const total = this.summary.openTasksCount || 0;
+        return total > this.openTasks.length;
+    }
+
     get hasUpcomingActivities() {
         return this.upcomingActivities && this.upcomingActivities.length > 0;
     }
 
     get showInactivityWarning() {
         return this.summary && this.summary.daysSinceLastActivity && this.summary.daysSinceLastActivity > 30;
+    }
+
+    /**
+     * Human-readable relative time since the summary was last loaded.
+     * Re-evaluated whenever _lastUpdatedTick or _summaryLoadedAt changes.
+     */
+    get lastUpdatedText() {
+        // Reference the tick so Lightning re-invokes this getter each interval.
+        // eslint-disable-next-line no-unused-vars
+        const _ = this._lastUpdatedTick;
+        if (!this._summaryLoadedAt) return '';
+        const diffMs = Date.now() - this._summaryLoadedAt;
+        const mins = Math.floor(diffMs / 60000);
+        if (mins < 1) return 'Updated just now';
+        if (mins === 1) return 'Updated 1 min ago';
+        if (mins < 60) return `Updated ${mins} mins ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs === 1) return 'Updated 1 hour ago';
+        if (hrs < 24) return `Updated ${hrs} hours ago`;
+        const days = Math.floor(hrs / 24);
+        if (days === 1) return 'Updated 1 day ago';
+        return `Updated ${days} days ago`;
+    }
+
+    /** Same value, rephrased for the Health Breakdown modal footer */
+    get lastUpdatedModalText() {
+        const t = this.lastUpdatedText;
+        if (!t) return '';
+        return 'Last ' + t.charAt(0).toLowerCase() + t.slice(1);
     }
 
     // Hero Card Properties
@@ -971,9 +1026,14 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get lastActivityValueClass() {
         if (!this.summary) return 'metric-value-text';
-        if (this.summary.daysSinceLastActivity > 30) {
+        const days = this.summary.daysSinceLastActivity;
+        if (days === null || days === undefined) {
             return 'metric-value-text metric-value-text--danger';
-        } else if (this.summary.daysSinceLastActivity > 7) {
+        }
+        if (days > 30) {
+            return 'metric-value-text metric-value-text--danger';
+        }
+        if (days > 7) {
             return 'metric-value-text metric-value-text--warning';
         }
         return 'metric-value-text metric-value-text--success';
@@ -1527,17 +1587,26 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     get lastActivityFactorClass() {
         if (!this.summary) return 'factor-value';
-        if (this.summary.daysSinceLastActivity > 30) {
+        const days = this.summary.daysSinceLastActivity;
+        // Null / undefined means the account has never had any activity at all;
+        // treating that as "good" is misleading, so surface it as a danger signal.
+        if (days === null || days === undefined) {
             return 'factor-value factor-value--danger';
-        } else if (this.summary.daysSinceLastActivity > 7) {
+        }
+        if (days > 30) {
+            return 'factor-value factor-value--danger';
+        }
+        if (days > 7) {
             return 'factor-value factor-value--warning';
         }
         return 'factor-value factor-value--good';
     }
 
     get daysSinceLastActivityText() {
-        if (!this.summary || !this.summary.daysSinceLastActivity) return '0 days';
+        if (!this.summary) return '';
         const days = this.summary.daysSinceLastActivity;
+        if (days === null || days === undefined) return 'No activity';
+        if (days === 0) return 'Today';
         return `${days} ${days === 1 ? 'day' : 'days'}`;
     }
 

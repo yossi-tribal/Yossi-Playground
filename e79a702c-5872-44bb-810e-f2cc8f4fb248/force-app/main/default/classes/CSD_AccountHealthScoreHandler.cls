@@ -16,6 +16,15 @@ public with sharing class CSD_AccountHealthScoreHandler {
     @TestVisible
     private static Boolean skipRecalculationInTests = false;
 
+    /**
+     * Prevents re-entrancy: the Account trigger fires `after update` and the handler itself
+     * issues an Account update, which would otherwise re-fire the trigger on the same records
+     * within the same transaction. That second pass is wasteful and can produce extra history
+     * rows that confuse downstream consumers of AccountHistory.
+     */
+    @TestVisible
+    private static Boolean inProgress = false;
+
     // Health score risk thresholds
     private static final Integer RED_DAYS_NO_ACTIVITY = 30;
     private static final Integer YELLOW_DAYS_NO_ACTIVITY = 15;
@@ -37,10 +46,17 @@ public with sharing class CSD_AccountHealthScoreHandler {
         if (Test.isRunningTest() && skipRecalculationInTests) {
             return;
         }
+        if (inProgress) {
+            // Second pass of the same transaction – the first pass already computed the
+            // correct score, so there is nothing more to do.
+            return;
+        }
 
-        // Query accounts that need health score calculation
+        // Query accounts that need health score calculation. CSD_Previous_Health_Score__c
+        // is read so we can preserve it when the score stays the same, and overwrite it
+        // with the prior current value when the score changes.
         List<Account> accountsToUpdate = [
-            SELECT Id, CSD_Account_Health_Score__c
+            SELECT Id, CSD_Account_Health_Score__c, CSD_Previous_Health_Score__c
             FROM Account
             WHERE Id IN :accountIds
         ];
@@ -154,13 +170,22 @@ public with sharing class CSD_AccountHealthScoreHandler {
         for (Account acc : accountsToUpdate) {
             String newScore = accountHealthScores.get(acc.Id);
             if (newScore != null && newScore != acc.CSD_Account_Health_Score__c) {
+                // Capture the old current value as the previous score in the same DML so
+                // downstream trend calculations are always consistent with the displayed score.
+                // If there was no prior value (brand-new assessment) we leave previous null.
+                acc.CSD_Previous_Health_Score__c = acc.CSD_Account_Health_Score__c;
                 acc.CSD_Account_Health_Score__c = newScore;
                 accountsWithNewScores.add(acc);
             }
         }
 
         if (!accountsWithNewScores.isEmpty()) {
-            update accountsWithNewScores;
+            inProgress = true;
+            try {
+                update accountsWithNewScores;
+            } finally {
+                inProgress = false;
+            }
         }
     }
 

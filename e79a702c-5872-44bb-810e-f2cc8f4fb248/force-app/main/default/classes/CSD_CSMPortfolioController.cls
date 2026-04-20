@@ -2026,7 +2026,9 @@ public with sharing class CSD_CSMPortfolioController {
                 days = 90;
             }
 
-            DateTime cutoff = DateTime.now().addDays(-days);
+            // Day-granular cutoff so the row count matches summary.casesOpenedLast90Days,
+            // which is computed from SOQL LAST_N_DAYS:90.
+            Date cutoff = Date.today().addDays(-days);
 
             for (Case c : [
                 SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name,
@@ -2054,6 +2056,51 @@ public with sharing class CSD_CSMPortfolioController {
             return rows;
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving recent cases: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Cases across the portfolio opened since Jan 1 of the current calendar year.
+     * Mirrors the calendar-YTD boundary used by PortfolioSummary.ytdCaseCount so the YTD KPI
+     * card and its drilldown list always agree.
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<PortfolioCaseRow> getCasesOpenedYtdForPortfolio() {
+        try {
+            Set<Id> accountIds = getPortfolioAccountIds(UserInfo.getUserId());
+            List<PortfolioCaseRow> rows = new List<PortfolioCaseRow>();
+            if (accountIds.isEmpty()) {
+                return rows;
+            }
+
+            Date ytdStart = Date.newInstance(Date.today().year(), 1, 1);
+
+            for (Case c : [
+                SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name,
+                       Account.Name, AccountId, IsEscalated, CreatedDate
+                FROM Case
+                WHERE AccountId IN :accountIds
+                AND CreatedDate >= :ytdStart
+                ORDER BY Account.Name ASC, CreatedDate DESC
+                LIMIT 200
+            ]) {
+                PortfolioCaseRow row = new PortfolioCaseRow();
+                row.caseId = c.Id;
+                row.caseNumber = c.CaseNumber;
+                row.subject = c.Subject;
+                row.status = c.Status;
+                row.priority = c.Priority;
+                row.ownerName = c.Owner != null ? c.Owner.Name : '';
+                row.age = c.CreatedDate != null ? c.CreatedDate.date().daysBetween(Date.today()) : 0;
+                row.accountName = c.Account != null ? c.Account.Name : '';
+                row.accountId = c.AccountId;
+                row.isEscalated = c.IsEscalated;
+                rows.add(row);
+            }
+
+            return rows;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving YTD cases: ' + e.getMessage());
         }
     }
 }

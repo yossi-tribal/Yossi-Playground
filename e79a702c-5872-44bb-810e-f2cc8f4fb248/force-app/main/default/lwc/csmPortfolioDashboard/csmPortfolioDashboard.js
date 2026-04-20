@@ -14,6 +14,7 @@ import getPortfolioCasesForMonth from '@salesforce/apex/CSD_CSMPortfolioControll
 import getPortfolioClosedWonForMonth from '@salesforce/apex/CSD_CSMPortfolioController.getPortfolioClosedWonForMonth';
 import getClosedWonOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getClosedWonOpportunitiesForPortfolio';
 import getCasesOpenedInLastDaysForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getCasesOpenedInLastDaysForPortfolio';
+import getCasesOpenedYtdForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getCasesOpenedYtdForPortfolio';
 import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingEventsForPortfolio';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
@@ -1250,10 +1251,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         this.kpiModalData = [];
         this.showKpiModal = true;
 
-        const daysIntoYear = Math.ceil(
-            (Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 86400000
-        );
-        getCasesOpenedInLastDaysForPortfolio({ days: daysIntoYear })
+        getCasesOpenedYtdForPortfolio()
             .then(result => {
                 this.kpiModalData = this.sortPortfolioCases(result || []);
             })

@@ -682,71 +682,120 @@ private class CSD_CSDashboardControllerTest {
     }
 
     /**
-     * @description Test health trend calculation with no history
-     * Note: AccountHistory records cannot be created in tests, so this verifies
-     * the default behavior when Field History Tracking is not enabled or no changes exist
+     * @description Trend is 'stable' when the account has no previous score recorded.
+     * This covers first-time assessment, where CSD_Previous_Health_Score__c is null.
      */
     @isTest
-    static void testHealthTrend_NoHistory() {
+    static void testHealthTrend_NoPreviousScore() {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        // Take the trigger out of the loop so we can control the field values directly.
+        CSD_AccountHealthScoreHandler.skipRecalculationInTests = true;
+        try {
+            testAccount.CSD_Account_Health_Score__c = 'Healthy';
+            testAccount.CSD_Previous_Health_Score__c = null;
+            update testAccount;
+        } finally {
+            CSD_AccountHealthScoreHandler.skipRecalculationInTests = false;
+        }
 
         Test.startTest();
         CSD_CSDashboardController.DashboardSummary summary =
             CSD_CSDashboardController.getDashboardSummary(testAccount.Id);
         Test.stopTest();
 
-        // When no history exists, trend should default to 'stable'
-        System.assertEquals('stable', summary.healthTrend, 'Trend should be stable when no history exists');
+        System.assertEquals('stable', summary.healthTrend,
+            'Trend should be stable when there is no previous score to compare against');
     }
 
     /**
-     * @description Test health trend field is populated in dashboard summary
+     * @description Trend is 'improving' whenever the current score ranks higher than the previous.
+     * Covers both At Risk → Needs Attention and Needs Attention → Healthy.
      */
     @isTest
-    static void testHealthTrend_FieldPopulated() {
-        Account testAccount = [SELECT Id FROM Account LIMIT 1];
-        testAccount.CSD_Account_Health_Score__c = 'At Risk';
-        update testAccount;
+    static void testHealthTrend_Improving_AtRiskToNeedsAttention() {
+        assertTrendForSeededScores('At Risk', 'Needs Attention', 'improving');
+    }
 
-        Test.startTest();
-        CSD_CSDashboardController.DashboardSummary summary =
-            CSD_CSDashboardController.getDashboardSummary(testAccount.Id);
-        Test.stopTest();
+    @isTest
+    static void testHealthTrend_Improving_NeedsAttentionToHealthy() {
+        assertTrendForSeededScores('Needs Attention', 'Healthy', 'improving');
+    }
 
-        // Verify health trend field is populated
-        System.assertNotEquals(null, summary.healthTrend, 'Health trend should not be null');
-        System.assert(
-            summary.healthTrend == 'stable' ||
-            summary.healthTrend == 'improving' ||
-            summary.healthTrend == 'declining',
-            'Health trend should be a valid value'
-        );
+    @isTest
+    static void testHealthTrend_Improving_AtRiskToHealthy() {
+        assertTrendForSeededScores('At Risk', 'Healthy', 'improving');
     }
 
     /**
-     * @description Test health trend with multiple health score changes
-     * Note: This test verifies the trend calculation logic works when history is available
+     * @description Trend is 'declining' whenever the current score ranks lower than the previous.
+     * Covers both Healthy → Needs Attention and Needs Attention → At Risk.
      */
     @isTest
-    static void testHealthTrend_WithChanges() {
+    static void testHealthTrend_Declining_HealthyToNeedsAttention() {
+        assertTrendForSeededScores('Healthy', 'Needs Attention', 'declining');
+    }
+
+    @isTest
+    static void testHealthTrend_Declining_NeedsAttentionToAtRisk() {
+        assertTrendForSeededScores('Needs Attention', 'At Risk', 'declining');
+    }
+
+    @isTest
+    static void testHealthTrend_Declining_HealthyToAtRisk() {
+        assertTrendForSeededScores('Healthy', 'At Risk', 'declining');
+    }
+
+    /**
+     * @description Helper: seed an account with the given previous/current scores (bypassing the
+     * recalculation trigger) and assert the dashboard summary produces the expected trend.
+     */
+    private static void assertTrendForSeededScores(String previousScore, String currentScore, String expectedTrend) {
         Account testAccount = [SELECT Id FROM Account LIMIT 1];
 
-        // Change health score multiple times to simulate trend
-        testAccount.CSD_Account_Health_Score__c = 'Needs Attention';
-        update testAccount;
-
-        testAccount.CSD_Account_Health_Score__c = 'At Risk';
-        update testAccount;
+        CSD_AccountHealthScoreHandler.skipRecalculationInTests = true;
+        try {
+            testAccount.CSD_Previous_Health_Score__c = previousScore;
+            testAccount.CSD_Account_Health_Score__c = currentScore;
+            update testAccount;
+        } finally {
+            CSD_AccountHealthScoreHandler.skipRecalculationInTests = false;
+        }
 
         Test.startTest();
         CSD_CSDashboardController.DashboardSummary summary =
             CSD_CSDashboardController.getDashboardSummary(testAccount.Id);
         Test.stopTest();
 
-        // Verify trend is calculated
-        // In test context without Field History Tracking enabled, trend will be 'stable'
-        // In production with Field History Tracking enabled, this would show 'declining'
-        System.assertNotEquals(null, summary.healthTrend, 'Health trend should not be null');
+        System.assertEquals(currentScore, summary.accountHealthScore,
+            'Displayed score should reflect the current field value');
+        System.assertEquals(expectedTrend, summary.healthTrend,
+            previousScore + ' -> ' + currentScore + ' should produce trend ' + expectedTrend);
+    }
+
+    /**
+     * @description Trend is 'stable' when the previous and current scores are the same.
+     */
+    @isTest
+    static void testHealthTrend_StableWhenUnchanged() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+
+        CSD_AccountHealthScoreHandler.skipRecalculationInTests = true;
+        try {
+            testAccount.CSD_Previous_Health_Score__c = 'Needs Attention';
+            testAccount.CSD_Account_Health_Score__c = 'Needs Attention';
+            update testAccount;
+        } finally {
+            CSD_AccountHealthScoreHandler.skipRecalculationInTests = false;
+        }
+
+        Test.startTest();
+        CSD_CSDashboardController.DashboardSummary summary =
+            CSD_CSDashboardController.getDashboardSummary(testAccount.Id);
+        Test.stopTest();
+
+        System.assertEquals('stable', summary.healthTrend,
+            'Same previous and current score should be stable');
     }
 
     /**

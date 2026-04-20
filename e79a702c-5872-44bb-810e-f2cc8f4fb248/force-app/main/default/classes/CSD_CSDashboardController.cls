@@ -263,7 +263,11 @@ public with sharing class CSD_CSDashboardController {
 
             // Get Account details
             List<Account> accounts = [
-                SELECT Id, CSD_Account_Health_Score__c, CSD_Primary_CSM__c, CSD_Primary_CSM__r.Name
+                SELECT Id,
+                       CSD_Account_Health_Score__c,
+                       CSD_Previous_Health_Score__c,
+                       CSD_Primary_CSM__c,
+                       CSD_Primary_CSM__r.Name
                 FROM Account
                 WHERE Id = :accountId
                 LIMIT 1
@@ -282,7 +286,10 @@ public with sharing class CSD_CSDashboardController {
                 ? acc.CSD_Account_Health_Score__c
                 : 'Not Assessed';
             summary.accountHealthColor = getHealthScoreColor(summary.accountHealthScore);
-            summary.healthTrend = calculateHealthTrend(accountId);
+            summary.healthTrend = calculateHealthTrend(
+                acc.CSD_Previous_Health_Score__c,
+                acc.CSD_Account_Health_Score__c
+            );
 
             // Set CSM information
             if (acc.CSD_Primary_CSM__c != null && acc.CSD_Primary_CSM__r != null) {
@@ -969,12 +976,16 @@ public with sharing class CSD_CSDashboardController {
     }
 
     private static void populateNearestRenewal(Id accountId, DashboardSummary summary) {
+        // Only consider renewals that still close in the future. An open renewal with a past
+        // CloseDate (stale pipeline) would otherwise produce a negative "days until renewal"
+        // and misleadingly light up the KPI as critical.
         List<Opportunity> renewals = [
             SELECT Id, CloseDate, Amount
             FROM Opportunity
             WHERE AccountId = :accountId
             AND IsClosed = false
             AND Type = 'Renewal'
+            AND CloseDate >= TODAY
             ORDER BY CloseDate ASC
             LIMIT 1
         ];
@@ -1285,39 +1296,22 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
-     * @description Calculates health trend based on AccountHistory field tracking
-     * @param accountId The Id of the Account record
+     * @description Calculates health trend from the account's previous and current health score
+     * fields. Both values are maintained atomically by CSD_AccountHealthScoreHandler, so the
+     * trend is guaranteed to agree with the displayed score. No dependency on AccountHistory
+     * or Field History Tracking.
+     * @param previousScore The value of CSD_Previous_Health_Score__c (may be null)
+     * @param currentScore The value of CSD_Account_Health_Score__c (may be null)
      * @return String trend indicator (improving, declining, stable)
      */
-    private static String calculateHealthTrend(Id accountId) {
-        try {
-            // Query the last 2 health score changes from AccountHistory
-            List<AccountHistory> historyRecords = [
-                SELECT OldValue, NewValue, CreatedDate
-                FROM AccountHistory
-                WHERE AccountId = :accountId
-                AND Field = 'CSD_Account_Health_Score__c'
-                ORDER BY CreatedDate DESC
-                LIMIT 2
-            ];
-
-            // If no history, trend is stable (no changes)
-            if (historyRecords.isEmpty()) {
-                return 'stable';
-            }
-
-            // Get the most recent change
-            String previousValue = String.valueOf(historyRecords[0].OldValue);
-            String currentValue = String.valueOf(historyRecords[0].NewValue);
-
-            // Compare health scores to determine trend
-            // Health score values: Healthy (best), Needs Attention (middle), At Risk (worst)
-            return determineTrendDirection(previousValue, currentValue);
-
-        } catch (Exception e) {
-            // If history tracking is not enabled or any error occurs, default to stable
+    @TestVisible
+    private static String calculateHealthTrend(String previousScore, String currentScore) {
+        if (String.isBlank(previousScore)) {
+            // No prior value — either this account has never been assessed or it has only
+            // ever had one score. Either way, there is nothing to trend against.
             return 'stable';
         }
+        return determineTrendDirection(previousScore, currentScore);
     }
 
     /**
@@ -1748,7 +1742,9 @@ public with sharing class CSD_CSDashboardController {
     }
 
     /**
-     * @description Cases created in the last N days (default 90) for support-volume drilldown
+     * @description Cases created in the last N days (default 90) for support-volume drilldown.
+     * Uses a day-granular cutoff (start of the day N days before today) so the count matches
+     * the SOQL LAST_N_DAYS:N literal used by the summary KPIs.
      */
     @AuraEnabled(cacheable=false)
     public static List<CaseData> getCasesOpenedInLastDays(Id accountId, Integer days) {
@@ -1761,36 +1757,57 @@ public with sharing class CSD_CSDashboardController {
                 days = 90;
             }
 
-            DateTime cutoff = DateTime.now().addDays(-days);
-            List<CaseData> caseList = new List<CaseData>();
-
-            List<Case> cases = [
-                SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
-                FROM Case
-                WHERE AccountId = :accountId
-                AND CreatedDate >= :cutoff
-                ORDER BY CreatedDate DESC
-                LIMIT 100
-            ];
-
-            for (Case c : cases) {
-                CaseData caseData = new CaseData();
-                caseData.caseId = c.Id;
-                caseData.caseNumber = c.CaseNumber;
-                caseData.subject = c.Subject;
-                caseData.status = c.Status;
-                caseData.priority = c.Priority;
-                caseData.ownerName = c.Owner.Name;
-                caseData.isEscalated = c.IsEscalated;
-                caseData.age = c.CreatedDate.date().daysBetween(Date.today());
-                caseList.add(caseData);
-            }
-
-            return caseList;
+            Date cutoffDate = Date.today().addDays(-days);
+            return queryCasesSince(accountId, cutoffDate);
 
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving recent cases: ' + e.getMessage());
         }
+    }
+
+    /**
+     * @description Cases created since Jan 1 of the current calendar year for the "cases this year" drilldown.
+     * Kept separate from getCasesOpenedInLastDays so the drilldown always matches summary.ytdCaseCount,
+     * which also uses calendar-year boundaries.
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<CaseData> getCasesOpenedYtd(Id accountId) {
+        try {
+            if (accountId == null) {
+                throw new AuraHandledException('Account ID is required');
+            }
+            Date ytdStart = Date.newInstance(Date.today().year(), 1, 1);
+            return queryCasesSince(accountId, ytdStart);
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving YTD cases: ' + e.getMessage());
+        }
+    }
+
+    private static List<CaseData> queryCasesSince(Id accountId, Date sinceDate) {
+        List<CaseData> caseList = new List<CaseData>();
+        List<Case> cases = [
+            SELECT Id, CaseNumber, Subject, Status, Priority, Owner.Name, CreatedDate, IsEscalated
+            FROM Case
+            WHERE AccountId = :accountId
+            AND CreatedDate >= :sinceDate
+            ORDER BY CreatedDate DESC
+            LIMIT 100
+        ];
+        for (Case c : cases) {
+            CaseData caseData = new CaseData();
+            caseData.caseId = c.Id;
+            caseData.caseNumber = c.CaseNumber;
+            caseData.subject = c.Subject;
+            caseData.status = c.Status;
+            caseData.priority = c.Priority;
+            caseData.ownerName = (c.Owner != null && String.isNotBlank(c.Owner.Name))
+                ? c.Owner.Name
+                : UserInfo.getName();
+            caseData.isEscalated = c.IsEscalated;
+            caseData.age = c.CreatedDate.date().daysBetween(Date.today());
+            caseList.add(caseData);
+        }
+        return caseList;
     }
 
     public class TaskPicklistValues {

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CSD_Previous_Health_Score__c</fullName>
+    <complianceGroup>None</complianceGroup>
+    <description>Automatically maintained. Stores the prior value of Account Health Score so the dashboard can display a trend (improving / declining / stable) that is always in sync with the currently displayed score.</description>
+    <inlineHelpText>Automatically maintained. Stores the prior value of Account Health Score so the dashboard can show a consistent trend.</inlineHelpText>
+    <label>Previous Health Score</label>
+    <required>false</required>
+    <securityClassification>Public</securityClassification>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Healthy</fullName>
+                <default>false</default>
+                <label>Healthy</label>
+            </value>
+            <value>
+                <fullName>Needs Attention</fullName>
+                <default>false</default>
+                <label>Needs Attention</label>
+            </value>
+            <value>
+                <fullName>At Risk</fullName>
+                <default>false</default>
+                <label>At Risk</label>
+            </value>
+            <value>
+                <fullName>Not Assessed</fullName>
+                <default>false</default>
+                <label>Not Assessed</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

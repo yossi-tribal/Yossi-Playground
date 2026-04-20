@@ -494,4 +494,88 @@ private class CSD_AccountHealthScoreHandlerTest {
         // If we reach here without exceptions, the test passes
         System.assert(true, 'Handler should gracefully handle null and empty input');
     }
+
+    /**
+     * @description When the handler changes an account's score it must write the OLD current
+     * value into CSD_Previous_Health_Score__c in the same DML, so trend calculations stay in sync.
+     */
+    @isTest
+    static void testPreviousScore_PopulatedOnChange() {
+        Account testAccount = [SELECT Id FROM Account WHERE Name = 'Test Account 0' LIMIT 1];
+
+        // Put the account into a deterministic "Healthy" starting state and clear any
+        // previous-score value the setup trigger may have produced.
+        CSD_AccountHealthScoreHandler.skipRecalculationInTests = true;
+        try {
+            testAccount.CSD_Account_Health_Score__c = 'Healthy';
+            testAccount.CSD_Previous_Health_Score__c = null;
+            update testAccount;
+        } finally {
+            CSD_AccountHealthScoreHandler.skipRecalculationInTests = false;
+        }
+
+        // Create 3 overdue tasks so the next recalculation flips the account to At Risk.
+        List<Task> overdueTasks = new List<Task>();
+        for (Integer i = 0; i < 3; i++) {
+            overdueTasks.add(new Task(
+                Subject = 'Overdue Task ' + i,
+                WhatId = testAccount.Id,
+                Status = 'Not Started',
+                ActivityDate = Date.today().addDays(-5)
+            ));
+        }
+        insert overdueTasks;
+
+        Test.startTest();
+        testAccount.Description = 'Trigger recalculation';
+        update testAccount;
+        Test.stopTest();
+
+        Account result = [
+            SELECT Id, CSD_Account_Health_Score__c, CSD_Previous_Health_Score__c
+            FROM Account
+            WHERE Id = :testAccount.Id
+        ];
+
+        System.assertEquals('At Risk', result.CSD_Account_Health_Score__c,
+            'Overdue tasks should drive the score to At Risk');
+        System.assertEquals('Healthy', result.CSD_Previous_Health_Score__c,
+            'Previous score field should have captured the prior Healthy value');
+    }
+
+    /**
+     * @description When the handler does NOT change an account's score (idempotent recalc),
+     * CSD_Previous_Health_Score__c must be left alone.
+     */
+    @isTest
+    static void testPreviousScore_UntouchedWhenScoreUnchanged() {
+        Account testAccount = [SELECT Id FROM Account WHERE Name = 'Test Account 0' LIMIT 1];
+
+        // Seed: Healthy current, Needs Attention previous.
+        CSD_AccountHealthScoreHandler.skipRecalculationInTests = true;
+        try {
+            testAccount.CSD_Account_Health_Score__c = 'Healthy';
+            testAccount.CSD_Previous_Health_Score__c = 'Needs Attention';
+            update testAccount;
+        } finally {
+            CSD_AccountHealthScoreHandler.skipRecalculationInTests = false;
+        }
+
+        Test.startTest();
+        // Force a recalculation. With no risk factors the handler should compute 'Healthy'
+        // again and decide no update is needed, leaving the previous field alone.
+        CSD_AccountHealthScoreHandler.calculateHealthScores(new Set<Id>{ testAccount.Id });
+        Test.stopTest();
+
+        Account result = [
+            SELECT CSD_Account_Health_Score__c, CSD_Previous_Health_Score__c
+            FROM Account
+            WHERE Id = :testAccount.Id
+        ];
+
+        System.assertEquals('Healthy', result.CSD_Account_Health_Score__c,
+            'Score should remain Healthy when no risk factors exist');
+        System.assertEquals('Needs Attention', result.CSD_Previous_Health_Score__c,
+            'Previous score should not be touched when the score does not change');
+    }
 }
