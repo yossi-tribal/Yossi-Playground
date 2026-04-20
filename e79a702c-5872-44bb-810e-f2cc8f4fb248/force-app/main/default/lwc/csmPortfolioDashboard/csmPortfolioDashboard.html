@@ -48,7 +48,8 @@
                                 variant="onboarding"
                                 icon="utility:lock"
                                 title-text="You don't have access to this dashboard yet"
-                                body-text={permissionErrorBody}
+                                body-text="Your user is missing the data permissions this dashboard needs."
+                                supporting-text={permissionErrorBody}
                                 primary-label="Copy permission set name"
                                 primary-variant="brand"
                                 secondary-label="Try again"
@@ -63,7 +64,8 @@
                                 variant="error"
                                 icon="utility:error"
                                 title-text="We couldn't load your portfolio"
-                                body-text="Something went wrong while fetching the data. Try again, and if the error continues reach out to your admin with the technical details below."
+                                body-text="Something went wrong while fetching the data."
+                                supporting-text="Try again, and if the error continues reach out to your admin with the technical details below."
                                 primary-label="Try again"
                                 primary-variant="brand"
                                 error-detail={topLevelErrorDetail}
@@ -77,7 +79,8 @@
                                 variant="onboarding"
                                 icon="standard:account"
                                 title-text={noPortfolioTitle}
-                                body-text="You aren't listed as Primary CSM on any accounts yet. Open an account and set yourself as Primary CSM, or ask your admin to assign accounts to you."
+                                body-text="You aren't listed as Primary CSM on any accounts yet."
+                                supporting-text="Open an account and set yourself as Primary CSM, or ask your admin to assign accounts to you."
                                 primary-label="Browse accounts"
                                 primary-variant="brand"
                                 onprimaryclick={handleBrowseAccounts}>
@@ -738,7 +741,8 @@
                                 variant="empty"
                                 icon="utility:filter"
                                 title-text={filterEmptyTitle}
-                                body-text="No accounts match the current filter. Clear it to see your whole portfolio."
+                                body-text="No accounts match the current filter."
+                                supporting-text="Clear it to see your whole portfolio."
                                 primary-label="Clear filters"
                                 primary-variant="brand"
                                 onprimaryclick={handleClearFilters}>

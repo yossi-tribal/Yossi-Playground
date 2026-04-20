@@ -10,10 +10,18 @@ const DEFAULT_ICONS = {
 export default class CsdEmptyState extends LightningElement {
     @api variant = 'empty';
     @api titleText = '';
+    /** Primary supporting sentence rendered directly under the title. */
     @api bodyText = '';
+    /**
+     * Optional second line of copy rendered under the body in a smaller,
+     * muted tone. Use this to split a long explanation into a lead +
+     * supporting sentence so the visual hierarchy is readable at a glance.
+     */
+    @api supportingText = '';
     /** Overrides icon for this variant */
     @api icon = '';
     @api primaryLabel = '';
+    /** Controls the primary button style. 'brand' (default) | 'neutral' */
     @api primaryVariant = 'brand';
     @api secondaryLabel = '';
     @api errorDetail = '';
@@ -79,6 +87,15 @@ export default class CsdEmptyState extends LightningElement {
 
     get showSecondary() {
         return !!this.secondaryLabel;
+    }
+
+    get primaryButtonClass() {
+        const base = 'csd-empty__btn';
+        const variantClass =
+            this.primaryVariant === 'neutral'
+                ? 'csd-empty__btn--secondary'
+                : 'csd-empty__btn--primary';
+        return `${base} ${variantClass}`;
     }
 
     get metaContainerClass() {

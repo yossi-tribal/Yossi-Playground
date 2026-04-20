@@ -9,27 +9,26 @@
             ></lightning-icon>
         </div>
         <p class="csd-empty__title">{titleText}</p>
-        <p class="csd-empty__body" lwc:if={bodyText}>{bodyText}</p>
+        <p class="csd-empty__lead" lwc:if={bodyText}>{bodyText}</p>
+        <p class="csd-empty__supporting" lwc:if={supportingText}>{supportingText}</p>
         <div class={metaContainerClass}>
             <slot name="meta" onslotchange={handleMetaSlotChange}></slot>
         </div>
         <div class="csd-empty__actions" lwc:if={hasActions}>
-            <lightning-button
+            <button
                 lwc:if={showPrimary}
-                class="csd-empty__btn"
-                label={primaryLabel}
-                variant={primaryVariant}
+                type="button"
+                class={primaryButtonClass}
                 title={primaryLabel}
                 onclick={handlePrimary}
-            ></lightning-button>
-            <lightning-button
+            >{primaryLabel}</button>
+            <button
                 lwc:if={showSecondary}
-                class="csd-empty__btn"
-                label={secondaryLabel}
-                variant="neutral"
+                type="button"
+                class="csd-empty__btn csd-empty__btn--secondary"
                 title={secondaryLabel}
                 onclick={handleSecondary}
-            ></lightning-button>
+            >{secondaryLabel}</button>
         </div>
         <template lwc:if={isErrorVariant}>
             <details lwc:if={errorDetail} class="csd-empty__details" onclick={handleDetailsClick}>

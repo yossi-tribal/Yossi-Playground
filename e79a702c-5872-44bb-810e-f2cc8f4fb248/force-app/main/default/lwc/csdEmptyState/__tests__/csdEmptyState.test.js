@@ -12,6 +12,10 @@ function create(props = {}) {
     return el;
 }
 
+function actionButtons(el) {
+    return el.shadowRoot.querySelectorAll('.csd-empty__btn');
+}
+
 describe('c-csd-empty-state', () => {
     afterEach(() => {
         while (document.body.firstChild) {
@@ -26,9 +30,28 @@ describe('c-csd-empty-state', () => {
             bodyText: 'Create one when a customer reports an issue.'
         });
         const title = el.shadowRoot.querySelector('.csd-empty__title');
-        const body = el.shadowRoot.querySelector('.csd-empty__body');
+        const body = el.shadowRoot.querySelector('.csd-empty__lead');
         expect(title.textContent).toBe('No cases yet');
         expect(body.textContent).toBe('Create one when a customer reports an issue.');
+    });
+
+    it('renders a separate supporting sentence when supportingText is set', () => {
+        const el = create({
+            variant: 'onboarding',
+            titleText: 'Welcome',
+            bodyText: 'Short lead sentence.',
+            supportingText: 'Longer helper copy beneath.'
+        });
+        const lead = el.shadowRoot.querySelector('.csd-empty__lead');
+        const supporting = el.shadowRoot.querySelector('.csd-empty__supporting');
+        expect(lead.textContent).toBe('Short lead sentence.');
+        expect(supporting).not.toBeNull();
+        expect(supporting.textContent).toBe('Longer helper copy beneath.');
+    });
+
+    it('does not render the supporting paragraph when not provided', () => {
+        const el = create({ variant: 'empty', titleText: 't', bodyText: 'x' });
+        expect(el.shadowRoot.querySelector('.csd-empty__supporting')).toBeNull();
     });
 
     it('defaults the icon based on variant', async () => {
@@ -55,6 +78,12 @@ describe('c-csd-empty-state', () => {
         expect(root.classList.contains('csd-empty--error')).toBe(true);
     });
 
+    it('applies the full-size class when size="full"', () => {
+        const el = create({ variant: 'onboarding', titleText: 't', size: 'full' });
+        const root = el.shadowRoot.querySelector('.csd-empty');
+        expect(root.classList.contains('csd-empty--full')).toBe(true);
+    });
+
     it('only renders the primary button when primaryLabel is set', async () => {
         const el = create({
             variant: 'empty',
@@ -62,9 +91,22 @@ describe('c-csd-empty-state', () => {
             primaryLabel: 'Do it'
         });
         await flush();
-        const buttons = el.shadowRoot.querySelectorAll('lightning-button');
+        const buttons = actionButtons(el);
         expect(buttons.length).toBe(1);
-        expect(buttons[0].label).toBe('Do it');
+        expect(buttons[0].textContent.trim()).toBe('Do it');
+        expect(buttons[0].classList.contains('csd-empty__btn--primary')).toBe(true);
+    });
+
+    it('applies the secondary style when primaryVariant is "neutral"', async () => {
+        const el = create({
+            variant: 'empty',
+            titleText: 't',
+            primaryLabel: 'Cancel',
+            primaryVariant: 'neutral'
+        });
+        await flush();
+        const buttons = actionButtons(el);
+        expect(buttons[0].classList.contains('csd-empty__btn--secondary')).toBe(true);
     });
 
     it('fires primaryclick when the primary button is clicked', async () => {
@@ -76,7 +118,7 @@ describe('c-csd-empty-state', () => {
         await flush();
         const handler = jest.fn();
         el.addEventListener('primaryclick', handler);
-        const btn = el.shadowRoot.querySelector('lightning-button');
+        const btn = actionButtons(el)[0];
         btn.click();
         expect(handler).toHaveBeenCalledTimes(1);
     });
@@ -91,7 +133,7 @@ describe('c-csd-empty-state', () => {
         await flush();
         const handler = jest.fn();
         el.addEventListener('secondaryclick', handler);
-        const buttons = el.shadowRoot.querySelectorAll('lightning-button');
+        const buttons = actionButtons(el);
         // Second button is the secondary
         buttons[1].click();
         expect(handler).toHaveBeenCalledTimes(1);

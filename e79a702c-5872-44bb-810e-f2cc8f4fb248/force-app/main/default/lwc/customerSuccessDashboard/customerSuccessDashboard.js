@@ -1073,7 +1073,7 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
     }
 
     get permissionErrorBody() {
-        return `Your user doesn't have access to the Customer Success Dashboard data model. Ask your admin to assign the '${this.permissionSetName}' permission set, then try again.`;
+        return `Ask your admin to assign the "${this.permissionSetName}" permission set, then try again.`;
     }
 
     /**

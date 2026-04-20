@@ -898,7 +898,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     }
 
     get permissionErrorBody() {
-        return `Your user doesn't have access to the CSM Portfolio Dashboard data model. Ask your admin to assign the '${this.permissionSetName}' permission set, then try again.`;
+        return `Ask your admin to assign the "${this.permissionSetName}" permission set, then try again.`;
     }
 
     /**

@@ -1,159 +1,276 @@
+/*
+ * Empty / degraded / error / onboarding state card.
+ *
+ * Uses the parent dashboard's --csd-* design tokens so the card matches
+ * the LWC's visual language (typography scale, spacing, radius, shadow,
+ * blue gradient buttons) instead of looking like a generic SLDS card.
+ * The tokens cascade through shadow DOM via CSS custom properties, so
+ * the parent's :host declarations reach us here.
+ */
+
 .csd-empty {
     text-align: center;
-    padding: 1.5rem 1rem;
-    border-radius: 0.5rem;
+    padding: var(--csd-space-6, 24px) var(--csd-space-5, 20px);
+    background: var(--csd-surface, #FFFFFF);
+    border: 1px solid var(--csd-border, #E8E5E1);
+    border-radius: var(--csd-radius-md, 10px);
+    box-shadow: var(--csd-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
     max-width: 32rem;
     margin-left: auto;
     margin-right: auto;
+    font-family: inherit;
 }
 
 .csd-empty--compact {
-    padding: 0.75rem 0.5rem;
+    padding: var(--csd-space-4, 16px) var(--csd-space-3, 12px);
     max-width: none;
     text-align: left;
+    box-shadow: none;
+    background: transparent;
+    border: none;
 }
 
-/* Full-page takeover: use when the rest of the dashboard is hidden. */
+/* Full-page takeover — elevated card, generous padding, centered feel. */
 .csd-empty--full {
     max-width: 36rem;
-    padding: 3.5rem 2rem;
-    margin-top: 3rem;
-    margin-bottom: 3rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.csd-empty--full .csd-empty__icon {
-    margin-bottom: 1.25rem;
-}
-
-.csd-empty--full .csd-empty__title {
-    font-size: 1.5rem;
-    line-height: 1.25;
-    margin-bottom: 0.75rem;
-}
-
-.csd-empty--full .csd-empty__body {
-    font-size: 1rem;
-    line-height: 1.5;
-    margin-bottom: 1.25rem;
-}
-
-.csd-empty--full .csd-empty__meta {
-    margin-bottom: 1.25rem;
-    font-size: 0.875rem;
-}
-
-.csd-empty--full .csd-empty__actions {
-    margin-top: 0.5rem;
-    gap: 0.75rem;
-}
-
-@media (max-width: 600px) {
-    .csd-empty--full {
-        padding: 2rem 1.25rem;
-        margin-top: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    .csd-empty--full .csd-empty__title {
-        font-size: 1.25rem;
-    }
+    padding: var(--csd-space-8, 48px) var(--csd-space-7, 32px);
+    margin-top: var(--csd-space-7, 32px);
+    margin-bottom: var(--csd-space-7, 32px);
+    border-radius: var(--csd-radius-lg, 16px);
+    box-shadow: var(--csd-shadow-md, 0 2px 8px rgba(0, 0, 0, 0.08));
 }
 
 .csd-empty__icon {
     display: flex;
     justify-content: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--csd-space-3, 12px);
 }
 
 .csd-empty--compact .csd-empty__icon {
     justify-content: flex-start;
+    margin-bottom: var(--csd-space-2, 8px);
 }
 
+.csd-empty--full .csd-empty__icon {
+    margin-bottom: var(--csd-space-4, 16px);
+}
+
+/* Per-variant icon tints. */
 .csd-empty--empty .csd-empty__lightning-icon {
-    --sds-c-icon-color-foreground-default: #747474;
+    --sds-c-icon-color-foreground-default: var(--csd-text-tertiary, #A8A29E);
 }
 
-.csd-empty--degraded .csd-empty__lightning-icon,
-.csd-empty--degraded {
-    --tone: #fe9339;
-}
 .csd-empty--degraded .csd-empty__lightning-icon {
-    --sds-c-icon-color-foreground-default: var(--tone, #fe9339);
+    --sds-c-icon-color-foreground-default: var(--csd-amber-dark, #D97706);
 }
 .csd-empty--degraded {
-    background: rgba(254, 147, 57, 0.08);
-    border: 1px solid rgba(254, 147, 57, 0.25);
+    background: var(--csd-amber-50, #FFFBEB);
+    border-color: var(--csd-amber-200, #FDE68A);
 }
 
 .csd-empty--error .csd-empty__lightning-icon {
-    --sds-c-icon-color-foreground-default: #ea001e;
+    --sds-c-icon-color-foreground-default: var(--csd-red-dark, #B91C1C);
 }
 .csd-empty--error {
-    background: rgba(234, 0, 30, 0.06);
-    border: 1px solid rgba(234, 0, 30, 0.2);
+    background: var(--csd-red-50, #FEF2F2);
+    border-color: var(--csd-red-100, #FEE2E2);
 }
 
 .csd-empty--onboarding .csd-empty__lightning-icon {
-    --sds-c-icon-color-foreground-default: #1589ee;
-}
-.csd-empty--onboarding {
-    background: var(--lwc-colorBackgroundAlt, #fafaf9);
-    border: 1px solid var(--lwc-colorBorder, #dddbda);
+    --sds-c-icon-color-foreground-default: var(--csd-blue, #1B96FF);
 }
 
+/* Typography hierarchy:
+ *   title    -> headline
+ *   lead     -> primary supporting sentence (readable body size)
+ *   supporting -> secondary helper copy, smaller and muted
+ */
 .csd-empty__title {
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: var(--csd-text-lg, 16px);
+    font-weight: 700;
     line-height: 1.3;
-    margin: 0 0 0.5rem 0;
-    color: var(--lwc-colorTextDefault, #080707);
+    margin: 0 0 var(--csd-space-2, 8px) 0;
+    color: var(--csd-text-primary, #292524);
+    letter-spacing: -0.01em;
 }
 
-.csd-empty__body {
-    font-size: 0.875rem;
-    line-height: 1.4;
-    margin: 0 0 0.75rem 0;
-    color: var(--lwc-colorTextDefault, #3e3e3c);
+.csd-empty__lead {
+    font-size: var(--csd-text-base, 14px);
+    font-weight: 500;
+    line-height: 1.5;
+    margin: 0 0 var(--csd-space-2, 8px) 0;
+    color: var(--csd-text-primary, #292524);
 }
 
+.csd-empty__supporting {
+    font-size: var(--csd-text-sm, 13px);
+    font-weight: 400;
+    line-height: 1.5;
+    margin: 0 0 var(--csd-space-3, 12px) 0;
+    color: var(--csd-text-secondary, #57534E);
+}
+
+.csd-empty--compact .csd-empty__title {
+    font-size: var(--csd-text-base, 14px);
+}
+.csd-empty--compact .csd-empty__lead {
+    font-size: var(--csd-text-sm, 13px);
+}
+.csd-empty--compact .csd-empty__supporting {
+    font-size: var(--csd-text-xs, 11px);
+}
+
+.csd-empty--full .csd-empty__title {
+    font-size: var(--csd-text-2xl, 28px);
+    line-height: 1.2;
+    margin-bottom: var(--csd-space-3, 12px);
+}
+.csd-empty--full .csd-empty__lead {
+    font-size: var(--csd-text-lg, 16px);
+    margin-bottom: var(--csd-space-2, 8px);
+}
+.csd-empty--full .csd-empty__supporting {
+    font-size: var(--csd-text-base, 14px);
+    margin-bottom: var(--csd-space-5, 20px);
+}
+
+/* Meta chip (e.g. "Running as: …") */
 .csd-empty__meta {
-    margin-bottom: 0.75rem;
-    font-size: 0.75rem;
-    color: var(--lwc-colorTextWeak, #706e6b);
+    margin-bottom: var(--csd-space-3, 12px);
+    font-size: var(--csd-text-xs, 11px);
+    color: var(--csd-text-secondary, #57534E);
 }
 
+.csd-empty--full .csd-empty__meta {
+    margin-bottom: var(--csd-space-5, 20px);
+    font-size: var(--csd-text-sm, 13px);
+}
+
+/* Actions row */
 .csd-empty__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--csd-space-2, 8px);
     justify-content: center;
+    margin-top: var(--csd-space-2, 8px);
 }
 
 .csd-empty--compact .csd-empty__actions {
     justify-content: flex-start;
 }
 
-.csd-empty__btn + .csd-empty__btn {
-    margin-left: 0;
+.csd-empty--full .csd-empty__actions {
+    gap: var(--csd-space-3, 12px);
+    margin-top: var(--csd-space-3, 12px);
 }
 
+/* Native button styling that mirrors the parent LWC's .custom-btn family,
+ * so the empty-state buttons look identical to the primary/secondary
+ * buttons used everywhere else in the dashboard. */
+.csd-empty__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: var(--csd-text-base, 14px);
+    font-weight: 600;
+    border-radius: var(--csd-radius-sm, 6px);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    outline: none;
+    line-height: 1.2;
+}
+
+.csd-empty__btn:focus-visible {
+    box-shadow: 0 0 0 2px var(--csd-blue-muted, #DBEAFE);
+}
+
+.csd-empty__btn--primary {
+    background: linear-gradient(
+        135deg,
+        var(--csd-blue, #1B96FF) 0%,
+        var(--csd-blue-dark, #0369A1) 100%
+    );
+    color: #FFFFFF;
+    box-shadow: 0 2px 4px rgba(27, 150, 255, 0.2);
+}
+
+.csd-empty__btn--primary:hover {
+    background: linear-gradient(
+        135deg,
+        var(--csd-blue-dark, #0369A1) 0%,
+        var(--csd-blue-darker, #075985) 100%
+    );
+    box-shadow: 0 4px 12px rgba(27, 150, 255, 0.35);
+    transform: translateY(-1px);
+}
+
+.csd-empty__btn--secondary {
+    background: var(--csd-surface, #FFFFFF);
+    color: var(--csd-gray-700, #44403C);
+    border: 1px solid var(--csd-gray-300, #D5D1CC);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.csd-empty__btn--secondary:hover {
+    background: var(--csd-gray-50, #FAF9F7);
+    border-color: var(--csd-gray-400, #A8A29E);
+    transform: translateY(-1px);
+}
+
+/* Error variant expands the primary button tone to red so the CTA reads
+ * as "retry an error", not "proceed with a brand action". */
+.csd-empty--error .csd-empty__btn--primary {
+    background: linear-gradient(
+        135deg,
+        var(--csd-red-dark, #B91C1C) 0%,
+        var(--csd-red-darker, #991B1B) 100%
+    );
+    box-shadow: 0 2px 4px rgba(185, 28, 28, 0.2);
+}
+.csd-empty--error .csd-empty__btn--primary:hover {
+    box-shadow: 0 4px 12px rgba(185, 28, 28, 0.3);
+}
+
+/* Technical-details disclosure (error variant) */
 .csd-empty__details {
-    margin-top: 0.75rem;
+    margin-top: var(--csd-space-3, 12px);
     text-align: left;
     max-width: 100%;
 }
 .csd-empty__details-summary {
     cursor: pointer;
-    font-size: 0.75rem;
-    color: var(--lwc-colorTextLink, #0176d3);
+    font-size: var(--csd-text-xs, 11px);
+    color: var(--csd-blue, #1B96FF);
 }
 .csd-empty__details-body {
-    font-size: 0.65rem;
+    font-size: var(--csd-text-xs, 11px);
     white-space: pre-wrap;
     word-break: break-word;
     max-height: 6rem;
     overflow: auto;
-    margin: 0.5rem 0 0 0;
+    margin: var(--csd-space-2, 8px) 0 0 0;
     text-align: left;
+    background: var(--csd-gray-50, #FAF9F7);
+    padding: var(--csd-space-2, 8px);
+    border-radius: var(--csd-radius-sm, 6px);
+    border: 1px solid var(--csd-border, #E8E5E1);
+    color: var(--csd-text-secondary, #57534E);
+}
+
+@media (max-width: 600px) {
+    .csd-empty--full {
+        padding: var(--csd-space-6, 24px) var(--csd-space-4, 16px);
+        margin-top: var(--csd-space-4, 16px);
+        margin-bottom: var(--csd-space-4, 16px);
+    }
+    .csd-empty--full .csd-empty__title {
+        font-size: var(--csd-text-xl, 20px);
+    }
+    .csd-empty--full .csd-empty__lead {
+        font-size: var(--csd-text-base, 14px);
+    }
 }

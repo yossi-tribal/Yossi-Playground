@@ -57,7 +57,8 @@
                                 variant="onboarding"
                                 icon="utility:lock"
                                 title-text="You don't have access to this dashboard yet"
-                                body-text={permissionErrorBody}
+                                body-text="Your user is missing the data permissions this dashboard needs."
+                                supporting-text={permissionErrorBody}
                                 primary-label="Copy permission set name"
                                 primary-variant="brand"
                                 secondary-label="Try again"
@@ -72,7 +73,8 @@
                                 variant="error"
                                 icon="utility:error"
                                 title-text="We couldn't load this dashboard"
-                                body-text="Something went wrong while fetching the data. Try again, and if the error continues reach out to your admin with the technical details below."
+                                body-text="Something went wrong while fetching the data."
+                                supporting-text="Try again, and if the error continues reach out to your admin with the technical details below."
                                 primary-label="Try again"
                                 primary-variant="brand"
                                 error-detail={topLevelErrorDetail}
