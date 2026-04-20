@@ -782,14 +782,19 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return !this.hasAccounts && !this.isPortfolioEmpty && !this.isFilterHidingAccounts;
     }
 
-    /** Greeting used in the onboarding card title. Falls back gracefully. */
+    /**
+     * Greeting used in the onboarding card title. We intentionally keep this
+     * short and warm — the "empty portfolio" idea is already conveyed by the
+     * lead sentence below the title, so repeating it here just makes the card
+     * feel heavy. Falls back gracefully when we can't resolve a name.
+     */
     get noPortfolioTitle() {
         const name = this.summary && this.summary.currentUserName;
         if (name) {
             const firstName = name.split(' ')[0];
-            return `Welcome, ${firstName} — your portfolio is empty`;
+            return `Welcome, ${firstName}`;
         }
-        return 'Your portfolio is empty';
+        return 'Welcome';
     }
 
     /** Title shown when a filter is hiding the whole portfolio. */
@@ -812,11 +817,6 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             'highpri': 'High priority cases'
         };
         return map[this.currentFilter] || '';
-    }
-
-    /** Small meta chip shown in the onboarding card to confirm whose portfolio this is. */
-    get userNameForMeta() {
-        return (this.summary && this.summary.currentUserName) || 'You';
     }
 
     handleClearFilters() {

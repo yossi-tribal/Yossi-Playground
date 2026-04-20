@@ -30,12 +30,16 @@
     border: none;
 }
 
-/* Full-page takeover — elevated card, generous padding, centered feel. */
+/*
+ * Full-page takeover — designed to feel like a calm pause.
+ * Generous padding, airy vertical rhythm, restrained copy width.
+ * The goal is "a moment to take a breath," not "a dense info card."
+ */
 .csd-empty--full {
-    max-width: 36rem;
-    padding: var(--csd-space-8, 48px) var(--csd-space-7, 32px);
-    margin-top: var(--csd-space-7, 32px);
-    margin-bottom: var(--csd-space-7, 32px);
+    max-width: 30rem;
+    padding: 72px 48px 64px;
+    margin-top: var(--csd-space-8, 48px);
+    margin-bottom: var(--csd-space-8, 48px);
     border-radius: var(--csd-radius-lg, 16px);
     box-shadow: var(--csd-shadow-md, 0 2px 8px rgba(0, 0, 0, 0.08));
 }
@@ -52,7 +56,7 @@
 }
 
 .csd-empty--full .csd-empty__icon {
-    margin-bottom: var(--csd-space-4, 16px);
+    margin-bottom: var(--csd-space-6, 24px);
 }
 
 /* Per-variant icon tints. */
@@ -122,16 +126,27 @@
 
 .csd-empty--full .csd-empty__title {
     font-size: var(--csd-text-2xl, 28px);
-    line-height: 1.2;
-    margin-bottom: var(--csd-space-3, 12px);
+    line-height: 1.15;
+    margin-bottom: var(--csd-space-4, 16px);
+    letter-spacing: -0.02em;
 }
 .csd-empty--full .csd-empty__lead {
     font-size: var(--csd-text-lg, 16px);
-    margin-bottom: var(--csd-space-2, 8px);
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: var(--csd-space-3, 12px);
+    max-width: 26rem;
+    margin-left: auto;
+    margin-right: auto;
 }
 .csd-empty--full .csd-empty__supporting {
     font-size: var(--csd-text-base, 14px);
-    margin-bottom: var(--csd-space-5, 20px);
+    font-weight: 400;
+    line-height: 1.55;
+    margin-bottom: var(--csd-space-7, 32px);
+    max-width: 26rem;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 /* Meta chip (e.g. "Running as: …") */
@@ -161,7 +176,13 @@
 
 .csd-empty--full .csd-empty__actions {
     gap: var(--csd-space-3, 12px);
-    margin-top: var(--csd-space-3, 12px);
+    margin-top: var(--csd-space-2, 8px);
+}
+
+.csd-empty--full .csd-empty__btn {
+    padding: 12px 24px;
+    font-size: var(--csd-text-base, 14px);
+    border-radius: var(--csd-radius-md, 10px);
 }
 
 /* Native button styling that mirrors the parent LWC's .custom-btn family,
