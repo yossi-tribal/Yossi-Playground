@@ -281,7 +281,7 @@ const MANAGER_TOURS = [
         version: 1,
         title: 'Going Live',
         summary: 'How a list reaches reps in the wizard.',
-        icon: 'utility:rocket',
+        icon: 'utility:broadcast',
         steps: [
             {
                 id: 'lifecycle-intro',
