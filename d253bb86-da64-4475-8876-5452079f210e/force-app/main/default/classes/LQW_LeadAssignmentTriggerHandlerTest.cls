@@ -491,4 +491,209 @@ private class LQW_LeadAssignmentTriggerHandlerTest {
         System.assertEquals(enterpriseList.Id, result.LQW_Question_List__c,
             'With override=false, normal assignment must still run');
     }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Declarative RULES table — operator coverage
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * @description A rule using `contains` matches leads whose Company name
+     * contains the configured substring (case-insensitive).
+     */
+    @isTest
+    static void testRule_ContainsOperator_MatchesSubstring() {
+        LQW_Question_List__c enterpriseList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Enterprise Leads' LIMIT 1
+        ];
+        LQW_LeadAssignmentTriggerHandler.RULES = new List<LQW_LeadAssignmentTriggerHandler.AssignmentRule>{
+            new LQW_LeadAssignmentTriggerHandler.AssignmentRule('Enterprise Leads',
+                new List<LQW_LeadAssignmentTriggerHandler.Condition>{
+                    new LQW_LeadAssignmentTriggerHandler.Condition('Company', 'contains', 'Acme')
+                })
+        };
+
+        Test.startTest();
+        Lead l = new Lead(LastName = 'Contains', Company = 'ACME Industries', Status = 'Open - Not Contacted');
+        insert l;
+        Test.stopTest();
+
+        Lead result = [SELECT LQW_Question_List__c FROM Lead WHERE Id = :l.Id];
+        System.assertEquals(enterpriseList.Id, result.LQW_Question_List__c,
+            'Contains operator should match case-insensitively');
+    }
+
+    /**
+     * @description A rule using `gt` matches leads with a numeric field
+     * strictly greater than the configured threshold.
+     */
+    @isTest
+    static void testRule_GreaterThanOperator_MatchesRevenue() {
+        LQW_Question_List__c enterpriseList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Enterprise Leads' LIMIT 1
+        ];
+        LQW_LeadAssignmentTriggerHandler.RULES = new List<LQW_LeadAssignmentTriggerHandler.AssignmentRule>{
+            new LQW_LeadAssignmentTriggerHandler.AssignmentRule('Enterprise Leads',
+                new List<LQW_LeadAssignmentTriggerHandler.Condition>{
+                    new LQW_LeadAssignmentTriggerHandler.Condition('AnnualRevenue', 'gt', 1000000)
+                })
+        };
+
+        Test.startTest();
+        Lead rich = new Lead(LastName = 'Rich', Company = 'RichCo', AnnualRevenue = 2500000, Status = 'Open - Not Contacted');
+        Lead poor = new Lead(LastName = 'Poor', Company = 'PoorCo', AnnualRevenue = 500000, Status = 'Open - Not Contacted');
+        insert new List<Lead>{ rich, poor };
+        Test.stopTest();
+
+        Map<Id, Lead> byId = new Map<Id, Lead>([
+            SELECT Id, LQW_Question_List__c FROM Lead WHERE Id IN (:rich.Id, :poor.Id)
+        ]);
+        System.assertEquals(enterpriseList.Id, byId.get(rich.Id).LQW_Question_List__c,
+            'Lead above threshold should be assigned');
+        System.assertNotEquals(enterpriseList.Id, byId.get(poor.Id).LQW_Question_List__c,
+            'Lead below threshold should NOT be assigned by this rule (falls to default)');
+    }
+
+    /**
+     * @description A rule using `in` matches leads whose field equals any of
+     * a comma-separated list of values.
+     */
+    @isTest
+    static void testRule_InOperator_MatchesAnyOfList() {
+        LQW_Question_List__c partnerList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Partner Leads' LIMIT 1
+        ];
+        LQW_LeadAssignmentTriggerHandler.RULES = new List<LQW_LeadAssignmentTriggerHandler.AssignmentRule>{
+            new LQW_LeadAssignmentTriggerHandler.AssignmentRule('Partner Leads',
+                new List<LQW_LeadAssignmentTriggerHandler.Condition>{
+                    new LQW_LeadAssignmentTriggerHandler.Condition('LeadSource', 'in', 'Partner Referral, External Referral, Other')
+                })
+        };
+
+        Test.startTest();
+        Lead l = new Lead(LastName = 'InList', Company = 'InCo', LeadSource = 'External Referral', Status = 'Open - Not Contacted');
+        insert l;
+        Test.stopTest();
+
+        Lead result = [SELECT LQW_Question_List__c FROM Lead WHERE Id = :l.Id];
+        System.assertEquals(partnerList.Id, result.LQW_Question_List__c,
+            'In operator should match any comma-separated value');
+    }
+
+    /**
+     * @description A rule using `isBlank` matches leads missing a field.
+     */
+    @isTest
+    static void testRule_IsBlankOperator() {
+        LQW_Question_List__c enterpriseList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Enterprise Leads' LIMIT 1
+        ];
+        LQW_LeadAssignmentTriggerHandler.RULES = new List<LQW_LeadAssignmentTriggerHandler.AssignmentRule>{
+            new LQW_LeadAssignmentTriggerHandler.AssignmentRule('Enterprise Leads',
+                new List<LQW_LeadAssignmentTriggerHandler.Condition>{
+                    new LQW_LeadAssignmentTriggerHandler.Condition('Industry', 'isBlank', null)
+                })
+        };
+
+        Test.startTest();
+        Lead blank = new Lead(LastName = 'Blank', Company = 'BlankCo', Status = 'Open - Not Contacted');
+        Lead filled = new Lead(LastName = 'Filled', Company = 'FilledCo', Industry = 'Technology', Status = 'Open - Not Contacted');
+        insert new List<Lead>{ blank, filled };
+        Test.stopTest();
+
+        Map<Id, Lead> byId = new Map<Id, Lead>([
+            SELECT Id, LQW_Question_List__c FROM Lead WHERE Id IN (:blank.Id, :filled.Id)
+        ]);
+        System.assertEquals(enterpriseList.Id, byId.get(blank.Id).LQW_Question_List__c,
+            'isBlank should match the blank-industry lead');
+        System.assertNotEquals(enterpriseList.Id, byId.get(filled.Id).LQW_Question_List__c,
+            'isBlank should NOT match the lead with an industry');
+    }
+
+    /**
+     * @description A multi-condition rule only matches when ALL conditions match.
+     */
+    @isTest
+    static void testRule_MultiCondition_AllMustMatch() {
+        LQW_Question_List__c enterpriseList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Enterprise Leads' LIMIT 1
+        ];
+        LQW_LeadAssignmentTriggerHandler.RULES = new List<LQW_LeadAssignmentTriggerHandler.AssignmentRule>{
+            new LQW_LeadAssignmentTriggerHandler.AssignmentRule('Enterprise Leads',
+                new List<LQW_LeadAssignmentTriggerHandler.Condition>{
+                    new LQW_LeadAssignmentTriggerHandler.Condition('Industry', 'equals', 'Technology'),
+                    new LQW_LeadAssignmentTriggerHandler.Condition('AnnualRevenue', 'gte', 1000000)
+                })
+        };
+
+        Test.startTest();
+        Lead both     = new Lead(LastName = 'Both',    Company = 'BothCo',    Industry = 'Technology', AnnualRevenue = 1500000, Status = 'Open - Not Contacted');
+        Lead wrongInd = new Lead(LastName = 'WrongInd',Company = 'WrongCo',   Industry = 'Retail',     AnnualRevenue = 1500000, Status = 'Open - Not Contacted');
+        Lead lowRev   = new Lead(LastName = 'LowRev',  Company = 'LowCo',     Industry = 'Technology', AnnualRevenue = 500000,  Status = 'Open - Not Contacted');
+        insert new List<Lead>{ both, wrongInd, lowRev };
+        Test.stopTest();
+
+        Map<Id, Lead> byId = new Map<Id, Lead>([
+            SELECT Id, LQW_Question_List__c FROM Lead WHERE Id IN (:both.Id, :wrongInd.Id, :lowRev.Id)
+        ]);
+        System.assertEquals(enterpriseList.Id, byId.get(both.Id).LQW_Question_List__c,
+            'Lead satisfying both conditions should match');
+        System.assertNotEquals(enterpriseList.Id, byId.get(wrongInd.Id).LQW_Question_List__c,
+            'Wrong industry should not match even with high revenue');
+        System.assertNotEquals(enterpriseList.Id, byId.get(lowRev.Id).LQW_Question_List__c,
+            'Low revenue should not match even with correct industry');
+    }
+
+    /**
+     * @description A rule that targets a list name that does not exist in the
+     * org must be silently skipped — not crash the trigger.
+     */
+    @isTest
+    static void testRule_MissingListName_SilentlySkipped() {
+        LQW_LeadAssignmentTriggerHandler.RULES = new List<LQW_LeadAssignmentTriggerHandler.AssignmentRule>{
+            new LQW_LeadAssignmentTriggerHandler.AssignmentRule('Nonexistent List',
+                new List<LQW_LeadAssignmentTriggerHandler.Condition>{
+                    new LQW_LeadAssignmentTriggerHandler.Condition('LeadSource', 'equals', 'Web')
+                })
+        };
+        LQW_Question_List__c defaultList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_Is_Default__c = true LIMIT 1
+        ];
+
+        Test.startTest();
+        Lead l = new Lead(LastName = 'Orphan', Company = 'OrphanCo', LeadSource = 'Web', Status = 'Open - Not Contacted');
+        insert l;
+        Test.stopTest();
+
+        Lead result = [SELECT LQW_Question_List__c FROM Lead WHERE Id = :l.Id];
+        System.assertEquals(defaultList.Id, result.LQW_Question_List__c,
+            'Lead should fall through to the default list when rule targets missing list');
+    }
+
+    /**
+     * @description generateCriteriaJSON emits the JSON shape expected by the
+     * admin UI and the conflict-detection logic — keys field, label, operator, value.
+     */
+    @isTest
+    static void testGenerateCriteriaJSON_ShapeMatchesContract() {
+        LQW_LeadAssignmentTriggerHandler.RULES = new List<LQW_LeadAssignmentTriggerHandler.AssignmentRule>{
+            new LQW_LeadAssignmentTriggerHandler.AssignmentRule('Enterprise Leads',
+                new List<LQW_LeadAssignmentTriggerHandler.Condition>{
+                    new LQW_LeadAssignmentTriggerHandler.Condition('AnnualRevenue', 'gt', 1000000)
+                })
+        };
+        LQW_Question_List__c ql = new LQW_Question_List__c(LQW_List_Name__c = 'Enterprise Leads');
+
+        Test.startTest();
+        String criteriaStr = LQW_LeadAssignmentTriggerHandler.generateCriteriaJSON(ql);
+        Test.stopTest();
+
+        System.assertNotEquals(null, criteriaStr, 'JSON should be emitted for rules targeting this list');
+        List<Object> parsed = (List<Object>) JSON.deserializeUntyped(criteriaStr);
+        System.assertEquals(1, parsed.size(), 'Exactly one condition expected');
+        Map<String, Object> row = (Map<String, Object>) parsed[0];
+        System.assertEquals('AnnualRevenue', row.get('field'));
+        System.assertEquals('Annual Revenue', row.get('label'));
+        System.assertEquals('gt', row.get('operator'));
+        System.assertEquals('1000000', row.get('value'));
+    }
 }
