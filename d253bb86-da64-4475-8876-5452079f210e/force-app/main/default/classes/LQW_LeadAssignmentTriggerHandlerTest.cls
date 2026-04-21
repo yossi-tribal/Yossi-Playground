@@ -702,6 +702,81 @@ private class LQW_LeadAssignmentTriggerHandlerTest {
     }
 
     /**
+     * @description 200-Lead bulk insert stays well inside SOQL/DML governor
+     * limits. The handler is expected to issue a small, constant number of
+     * queries and DMLs regardless of how many Leads are in the trigger batch.
+     */
+    @isTest
+    static void testBulkInsert_200Leads_StaysWithinGovernorLimits() {
+        LQW_Question_List__c enterpriseList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Enterprise Leads' LIMIT 1
+        ];
+        LQW_Question_List__c partnerList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Partner Leads' LIMIT 1
+        ];
+        LQW_Question_List__c defaultList = [
+            SELECT Id FROM LQW_Question_List__c WHERE LQW_Is_Default__c = true LIMIT 1
+        ];
+
+        // Build 200 leads: split roughly into three buckets so every branch
+        // of evaluateLeadCriteria is exercised in a single DML call.
+        List<Lead> bulkLeads = new List<Lead>();
+        for (Integer i = 0; i < 200; i++) {
+            Lead l = new Lead();
+            l.LastName = 'Bulk ' + i;
+            l.Company = 'Bulk Co ' + i;
+            l.Status = 'Open - Not Contacted';
+            if (Math.mod(i, 3) == 0) {
+                l.LeadSource = 'Web';             // -> Enterprise Leads
+            } else if (Math.mod(i, 3) == 1) {
+                l.LeadSource = 'Partner Referral'; // -> Partner Leads
+            } else {
+                l.LeadSource = 'Other';           // -> default fallback
+            }
+            bulkLeads.add(l);
+        }
+
+        Test.startTest();
+        Integer soqlBefore = Limits.getQueries();
+        Integer dmlBefore  = Limits.getDmlStatements();
+
+        insert bulkLeads;
+
+        Integer soqlUsed = Limits.getQueries() - soqlBefore;
+        Integer dmlUsed  = Limits.getDmlStatements() - dmlBefore;
+        Test.stopTest();
+
+        // Handler should issue a small, constant number of queries/DMLs,
+        // independent of the batch size. Assertions are loose on purpose —
+        // a regression to per-lead SOQL would blow past these by orders of
+        // magnitude.
+        System.assert(soqlUsed < 20,
+            'Bulk insert of 200 leads should not issue more than ~20 SOQL; used ' + soqlUsed);
+        System.assert(dmlUsed < 20,
+            'Bulk insert of 200 leads should not issue more than ~20 DML; used ' + dmlUsed);
+
+        // Verify the assignment mix is correct end-to-end.
+        List<Lead> results = [
+            SELECT Id, LeadSource, LQW_Question_List__c FROM Lead WHERE Id IN :bulkLeads
+        ];
+        Integer enterpriseCount = 0;
+        Integer partnerCount    = 0;
+        Integer defaultCount    = 0;
+        for (Lead l : results) {
+            if (l.LQW_Question_List__c == enterpriseList.Id) enterpriseCount++;
+            else if (l.LQW_Question_List__c == partnerList.Id) partnerCount++;
+            else if (l.LQW_Question_List__c == defaultList.Id) defaultCount++;
+        }
+        // 200 / 3 = 67, 67, 66 — assert each bucket was assigned.
+        System.assert(enterpriseCount >= 66 && enterpriseCount <= 68,
+            'Expected ~67 Web leads on Enterprise list; got ' + enterpriseCount);
+        System.assert(partnerCount >= 66 && partnerCount <= 68,
+            'Expected ~67 Partner Referral leads on Partner list; got ' + partnerCount);
+        System.assert(defaultCount >= 65 && defaultCount <= 67,
+            'Expected ~66 Other leads on default list; got ' + defaultCount);
+    }
+
+    /**
      * @description generateCriteriaJSON emits the JSON shape expected by the
      * admin UI and the conflict-detection logic — keys field, label, operator, value.
      */
