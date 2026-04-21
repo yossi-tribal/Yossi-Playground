@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>LQW_Auto_Seed_Starter_List__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>When on, the LQW Lead Assignment trigger auto-creates a starter Question List (General Qualification) the first time a Lead is inserted in an org with zero lists. Off by default so production installs do not create unexpected data. Turn on for demos or fresh sandboxes.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>When on, the trigger auto-creates a starter Question List on first Lead DML in an empty org. Leave off in production.</inlineHelpText>
+    <label>Auto-Seed Starter List</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

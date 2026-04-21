@@ -434,15 +434,36 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // One-time starter-list seeding (first install). Kept for continuity;
-    // the P1 "seed toggle" work will gate this behind a custom setting.
+    // One-time starter-list seeding. Off by default — production orgs
+    // should not auto-create data. Enable LQW_Settings__c.LQW_Auto_Seed_Starter_List__c
+    // (org-default record) for demos and fresh sandboxes.
     // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * @description Reads the org-default LQW_Settings__c record to decide
+     * whether starter-list seeding is enabled. Returns false when the
+     * setting is missing (defensive) so production installs never seed
+     * unexpectedly. @TestVisible for direct control in unit tests.
+     */
+    @TestVisible
+    private static Boolean isStarterSeedEnabled() {
+        try {
+            LQW_Settings__c settings = LQW_Settings__c.getOrgDefaults();
+            return settings != null && settings.LQW_Auto_Seed_Starter_List__c == true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     private void ensureExampleListExists() {
         if (hasAutoCreatedExample) {
             return;
         }
         hasAutoCreatedExample = true;
+
+        if (!isStarterSeedEnabled()) {
+            return;
+        }
 
         Integer listCount = [SELECT COUNT() FROM LQW_Question_List__c WITH SYSTEM_MODE LIMIT 1];
         if (listCount != 0) {

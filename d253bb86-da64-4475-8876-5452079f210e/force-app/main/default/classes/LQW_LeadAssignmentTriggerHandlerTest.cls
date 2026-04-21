@@ -364,6 +364,11 @@ private class LQW_LeadAssignmentTriggerHandlerTest {
         Integer listCount = [SELECT COUNT() FROM LQW_Question_List__c];
         System.assertEquals(0, listCount, 'Should start with no lists');
 
+        // Enable starter-list seeding for this test (it's off by default)
+        LQW_Settings__c seedOn = new LQW_Settings__c();
+        seedOn.LQW_Auto_Seed_Starter_List__c = true;
+        insert seedOn;
+
         Test.startTest();
 
         // Create a lead - this should trigger auto-create
@@ -667,6 +672,33 @@ private class LQW_LeadAssignmentTriggerHandlerTest {
         Lead result = [SELECT LQW_Question_List__c FROM Lead WHERE Id = :l.Id];
         System.assertEquals(defaultList.Id, result.LQW_Question_List__c,
             'Lead should fall through to the default list when rule targets missing list');
+    }
+
+    /**
+     * @description Starter-list seeding is OFF by default. An empty org that
+     * receives a Lead must not auto-create any Question Lists unless the
+     * LQW_Settings__c toggle is explicitly enabled.
+     */
+    @isTest
+    static void testStarterSeed_DisabledByDefault_DoesNotSeed() {
+        delete [SELECT Id FROM LQW_Qualification_Question__c];
+        delete [SELECT Id FROM LQW_Question_List__c];
+        System.assertEquals(0, [SELECT COUNT() FROM LQW_Question_List__c],
+            'Test setup should leave zero lists');
+
+        Test.startTest();
+
+        Lead l = new Lead(LastName = 'NoSeed', Company = 'NoSeedCo', LeadSource = 'Web', Status = 'Open - Not Contacted');
+        insert l;
+
+        Test.stopTest();
+
+        System.assertEquals(0, [SELECT COUNT() FROM LQW_Question_List__c],
+            'Starter list should NOT be created when LQW_Settings__c toggle is off');
+
+        Lead after = [SELECT LQW_Question_List__c FROM Lead WHERE Id = :l.Id];
+        System.assertEquals(null, after.LQW_Question_List__c,
+            'Lead has no list to assign when seeding is off and no lists exist');
     }
 
     /**
