@@ -2,14 +2,14 @@ import { LightningElement, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import USER_ID from '@salesforce/user/Id';
-import managerTours from 'c/qlmTours';
-import { legacyActionToContext, advanceChain } from 'c/qlmTourOrchestration';
-import { buildAdminRequestText, copyTextToClipboard } from 'c/qlmAdminRequest';
+import managerTours from './tours';
+import { legacyActionToContext, advanceChain } from './tourOrchestration';
+import { buildAdminRequestText, copyTextToClipboard } from './adminRequest';
 import {
     listHasQuestions,
     canListGoLive,
     listActivationBlockReason
-} from 'c/qlmListStatus';
+} from './listStatus';
 import getAllQuestionLists from '@salesforce/apex/LQW_QuestionListManagerCtrl.getAllQuestionLists';
 import saveQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.saveQuestionList';
 import deleteQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.deleteQuestionList';

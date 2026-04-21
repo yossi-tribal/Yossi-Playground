@@ -1,12 +1,12 @@
 /**
- * qlmListStatus
+ * listStatus
  *
  * Pure helpers for Question List Manager list-status logic: whether a list
- * is allowed to go live, and if not, why. Kept as its own LWC bundle so:
- *   (a) it's trivially unit-testable without Jest + Salesforce wire mocks, and
- *   (b) Tribal's deploy pipeline picks it up (it strips non-main JS files
- *       that live inside another component's bundle — see qlmAdminRequest
- *       and qlmTours for the same rationale).
+ * is allowed to go live, and if not, why. Lives as a sibling module inside
+ * the questionListManager bundle so Tribal's deploy pipeline packages it
+ * alongside questionListManager.js (cross-bundle c/* imports aren't resolved
+ * by Tribal's packager; see also ./tours, ./tourOrchestration, ./adminRequest
+ * for the same rationale).
  */
 
 /**

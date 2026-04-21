@@ -5,7 +5,7 @@
  *   - buildAdminRequestText(context): pure string builder
  *   - copyTextToClipboard(text, deps): async copy w/ fallback
  */
-import { buildAdminRequestText, copyTextToClipboard } from '../qlmAdminRequest';
+import { buildAdminRequestText, copyTextToClipboard } from '../adminRequest';
 
 // Canonical happy-path list used in most cases. Tests override fields
 // as needed. The admin handoff text should surface identity + state.
@@ -172,6 +172,23 @@ describe('buildAdminRequestText', () => {
             expect(out).toContain('{"raw":"json"}');
         });
 
+        it('silently skips nullish rule entries in parsedCriteriaRules', () => {
+            const out = buildAdminRequestText({
+                list: BASE_LIST,
+                hasCriteria: true,
+                parsedCriteriaRules: [
+                    null,
+                    {
+                        label: 'Industry',
+                        displayOperator: 'equals',
+                        displayValue: '"SaaS"'
+                    },
+                    undefined
+                ]
+            });
+            expect(out).toContain('• Industry equals "SaaS"');
+        });
+
         it('shows an "(unparseable)" marker when neither parsed rules nor formatted text exist', () => {
             const out = buildAdminRequestText({
                 list: BASE_LIST,
@@ -300,5 +317,142 @@ describe('copyTextToClipboard', () => {
         });
 
         expect(ok).toBe(false);
+    });
+
+    describe('default clipboardWrite (navigator.clipboard)', () => {
+        const originalClipboard = global.navigator.clipboard;
+
+        afterEach(() => {
+            if (originalClipboard === undefined) {
+                delete global.navigator.clipboard;
+            } else {
+                Object.defineProperty(global.navigator, 'clipboard', {
+                    value: originalClipboard,
+                    configurable: true,
+                    writable: true
+                });
+            }
+        });
+
+        it('uses navigator.clipboard.writeText when no deps are injected', async () => {
+            const writeText = jest.fn().mockResolvedValue(undefined);
+            Object.defineProperty(global.navigator, 'clipboard', {
+                value: { writeText },
+                configurable: true,
+                writable: true
+            });
+
+            const ok = await copyTextToClipboard('hello');
+
+            expect(ok).toBe(true);
+            expect(writeText).toHaveBeenCalledWith('hello');
+        });
+
+        it('falls back to the default textarea path when navigator.clipboard rejects', async () => {
+            const writeText = jest.fn().mockRejectedValue(new Error('blocked'));
+            Object.defineProperty(global.navigator, 'clipboard', {
+                value: { writeText },
+                configurable: true,
+                writable: true
+            });
+
+            const originalExecCommand = document.execCommand;
+            document.execCommand = jest.fn().mockReturnValue(true);
+
+            try {
+                const ok = await copyTextToClipboard('hi');
+                expect(ok).toBe(true);
+                expect(writeText).toHaveBeenCalledTimes(1);
+                expect(document.execCommand).toHaveBeenCalledWith('copy');
+            } finally {
+                document.execCommand = originalExecCommand;
+            }
+        });
+    });
+
+    describe('default _execCommandCopyFallback (textarea)', () => {
+        const originalClipboard = global.navigator.clipboard;
+
+        beforeEach(() => {
+            Object.defineProperty(global.navigator, 'clipboard', {
+                value: undefined,
+                configurable: true,
+                writable: true
+            });
+        });
+
+        afterEach(() => {
+            if (originalClipboard === undefined) {
+                delete global.navigator.clipboard;
+            } else {
+                Object.defineProperty(global.navigator, 'clipboard', {
+                    value: originalClipboard,
+                    configurable: true,
+                    writable: true
+                });
+            }
+        });
+
+        it('creates, selects, and removes a hidden textarea, returning execCommand result', async () => {
+            const originalExecCommand = document.execCommand;
+            const originalCreate = document.createElement.bind(document);
+            const originalAppend = document.body.appendChild.bind(document.body);
+            const originalRemove = document.body.removeChild.bind(document.body);
+
+            let capturedTextarea = null;
+            const execCommand = jest.fn().mockReturnValue(true);
+            const appendSpy = jest.fn((node) => {
+                capturedTextarea = node;
+                return originalAppend(node);
+            });
+            const removeSpy = jest.fn(originalRemove);
+
+            document.execCommand = execCommand;
+            document.body.appendChild = appendSpy;
+            document.body.removeChild = removeSpy;
+
+            try {
+                const ok = await copyTextToClipboard('paste-me');
+                expect(ok).toBe(true);
+                expect(capturedTextarea).not.toBeNull();
+                expect(capturedTextarea.tagName).toBe('TEXTAREA');
+                expect(capturedTextarea.value).toBe('paste-me');
+                expect(capturedTextarea.getAttribute('readonly')).toBe('');
+                expect(execCommand).toHaveBeenCalledWith('copy');
+                expect(appendSpy).toHaveBeenCalled();
+                expect(removeSpy).toHaveBeenCalled();
+            } finally {
+                document.execCommand = originalExecCommand;
+                document.createElement = originalCreate;
+                document.body.appendChild = originalAppend;
+                document.body.removeChild = originalRemove;
+            }
+        });
+
+        it('returns false when execCommand is missing', async () => {
+            const originalExecCommand = document.execCommand;
+            document.execCommand = undefined;
+
+            try {
+                const ok = await copyTextToClipboard('x');
+                expect(ok).toBe(false);
+            } finally {
+                document.execCommand = originalExecCommand;
+            }
+        });
+
+        it('returns false when execCommand throws', async () => {
+            const originalExecCommand = document.execCommand;
+            document.execCommand = jest.fn(() => {
+                throw new Error('denied');
+            });
+
+            try {
+                const ok = await copyTextToClipboard('x');
+                expect(ok).toBe(false);
+            } finally {
+                document.execCommand = originalExecCommand;
+            }
+        });
     });
 });

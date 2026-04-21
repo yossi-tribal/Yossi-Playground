@@ -2,7 +2,7 @@ import {
     listHasQuestions,
     canListGoLive,
     listActivationBlockReason
-} from '../qlmListStatus';
+} from '../listStatus';
 
 describe('listHasQuestions', () => {
     it('returns false for null / undefined', () => {
