@@ -96,20 +96,69 @@ describe('c-onboarding-coach', () => {
             expect(title.textContent.trim()).toBe('Welcome');
         });
 
-        it('shows "Step N of M" only when the tour has more than one step', async () => {
+        it('shows "Step N of M" on non-chapter steps of multi-step tours', async () => {
             const el = create();
             el.startTour('intro');
             await flush();
+            // Advance past the chapter-intro (first) step. Its eyebrow
+            // carries the tour title instead of a "Step 1 of N" counter —
+            // that's asserted separately below.
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
             const indicator = el.shadowRoot.querySelector('.oc-card__eyebrow');
             expect(indicator).not.toBeNull();
-            expect(indicator.textContent).toMatch(/Step\s+1\s+of\s+2/i);
+            expect(indicator.textContent).toMatch(/Step\s+2\s+of\s+2/i);
+        });
 
-            el.stop();
-            await flush();
-
+        it('single-step tours omit the step indicator entirely', async () => {
+            const el = create();
             el.startTour('single');
             await flush();
-            expect(el.shadowRoot.querySelector('.oc-card__eyebrow')).toBeNull();
+            // "single" has one step so there's no progress to report and
+            // the chapter-intro eyebrow is also suppressed (no tour title
+            // helps when there's nothing after it).
+            const eyebrows = el.shadowRoot.querySelectorAll('.oc-card__eyebrow');
+            // The single-step tour renders chapter-intro UI; its eyebrow
+            // carries the tour title. Only one eyebrow should render, and
+            // no "Step N of M" indicator should appear anywhere.
+            eyebrows.forEach((el2) =>
+                expect(el2.textContent).not.toMatch(/Step\s+\d+\s+of\s+\d+/i)
+            );
+        });
+
+        it('renders the chapter-intro hero on the first step', async () => {
+            const el = create();
+            el.startTour('intro');
+            await flush();
+            // Hero card has the chapter class and the tour title as eyebrow.
+            const card = el.shadowRoot.querySelector('.oc-card--chapter');
+            expect(card).not.toBeNull();
+            const eyebrow = el.shadowRoot.querySelector(
+                '.oc-card__eyebrow--chapter'
+            );
+            expect(eyebrow).not.toBeNull();
+            expect(eyebrow.textContent.trim()).toBe('Welcome');
+            // Hero icon renders.
+            expect(
+                el.shadowRoot.querySelector('.oc-card__hero-icon')
+            ).not.toBeNull();
+            // Primary CTA reads "Start tour" on the chapter intro.
+            const primary = el.shadowRoot.querySelector('.oc-btn--primary');
+            expect(primary.textContent.trim()).toBe('Start tour');
+        });
+
+        it('drops the chapter-intro treatment on subsequent steps', async () => {
+            const el = create();
+            el.startTour('intro');
+            await flush();
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
+            expect(
+                el.shadowRoot.querySelector('.oc-card--chapter')
+            ).toBeNull();
+            expect(
+                el.shadowRoot.querySelector('.oc-card__hero-icon')
+            ).toBeNull();
         });
     });
 
@@ -172,7 +221,8 @@ describe('c-onboarding-coach', () => {
             const el = create();
             el.startTour('intro');
             await flush();
-            expect(primaryButton(el).textContent.trim()).toBe('Next');
+            // First step is the chapter intro — primary CTA reads "Start tour".
+            expect(primaryButton(el).textContent.trim()).toBe('Start tour');
             primaryButton(el).click();
             await flush();
             // Now at the last step → primary reads "Finish"

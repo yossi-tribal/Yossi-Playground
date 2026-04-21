@@ -162,6 +162,92 @@
     color: var(--oc-text-muted);
 }
 
+/* ---------- Chapter-intro variant ------------------------------------------
+ * Rendered on the first step of any multi-step tour (see isChapterIntro in
+ * onboardingCoach.js). It reads as "the start of a new chapter" rather than
+ * "another step": bigger icon hero (same SLDS utility icon the user clicked
+ * in onboardingMenu), looser spacing, larger title, and a distinct eyebrow
+ * that carries the tour title instead of a "Step 1 of N" counter.
+ *
+ * The icon hero echoes the soft-tinted square used in onboardingMenu's
+ * item-icon so the card feels like a continuation of the menu click, only
+ * scaled up and filled with the brand gradient for the chapter-opening moment.
+ */
+.oc-card--chapter {
+    padding: 24px var(--oc-space-5) var(--oc-space-5);
+    gap: var(--oc-space-3);
+}
+
+.oc-card__hero {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.oc-card__hero-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(
+        135deg,
+        var(--oc-primary) 0%,
+        var(--oc-primary-dark) 100%
+    );
+    color: var(--oc-primary-contrast);
+    box-shadow:
+        0 6px 18px rgba(27, 82, 148, 0.28),
+        0 2px 4px rgba(15, 23, 42, 0.12);
+}
+
+/* lightning-icon renders its SVG via SLDS custom properties; variant=inverse
+   already flips to white, but some hosts have the tokens overridden, so pin
+   the foreground color explicitly to the contrast color. */
+.oc-card__hero-icon lightning-icon {
+    --sds-c-icon-color-foreground-default: var(--oc-primary-contrast);
+    --slds-c-icon-color-foreground-default: var(--oc-primary-contrast);
+    --slds-c-icon-color-foreground: var(--oc-primary-contrast);
+}
+
+.oc-card__eyebrow--chapter {
+    color: var(--oc-primary);
+    margin-bottom: 6px;
+}
+
+.oc-card__title--chapter {
+    font-size: 1.375rem;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* Chapter-intro cards are always center-placed, so give them a touch more
+   air. Keep the width in sync with the standard popover so hosts that bump
+   --oc-popover-* tokens don't break layout. */
+.oc-popover--chapter .oc-card__body {
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+@media (max-width: 540px) {
+    .oc-card--chapter {
+        padding: 20px var(--oc-space-4) var(--oc-space-4);
+    }
+    .oc-card__hero-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+    }
+    .oc-card__title--chapter {
+        font-size: 1.1875rem;
+    }
+    .oc-popover--chapter .oc-card__body {
+        font-size: 0.9375rem;
+    }
+}
+
 .oc-card__foot {
     display: flex;
     align-items: center;

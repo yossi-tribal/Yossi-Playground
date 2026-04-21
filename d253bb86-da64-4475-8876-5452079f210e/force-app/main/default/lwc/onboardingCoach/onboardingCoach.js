@@ -44,6 +44,15 @@ export default class OnboardingCoach extends LightningElement {
     _scrollHandler = null;
     _keyHandler = null;
 
+    // Target tracking: catches layout shifts that don't fire scroll/resize —
+    // drawers animating in, modals settling, LEX reflows, font swaps, sibling
+    // content loading async. Without this the spotlight/popover drifts out of
+    // sync with the real target rect across screen sizes (see
+    // questionListManager ≤768px off-canvas drawer).
+    _trackedTarget = null;
+    _targetResizeObserver = null;
+    _targetPollTimer = null;
+
     // --------------------------------------------------------------
     // Public API
     // --------------------------------------------------------------
@@ -125,12 +134,57 @@ export default class OnboardingCoach extends LightningElement {
         return this.currentStepIndex === this.totalSteps - 1;
     }
 
+    get isFirstStep() {
+        return this.active && this.currentStepIndex === 0;
+    }
+
+    /**
+     * Chapter-intro mode: the first card of any tour gets hero treatment so
+     * it reads as "the start of a new chapter" and not just another step.
+     * Applies regardless of placement — a chapter card that's anchored to a
+     * real target (e.g. Scoring tour opens on the Scoring Guide) keeps its
+     * spotlight + arrow; the intro framing is purely a card-level concern.
+     */
+    get isChapterIntro() {
+        return this.isFirstStep;
+    }
+
+    /**
+     * Icon shown on the chapter-intro hero. We prefer the tour-level icon
+     * (matches the one rendered in onboardingMenu for this chapter) so the
+     * card visually ties back to the menu entry the user clicked.
+     */
+    get chapterIntroIcon() {
+        if (!this.isChapterIntro) return null;
+        return this.currentStep?.icon || this.activeTour?.icon || 'utility:einstein';
+    }
+
+    get chapterIntroLabel() {
+        if (!this.isChapterIntro) return null;
+        return this.activeTour?.title || null;
+    }
+
     get nextButtonLabel() {
-        return this.isLastStep ? 'Finish' : 'Next';
+        if (this.isLastStep) return 'Finish';
+        if (this.isChapterIntro) return 'Start tour';
+        return 'Next';
     }
 
     get stepIcon() {
         return this.currentStep?.icon;
+    }
+
+    get showStepHeaderIcon() {
+        // The per-step icon (small circle next to the title) is suppressed
+        // on the chapter intro because that card already has its own, much
+        // larger hero icon up top. Rendering both would be visually noisy.
+        return !this.isChapterIntro && !!this.stepIcon;
+    }
+
+    get titleClass() {
+        return this.isChapterIntro
+            ? 'oc-card__title oc-card__title--chapter'
+            : 'oc-card__title';
     }
 
     get hasTargetRect() {
@@ -179,7 +233,12 @@ export default class OnboardingCoach extends LightningElement {
     get popoverClass() {
         const base = 'oc-popover';
         const width = this.currentStep?.width || 'standard';
-        return `${base} oc-popover--${width} oc-popover--${this.placement}`;
+        const chapter = this.isChapterIntro ? ' oc-popover--chapter' : '';
+        return `${base} oc-popover--${width} oc-popover--${this.placement}${chapter}`;
+    }
+
+    get cardClass() {
+        return this.isChapterIntro ? 'oc-card oc-card--chapter' : 'oc-card';
     }
 
     get showArrow() {
@@ -297,6 +356,7 @@ export default class OnboardingCoach extends LightningElement {
         const step = this.currentStep;
         if (!step) return;
         if (!step.target || step.placement === 'center') {
+            this._detachTargetTracking();
             this.placement = 'center';
             this.targetRect = null;
             return;
@@ -319,6 +379,7 @@ export default class OnboardingCoach extends LightningElement {
             console.warn(
                 `[onboardingCoach] target not found for step "${step.id}": ${step.target}. Falling back to center.`
             );
+            this._detachTargetTracking();
             this.placement = 'center';
             this.targetRect = null;
             return;
@@ -334,15 +395,39 @@ export default class OnboardingCoach extends LightningElement {
             // older browsers may not support options
         }
         const rect = el.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        // Target is un-spotlightable if it has zero size (display:none,
+        // detached subtree) or has been parked entirely outside the
+        // viewport. The latter is the narrow-viewport case: the
+        // questionListManager list column is transform:translateX(-105%)
+        // off-canvas on ≤768px, so the new-list-button still has a real
+        // rect but sits to the left of the viewport. Without this guard
+        // the popover lands in the top-left corner pointing at nothing.
+        const isOffscreen =
+            rect.right <= 0 ||
+            rect.bottom <= 0 ||
+            rect.left >= vw ||
+            rect.top >= vh;
+        const isZeroSize = rect.width === 0 && rect.height === 0;
+        if (isZeroSize || isOffscreen) {
+            this._detachTargetTracking();
+            this.placement = 'center';
+            this.targetRect = null;
+            return;
+        }
+
         this.targetRect = {
             top: rect.top,
             left: rect.left,
             width: rect.width,
             height: rect.height
         };
-        this.viewport = { w: window.innerWidth, h: window.innerHeight };
+        this.viewport = { w: vw, h: vh };
         this.placement = this._resolveBestPlacement(step.placement || 'auto', rect);
         this._computePopoverPosition();
+        this._attachTargetTracking(el);
     }
 
     /**
@@ -460,6 +545,78 @@ export default class OnboardingCoach extends LightningElement {
         window.addEventListener('keydown', this._keyHandler);
     }
 
+    /**
+     * Tracks a spotlighted target for layout changes that don't fire
+     * window resize or scroll events:
+     *   - ResizeObserver on the target itself (its own size changed).
+     *   - ResizeObserver on documentElement (content height changed,
+     *     e.g. a modal opened, a drawer animated in).
+     *   - Polling fallback (240ms) so that *position* shifts caused by
+     *     siblings rearranging (no resize on the target or the root)
+     *     are still caught. Cost: one getBoundingClientRect per tick,
+     *     which is cheap, and we only run it while a tour is active.
+     */
+    _attachTargetTracking(el) {
+        if (this._trackedTarget === el) return;
+        this._detachTargetTracking();
+        this._trackedTarget = el;
+
+        if (typeof ResizeObserver !== 'undefined') {
+            try {
+                this._targetResizeObserver = new ResizeObserver(() =>
+                    this._scheduleRelayout()
+                );
+                this._targetResizeObserver.observe(el);
+                if (document.documentElement) {
+                    this._targetResizeObserver.observe(document.documentElement);
+                }
+            } catch (e) {
+                this._targetResizeObserver = null;
+            }
+        }
+
+        this._targetPollTimer = setInterval(() => {
+            if (!this.active || !this._trackedTarget) return;
+            if (!document.contains(this._trackedTarget)) {
+                // Target was removed (e.g. modal closed). Re-resolve from
+                // the step's selector — may come back, may not.
+                this._resolveAndMeasure();
+                return;
+            }
+            const next = this._trackedTarget.getBoundingClientRect();
+            const prev = this.targetRect;
+            if (!prev) {
+                this._scheduleRelayout();
+                return;
+            }
+            const EPS = 0.5;
+            if (
+                Math.abs(next.left - prev.left) > EPS ||
+                Math.abs(next.top - prev.top) > EPS ||
+                Math.abs(next.width - prev.width) > EPS ||
+                Math.abs(next.height - prev.height) > EPS
+            ) {
+                this._scheduleRelayout();
+            }
+        }, 240);
+    }
+
+    _detachTargetTracking() {
+        if (this._targetResizeObserver) {
+            try {
+                this._targetResizeObserver.disconnect();
+            } catch (e) {
+                // ignore
+            }
+            this._targetResizeObserver = null;
+        }
+        if (this._targetPollTimer) {
+            clearInterval(this._targetPollTimer);
+            this._targetPollTimer = null;
+        }
+        this._trackedTarget = null;
+    }
+
     _teardown() {
         if (this._resizeHandler) {
             window.removeEventListener('resize', this._resizeHandler);
@@ -477,6 +634,7 @@ export default class OnboardingCoach extends LightningElement {
             cancelAnimationFrame(this._rafHandle);
             this._rafHandle = null;
         }
+        this._detachTargetTracking();
     }
 
     _scheduleRelayout() {

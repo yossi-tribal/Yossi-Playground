@@ -23,20 +23,44 @@
             aria-describedby="oc-step-body"
             onclick={handleCardClick}
         >
-            <div class="oc-card">
+            <div class={cardClass}>
+                <!--
+                    Chapter-intro hero (first step only). Shows the same SLDS
+                    utility icon the user clicked in onboardingMenu so the
+                    card reads as a continuation of that menu entry — a new
+                    chapter opening, not just another step.
+                -->
+                <template lwc:if={isChapterIntro}>
+                    <div class="oc-card__hero">
+                        <div class="oc-card__hero-icon">
+                            <lightning-icon
+                                icon-name={chapterIntroIcon}
+                                size="medium"
+                                variant="inverse"
+                                alternative-text={chapterIntroLabel}
+                            ></lightning-icon>
+                        </div>
+                    </div>
+                </template>
+
                 <header class="oc-card__head">
-                    <template lwc:if={stepIcon}>
+                    <template lwc:if={showStepHeaderIcon}>
                         <div class="oc-card__icon">
                             <lightning-icon icon-name={stepIcon} size="small" variant="inverse"></lightning-icon>
                         </div>
                     </template>
                     <div class="oc-card__heading">
-                        <template lwc:if={showStepIndicator}>
+                        <template lwc:if={isChapterIntro}>
+                            <div class="oc-card__eyebrow oc-card__eyebrow--chapter">
+                                {chapterIntroLabel}
+                            </div>
+                        </template>
+                        <template lwc:elseif={showStepIndicator}>
                             <div class="oc-card__eyebrow">
                                 Step {currentStepNumber} of {totalSteps}
                             </div>
                         </template>
-                        <h2 id="oc-step-title" class="oc-card__title">{currentStep.title}</h2>
+                        <h2 id="oc-step-title" class={titleClass}>{currentStep.title}</h2>
                     </div>
                 </header>
 
