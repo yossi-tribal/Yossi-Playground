@@ -122,6 +122,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                        LQW_High_Quality_Recommendation__c, LQW_Medium_Quality_Recommendation__c, LQW_Low_Quality_Recommendation__c,
                        LQW_Assignment_Criteria__c, LQW_Is_Default__c
                 FROM LQW_Question_List__c
+                WITH USER_MODE
                 ORDER BY LQW_List_Name__c ASC NULLS LAST, Name ASC
             ];
 
@@ -134,6 +135,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                        LQW_Is_Active__c, LQW_Question_List__c
                 FROM LQW_Qualification_Question__c
                 WHERE LQW_Question_List__c != null
+                WITH USER_MODE
                 ORDER BY LQW_Question_Order__c ASC NULLS LAST, Name ASC
             ];
 
@@ -210,6 +212,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                        LQW_Assignment_Criteria__c, LQW_Is_Default__c
                 FROM LQW_Question_List__c
                 WHERE Id = :listId
+                WITH USER_MODE
                 LIMIT 1
             ];
             if (questionLists.isEmpty()) {
@@ -243,6 +246,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                        LQW_Is_Dealbreaker__c, LQW_Dealbreaker_Value__c, LQW_Is_Active__c
                 FROM LQW_Qualification_Question__c
                 WHERE LQW_Question_List__c = :listId
+                WITH USER_MODE
                 ORDER BY LQW_Question_Order__c ASC NULLS LAST, Name ASC
             ];
 
@@ -307,7 +311,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
 
             if (listId != null) {
                 // Update existing list
-                questionList = [SELECT Id FROM LQW_Question_List__c WHERE Id = :listId LIMIT 1];
+                questionList = [SELECT Id FROM LQW_Question_List__c WHERE Id = :listId WITH USER_MODE LIMIT 1];
                 questionList.LQW_List_Name__c = listName;
                 questionList.LQW_Description__c = description;
                 questionList.LQW_Is_Active__c = isActive;
@@ -320,7 +324,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 questionList.LQW_Medium_Quality_Recommendation__c = mediumQualityRecommendation;
                 questionList.LQW_Low_Quality_Recommendation__c = lowQualityRecommendation;
                 questionList.LQW_Is_Default__c = isDefault != null ? isDefault : false;
-                update questionList;
+                update as user questionList;
                 result.message = 'Question list updated successfully.';
             } else {
                 // Create new list
@@ -337,7 +341,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 questionList.LQW_Medium_Quality_Recommendation__c = mediumQualityRecommendation;
                 questionList.LQW_Low_Quality_Recommendation__c = lowQualityRecommendation;
                 questionList.LQW_Is_Default__c = isDefault != null ? isDefault : false;
-                insert questionList;
+                insert as user questionList;
                 result.message = 'Question list created successfully.';
             }
 
@@ -363,15 +367,15 @@ public with sharing class LQW_QuestionListManagerCtrl {
         try {
             // Delete all questions first (cascade)
             List<LQW_Qualification_Question__c> questions = [
-                SELECT Id FROM LQW_Qualification_Question__c WHERE LQW_Question_List__c = :listId
+                SELECT Id FROM LQW_Qualification_Question__c WHERE LQW_Question_List__c = :listId WITH USER_MODE
             ];
             if (!questions.isEmpty()) {
-                delete questions;
+                delete as user questions;
             }
 
             // Delete the list
-            LQW_Question_List__c questionList = [SELECT Id FROM LQW_Question_List__c WHERE Id = :listId LIMIT 1];
-            delete questionList;
+            LQW_Question_List__c questionList = [SELECT Id FROM LQW_Question_List__c WHERE Id = :listId WITH USER_MODE LIMIT 1];
+            delete as user questionList;
 
             result.success = true;
             result.message = 'Question list and all associated questions deleted successfully.';
@@ -419,7 +423,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
 
             if (questionId != null) {
                 // Update existing question
-                question = [SELECT Id FROM LQW_Qualification_Question__c WHERE Id = :questionId LIMIT 1];
+                question = [SELECT Id FROM LQW_Qualification_Question__c WHERE Id = :questionId WITH USER_MODE LIMIT 1];
             } else {
                 // Create new question
                 question = new LQW_Qualification_Question__c();
@@ -434,7 +438,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
             question.LQW_Dealbreaker_Value__c = dealbreakerValue;
             question.LQW_Is_Active__c = isActive != null ? isActive : true;
 
-            upsert question;
+            upsert as user question;
 
             result.success = true;
             result.recordId = question.Id;
@@ -458,12 +462,12 @@ public with sharing class LQW_QuestionListManagerCtrl {
 
         try {
             List<LQW_Qualification_Question__c> questions = [
-                SELECT Id FROM LQW_Qualification_Question__c WHERE Id = :questionId LIMIT 1
+                SELECT Id FROM LQW_Qualification_Question__c WHERE Id = :questionId WITH USER_MODE LIMIT 1
             ];
             if (questions.isEmpty()) {
                 throw new AuraHandledException('Error deleting question: Question not found.');
             }
-            delete questions;
+            delete as user questions;
 
             result.success = true;
             result.message = 'Question deleted successfully.';
@@ -492,7 +496,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
             }
 
             List<LQW_Qualification_Question__c> questionsToUpdate = [
-                SELECT Id FROM LQW_Qualification_Question__c WHERE Id IN :questionIdsInOrder
+                SELECT Id FROM LQW_Qualification_Question__c WHERE Id IN :questionIdsInOrder WITH USER_MODE
             ];
 
             Map<Id, LQW_Qualification_Question__c> questionMap = new Map<Id, LQW_Qualification_Question__c>(questionsToUpdate);
@@ -510,7 +514,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
             }
 
             if (!orderedQuestions.isEmpty()) {
-                update orderedQuestions;
+                update as user orderedQuestions;
             }
 
             result.success = true;
@@ -538,6 +542,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 SELECT Id, LQW_Is_Active__c
                 FROM LQW_Qualification_Question__c
                 WHERE LQW_Question_List__c = :listId
+                WITH USER_MODE
             ];
 
             if (questions.isEmpty()) {
@@ -549,7 +554,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 question.LQW_Is_Active__c = isActive;
             }
 
-            update questions;
+            update as user questions;
 
             result.success = true;
             result.message = questions.size() + ' question(s) ' + (isActive ? 'activated' : 'deactivated') + ' successfully.';
@@ -587,6 +592,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                        LQW_Is_Default__c
                 FROM LQW_Question_List__c
                 WHERE Id = :listId
+                WITH USER_MODE
                 LIMIT 1
             ];
 
@@ -604,7 +610,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
             newList.LQW_Medium_Quality_Recommendation__c = originalList.LQW_Medium_Quality_Recommendation__c;
             newList.LQW_Low_Quality_Recommendation__c = originalList.LQW_Low_Quality_Recommendation__c;
             newList.LQW_Is_Default__c = false; // Cloned list is never default
-            insert newList;
+            insert as user newList;
 
             // Get all questions from original list
             List<LQW_Qualification_Question__c> originalQuestions = [
@@ -613,6 +619,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                        LQW_Dealbreaker_Value__c, LQW_Is_Active__c
                 FROM LQW_Qualification_Question__c
                 WHERE LQW_Question_List__c = :listId
+                WITH USER_MODE
             ];
 
             // Clone all questions
@@ -632,7 +639,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                     newQuestions.add(newQuestion);
                 }
 
-                insert newQuestions;
+                insert as user newQuestions;
             }
 
             result.success = true;
@@ -660,6 +667,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 SELECT LQW_Score_Value__c, LQW_Is_Active__c, LQW_Is_Dealbreaker__c
                 FROM LQW_Qualification_Question__c
                 WHERE LQW_Question_List__c = :listId
+                WITH USER_MODE
             ];
 
             summary.totalQuestionCount = questions.size();
@@ -773,6 +781,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 FROM LQW_Question_List__c
                 WHERE LQW_Is_Active__c = true
                 AND LQW_Is_Default__c = false
+                WITH USER_MODE
                 ORDER BY LQW_List_Name__c ASC
             ];
 
@@ -873,6 +882,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 SELECT Id, LQW_List_Name__c
                 FROM LQW_Question_List__c
                 WHERE LQW_Is_Default__c = true
+                WITH USER_MODE
                 LIMIT 1
             ];
 
@@ -895,7 +905,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
             defaultList.LQW_High_Quality_Recommendation__c = 'Convert to Opportunity';
             defaultList.LQW_Medium_Quality_Recommendation__c = 'Convert to Opportunity with Manager Review';
             defaultList.LQW_Low_Quality_Recommendation__c = 'Nurture Lead (Do Not Convert)';
-            insert defaultList;
+            insert as user defaultList;
 
             // Create the 9 pre-configured qualification questions
             List<LQW_Qualification_Question__c> defaultQuestions = new List<LQW_Qualification_Question__c>();
@@ -963,7 +973,7 @@ public with sharing class LQW_QuestionListManagerCtrl {
                 9, 1, 'Yes', false, null
             ));
 
-            insert defaultQuestions;
+            insert as user defaultQuestions;
 
             result.success = true;
             result.recordId = defaultList.Id;

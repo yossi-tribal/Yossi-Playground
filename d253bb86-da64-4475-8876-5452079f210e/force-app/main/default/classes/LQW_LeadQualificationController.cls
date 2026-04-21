@@ -158,6 +158,7 @@ public with sharing class LQW_LeadQualificationController {
                        LQW_Question_List__r.LQW_Low_Quality_Recommendation__c
                 FROM Lead
                 WHERE Id = :leadId
+                WITH USER_MODE
                 LIMIT 1
             ];
             if (leadRecords.isEmpty()) {
@@ -186,6 +187,7 @@ public with sharing class LQW_LeadQualificationController {
                     FROM LQW_Question_List__c
                     WHERE LQW_Is_Active__c = true
                     AND LQW_Is_Default__c = true
+                    WITH USER_MODE
                     ORDER BY Name ASC
                     LIMIT 1
                 ];
@@ -222,6 +224,7 @@ public with sharing class LQW_LeadQualificationController {
                     WHERE LQW_Lead__c = :leadId
                     AND LQW_Question_List__c != null
                     AND LQW_Question_List__c != :lead.LQW_Question_List__c
+                    WITH USER_MODE
                 ];
                 if (!previousResponsesCount.isEmpty()) {
                     summary.previousResponseCount = Integer.valueOf(previousResponsesCount[0].get('responseCount'));
@@ -238,6 +241,7 @@ public with sharing class LQW_LeadQualificationController {
                     FROM LQW_Qualification_Question__c
                     WHERE LQW_Is_Active__c = true
                     AND LQW_Question_List__c = :effectiveQuestionListId
+                    WITH USER_MODE
                     ORDER BY LQW_Question_Order__c ASC NULLS LAST, Name ASC
                 ];
             } else {
@@ -253,6 +257,7 @@ public with sharing class LQW_LeadQualificationController {
                 SELECT Id, LQW_Question__c, LQW_Response__c
                 FROM LQW_Lead_Question_Response__c
                 WHERE LQW_Lead__c = :leadId
+                WITH USER_MODE
             ];
 
             for (LQW_Lead_Question_Response__c response : responses) {
@@ -357,6 +362,7 @@ public with sharing class LQW_LeadQualificationController {
                 SELECT Id, LQW_Is_Dealbreaker__c, LQW_Dealbreaker_Value__c, LQW_Question_Text__c
                 FROM LQW_Qualification_Question__c
                 WHERE Id = :questionId
+                WITH USER_MODE
                 LIMIT 1
             ];
 
@@ -365,6 +371,7 @@ public with sharing class LQW_LeadQualificationController {
                 SELECT Id, LQW_Response__c
                 FROM LQW_Lead_Question_Response__c
                 WHERE LQW_Lead__c = :leadId AND LQW_Question__c = :questionId
+                WITH USER_MODE
                 LIMIT 1
             ];
 
@@ -381,13 +388,13 @@ public with sharing class LQW_LeadQualificationController {
             }
 
             // Get lead's current question list for snapshot
-            Lead leadForQuestionList = [SELECT Id, LQW_Question_List__c FROM Lead WHERE Id = :leadId LIMIT 1];
+            Lead leadForQuestionList = [SELECT Id, LQW_Question_List__c FROM Lead WHERE Id = :leadId WITH USER_MODE LIMIT 1];
 
             // Handle response save/delete
             if (String.isBlank(response)) {
                 // Delete response (toggle off)
                 if (!existingResponses.isEmpty()) {
-                    delete existingResponses[0];
+                    delete as user existingResponses[0];
                 }
             } else {
                 // Save or update response
@@ -414,11 +421,11 @@ public with sharing class LQW_LeadQualificationController {
                     }
                 }
 
-                upsert responseRecord;
+                upsert as user responseRecord;
             }
 
             // Handle lead status changes
-            Lead lead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :leadId LIMIT 1];
+            Lead lead = [SELECT Id, Status, Description, LQW_Lead_Quality__c FROM Lead WHERE Id = :leadId WITH USER_MODE LIMIT 1];
             Boolean needsStatusUpdate = false;
 
             if (triggersDisqualification && lead.Status != DISQUALIFIED_STATUS) {
@@ -442,11 +449,12 @@ public with sharing class LQW_LeadQualificationController {
             // Persist status/description first so getLeadQualificationData reads current Lead.Status from the DB
             if (needsStatusUpdate) {
                 Lead statusPatch = new Lead(Id = lead.Id, Status = lead.Status, Description = lead.Description);
-                update statusPatch;
+                update as user statusPatch;
             }
 
             QualificationSummary tempSummary = getLeadQualificationData(leadId);
-            update new Lead(Id = leadId, LQW_Lead_Quality__c = tempSummary.leadQualityCode);
+            Lead qualityPatch = new Lead(Id = leadId, LQW_Lead_Quality__c = tempSummary.leadQualityCode);
+            update as user qualityPatch;
 
             if (needsStatusUpdate) {
                 result.newLeadStatus = tempSummary.leadStatus;
@@ -518,7 +526,7 @@ public with sharing class LQW_LeadQualificationController {
      */
     private static Boolean isLeadAccessible(Id leadId) {
         try {
-            List<Lead> leads = [SELECT Id FROM Lead WHERE Id = :leadId LIMIT 1];
+            List<Lead> leads = [SELECT Id FROM Lead WHERE Id = :leadId WITH USER_MODE LIMIT 1];
             return !leads.isEmpty();
         } catch (Exception e) {
             return false;
@@ -629,6 +637,7 @@ public with sharing class LQW_LeadQualificationController {
             WHERE LQW_Is_Active__c = true
             AND LQW_Is_Dealbreaker__c = true
             AND Id != :excludeQuestionId
+            WITH USER_MODE
         ];
 
         if (dealbreakerQuestions.isEmpty()) {
@@ -641,6 +650,7 @@ public with sharing class LQW_LeadQualificationController {
             FROM LQW_Lead_Question_Response__c
             WHERE LQW_Lead__c = :leadId
             AND LQW_Question__c != :excludeQuestionId
+            WITH USER_MODE
         ];
 
         // Check if any other dealbreaker responses exist
@@ -706,6 +716,7 @@ public with sharing class LQW_LeadQualificationController {
                 FROM LQW_Lead_Question_Response__c
                 WHERE LQW_Lead__c = :leadId
                 AND LQW_Response__c != null
+                WITH USER_MODE
                 ORDER BY LQW_Question_List__c, LQW_Response_Date__c ASC
             ];
 

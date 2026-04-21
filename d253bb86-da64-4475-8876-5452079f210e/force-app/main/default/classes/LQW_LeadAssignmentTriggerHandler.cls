@@ -4,6 +4,13 @@
  * Auto-syncs Assignment_Criteria__c JSON after evaluation
  * Handles default fallback via Is_Default__c
  * Auto-creates example list with sample questions on first run
+ *
+ * Security note: All SOQL/DML in this handler runs in SYSTEM_MODE on purpose.
+ * Auto-assignment of a Question List must succeed regardless of the triggering
+ * user's FLS/CRUD on LQW_* objects. A partner or portal user creating a Lead
+ * typically has no access to the admin objects; the trigger still needs to
+ * assign a list so downstream scoring works. The user's own CRUD on Lead is
+ * already enforced by the platform when they insert/update the Lead record.
  */
 public with sharing class LQW_LeadAssignmentTriggerHandler {
 
@@ -25,6 +32,7 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
                        LQW_Assignment_Criteria__c, LQW_Is_Default__c
                 FROM LQW_Question_List__c
                 WHERE LQW_Is_Active__c = true
+                WITH SYSTEM_MODE
                 ORDER BY LQW_Is_Default__c ASC, Name ASC
             ];
 
@@ -67,7 +75,7 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
 
             // Update leads with new assignments
             if (!leadsToUpdate.isEmpty()) {
-                update leadsToUpdate;
+                update as system leadsToUpdate;
             }
 
             // Auto-sync Assignment_Criteria__c JSON for all lists
@@ -164,7 +172,7 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
         }
 
         if (!listsToUpdate.isEmpty()) {
-            update listsToUpdate;
+            update as system listsToUpdate;
         }
     }
 
@@ -215,7 +223,7 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
         hasAutoCreatedExample = true;
 
         // Check if any question lists exist
-        Integer listCount = [SELECT COUNT() FROM LQW_Question_List__c LIMIT 1];
+        Integer listCount = [SELECT COUNT() FROM LQW_Question_List__c WITH SYSTEM_MODE LIMIT 1];
 
         if (listCount == 0) {
             // Create example question list
@@ -232,7 +240,7 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
             exampleList.LQW_High_Quality_Recommendation__c = 'Convert to Opportunity';
             exampleList.LQW_Medium_Quality_Recommendation__c = 'Convert to Opportunity with Manager Review';
             exampleList.LQW_Low_Quality_Recommendation__c = 'Nurture Lead (Do Not Convert)';
-            insert exampleList;
+            insert as system exampleList;
 
             // Create example questions
             List<LQW_Qualification_Question__c> exampleQuestions = new List<LQW_Qualification_Question__c>();
@@ -300,7 +308,7 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
                 9, 1, 'Yes', false, null
             ));
 
-            insert exampleQuestions;
+            insert as system exampleQuestions;
         }
     }
 
