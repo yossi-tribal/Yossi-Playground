@@ -13,7 +13,13 @@
  *                         any tour-opened modals so the page is visible.
  *   - 'list-modal'      — open the New List modal.
  *   - 'question-modal'  — open the New Question modal (and select a list).
+ *   - 'scoring-editing' — select a list + put the Scoring Guide into edit
+ *                         mode so tier inputs render.
  *   - 'no-modal'        — page-level step; close any tour-opened modals.
+ *
+ * A tour may also declare a `chain` — an ordered list of tour ids to auto-run
+ * after this one completes. Used by the Welcome tour to walk users through
+ * every other tour in sequence. Skipping at any point aborts the chain.
  *
  * The legacy `action` field still works for back-compat.
  *
@@ -27,16 +33,20 @@
 const MANAGER_TOURS = [
     {
         id: 'intro',
-        version: 4,
+        version: 5,
         title: 'Welcome tour',
-        summary: 'A 60-second overview of the manager.',
+        summary: 'Guided walkthrough of every tour, end to end.',
         icon: 'utility:einstein',
+        // The Welcome tour chains into every other tour automatically: once
+        // this tour's steps end, the host starts each of these in order.
+        // Skipping at any point aborts the chain.
+        chain: ['lists', 'scoring', 'questions', 'lifecycle'],
         steps: [
             {
                 id: 'welcome',
                 title: 'Question List Manager',
                 body:
-                    'Build the qualification playbook your reps see in the wizard. Changes here go live everywhere.',
+                    'Build the qualification playbook your reps see in the wizard. We\'ll walk through everything — lists, scoring, questions, and going live — one tour at a time.',
                 placement: 'center',
                 width: 'standard',
                 context: 'no-modal'
@@ -63,7 +73,8 @@ const MANAGER_TOURS = [
             {
                 id: 'replay',
                 title: 'Replay anytime',
-                body: 'Click this info icon to replay any tour.',
+                body:
+                    'Click this info icon to replay any tour. Hit Next and we\'ll dive into Creating a list, Scoring, Questions, and Going Live — back-to-back.',
                 target: '[data-tour="info-icon"]',
                 placement: 'bottom',
                 width: 'standard',
@@ -152,15 +163,19 @@ const MANAGER_TOURS = [
     },
     {
         id: 'scoring',
-        version: 3,
+        version: 4,
         title: 'Scoring thresholds',
-        summary: 'How point totals become Low / Medium / High.',
+        summary: 'Walk every field in the Scoring Guide editor.',
         icon: 'utility:rating',
+        // When this tour ends (finish or skip), host should exit scoring edit
+        // mode if the tour was the one that opened it.
+        closeScoringEditOnEnd: true,
         steps: [
             {
                 id: 'scoring-what',
                 title: 'Points add up to a tier',
-                body: 'Each question has points. Thresholds decide where Low / Medium / High land.',
+                body:
+                    'Every active question contributes points. Thresholds decide where a lead lands: Low, Medium, or High.',
                 target: '[data-tour="scoring-guide"]',
                 placement: 'top',
                 width: 'standard',
@@ -168,12 +183,63 @@ const MANAGER_TOURS = [
             },
             {
                 id: 'scoring-edit',
-                title: 'Thresholds are editable',
-                body: 'Hit Edit to change cutoffs, labels, or the action text reps see.',
+                title: 'Hit Edit to tune the guide',
+                body:
+                    'Edit lets you change thresholds, the labels reps see, and the recommended action for each tier. We\'ll open it for you next.',
                 target: '[data-tour="scoring-edit-button"]',
                 placement: 'left',
                 width: 'standard',
                 context: 'list-selected'
+            },
+            {
+                id: 'scoring-min-score',
+                title: 'Minimum Score sets the floor',
+                body:
+                    'A lead scoring this or higher lands in the High tier. Pick it based on the Active Points total below — e.g. if your questions add up to 10, a High floor of 7 means "answered most of the high-value questions right".',
+                target: '[data-tour="scoring-edit-high-min"]',
+                placement: 'bottom',
+                width: 'wide',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-label',
+                title: 'Display Label is what reps see',
+                body:
+                    'The badge in the wizard for this tier — "Hot Lead", "Qualified", "Priority". Short and specific beats generic.',
+                target: '[data-tour="scoring-edit-high-label"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-recommendation',
+                title: 'Recommendation tells them what to do',
+                body:
+                    'The suggested action rendered alongside the badge — "Convert to Opportunity", "Book a demo", "Schedule discovery". This is the nudge that closes the loop.',
+                target: '[data-tour="scoring-edit-high-reco"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-low-tier',
+                title: 'Low has no minimum',
+                body:
+                    'Low is the catch-all: anything below the Medium threshold lands here. Only Label and Recommendation are editable — common choices are "Nurture" or "Do Not Convert".',
+                target: '[data-tour="scoring-edit-low-tier"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-save',
+                title: 'Save Changes to apply',
+                body:
+                    'Save updates this list\'s guide immediately. Closing this walkthrough keeps your current values — nothing is saved until you click here yourself.',
+                target: '[data-tour="scoring-edit-save"]',
+                placement: 'left',
+                width: 'standard',
+                context: 'scoring-editing'
             }
         ]
     },

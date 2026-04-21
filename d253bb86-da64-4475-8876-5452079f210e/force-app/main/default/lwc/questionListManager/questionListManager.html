@@ -273,7 +273,7 @@
                                                 <button class="action-button cancel-button" onclick={handleCancelScoringGuideEdit}>
                                                     Cancel
                                                 </button>
-                                                <button class="action-button save-button" onclick={handleSaveScoringGuide}>
+                                                <button class="action-button save-button" onclick={handleSaveScoringGuide} data-tour="scoring-edit-save">
                                                     <lightning-icon icon-name="utility:check" size="xx-small"></lightning-icon>
                                                     <span>Save Changes</span>
                                                 </button>
@@ -322,7 +322,7 @@
                                             </div>
                                             <div class="tier-edit-body">
                                                 <div class="tier-edit-row">
-                                                    <div class="tier-edit-field">
+                                                    <div class="tier-edit-field" data-tour="scoring-edit-high-min">
                                                         <label class="tier-field-label">Minimum Score</label>
                                                         <lightning-input
                                                             type="number"
@@ -334,7 +334,7 @@
                                                             class="tier-input">
                                                         </lightning-input>
                                                     </div>
-                                                    <div class="tier-edit-field flex-grow">
+                                                    <div class="tier-edit-field flex-grow" data-tour="scoring-edit-high-label">
                                                         <label class="tier-field-label">Display Label</label>
                                                         <lightning-input
                                                             value={scoringGuideForm.highQualityLabel}
@@ -347,7 +347,7 @@
                                                     </div>
                                                 </div>
                                                 <div class="tier-edit-row">
-                                                    <div class="tier-edit-field full-width">
+                                                    <div class="tier-edit-field full-width" data-tour="scoring-edit-high-reco">
                                                         <label class="tier-field-label">Recommendation</label>
                                                         <lightning-input
                                                             value={scoringGuideForm.highQualityRecommendation}
@@ -411,7 +411,7 @@
                                         </div>
 
                                         <!-- Low Quality Tier -->
-                                        <div class="tier-edit-card tier-edit-low">
+                                        <div class="tier-edit-card tier-edit-low" data-tour="scoring-edit-low-tier">
                                             <div class="tier-edit-header">
                                                 <lightning-icon icon-name="utility:error" size="x-small" variant="error"></lightning-icon>
                                                 <span class="tier-edit-title">Low Quality</span>
@@ -1038,8 +1038,8 @@
                 component-name="questionListManager"
                 user-id={currentUserId}
                 tours={tours}
-                oncomplete={handleTourEnd}
-                onskip={handleTourEnd}
+                oncomplete={handleTourComplete}
+                onskip={handleTourSkip}
             ></c-onboarding-coach>
         </template>
 

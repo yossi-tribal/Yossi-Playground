@@ -84,6 +84,14 @@ export default class QuestionListManager extends LightningElement {
     // tour ends (complete or skip) — the user just watched a walkthrough,
     // they shouldn't be left staring at an empty draft.
     _tourOpenedModal = null;
+    // Tracks whether a tour put the Scoring Guide into edit mode so we can
+    // exit that mode on tour end without clobbering user-opened edits.
+    _tourOpenedScoringEdit = false;
+    // Active tour chain (e.g., Welcome tour walks into every other tour).
+    // Populated by handleTourSelect / autoStartIfUnseen when a tour with a
+    // `chain` field starts, advanced on complete, aborted on skip.
+    _activeChain = null;
+    _chainIndex = 0;
 
     get tours() {
         return managerTours.map((tour) => ({
@@ -113,6 +121,9 @@ export default class QuestionListManager extends LightningElement {
      *   'question-modal-dealbreaker' — like 'question-modal', but also flips
      *                                   Is Dealbreaker on so the
      *                                   Dealbreaker Value combobox renders.
+     *   'scoring-editing'            — list selected + Scoring Guide in
+     *                                   edit mode (so tier inputs render
+     *                                   and the tour can target them).
      *   'no-modal'                   — page-level step; close any
      *                                   tour-opened modals.
      *
@@ -137,14 +148,17 @@ export default class QuestionListManager extends LightningElement {
         switch (context) {
             case 'list-modal':
                 this._closeQuestionModalIfTourOpened();
+                this._closeScoringEditIfTourOpened();
                 this._ensureListModalOpen();
                 break;
             case 'question-modal':
                 this._closeListModalIfTourOpened();
+                this._closeScoringEditIfTourOpened();
                 this._ensureQuestionModalOpen();
                 break;
             case 'question-modal-dealbreaker':
                 this._closeListModalIfTourOpened();
+                this._closeScoringEditIfTourOpened();
                 this._ensureQuestionModalOpen();
                 // Flip Is Dealbreaker on so the Dealbreaker Value combobox
                 // renders and the tour can point at it. Wrapped in a
@@ -159,18 +173,27 @@ export default class QuestionListManager extends LightningElement {
             case 'list-selected':
                 this._closeListModalIfTourOpened();
                 this._closeQuestionModalIfTourOpened();
+                this._closeScoringEditIfTourOpened();
                 this._ensureListSelected();
                 break;
             case 'list-with-rules-expanded':
                 this._closeListModalIfTourOpened();
                 this._closeQuestionModalIfTourOpened();
+                this._closeScoringEditIfTourOpened();
                 this._ensureListSelected();
                 this.isAssignmentRulesExpanded = true;
+                break;
+            case 'scoring-editing':
+                this._closeListModalIfTourOpened();
+                this._closeQuestionModalIfTourOpened();
+                this._ensureListSelected();
+                this._ensureScoringEditOpen();
                 break;
             case 'no-modal':
             default:
                 this._closeListModalIfTourOpened();
                 this._closeQuestionModalIfTourOpened();
+                this._closeScoringEditIfTourOpened();
                 break;
         }
     }
@@ -211,16 +234,99 @@ export default class QuestionListManager extends LightningElement {
         }
     }
 
-    handleTourEnd() {
-        // Close whichever modal the tour opened. If the user opened a modal
-        // themselves (e.g. during a tour they navigated back through), we
-        // still close it — tours are meant to be non-destructive walkthroughs.
+    _ensureScoringEditOpen() {
+        if (!this.selectedList) return;
+        if (!this.isScoringGuideEditing) {
+            this.handleEditScoringGuide();
+            this._tourOpenedScoringEdit = true;
+        }
+    }
+
+    _closeScoringEditIfTourOpened() {
+        if (this.isScoringGuideEditing && this._tourOpenedScoringEdit) {
+            this.handleCancelScoringGuideEdit();
+            this._tourOpenedScoringEdit = false;
+        }
+    }
+
+    _cleanupTourSideEffects() {
+        // Close whichever modal / edit surface the tour opened. If the user
+        // opened something themselves (e.g. by navigating back through the
+        // tour) we still close it — tours are meant to be non-destructive
+        // walkthroughs, nothing should persist.
         if (this._tourOpenedModal === 'list') {
             this.showListModal = false;
         } else if (this._tourOpenedModal === 'question') {
             this.showQuestionModal = false;
         }
         this._tourOpenedModal = null;
+        if (this._tourOpenedScoringEdit) {
+            this.handleCancelScoringGuideEdit();
+            this._tourOpenedScoringEdit = false;
+        }
+    }
+
+    handleTourComplete(event) {
+        const finishedId = event?.detail?.tourId;
+        // If this tour is part of an active chain (or starts one), advance
+        // to the next tour before cleaning up side effects — the next tour
+        // may need a clean slate (e.g. Creating-a-list expects no scoring
+        // edit open) but it will set its own context on its first step.
+        const nextTourId = this._nextChainedTour(finishedId);
+        this._cleanupTourSideEffects();
+        if (nextTourId) {
+            // Defer a frame so the coach finishes its own teardown before
+            // we ask it to start the next tour. Without this we can race
+            // its `stop()` → new startTour → layout sequence.
+            window.requestAnimationFrame(() => this._startChainedTour(nextTourId));
+        }
+    }
+
+    handleTourSkip() {
+        // Skipping aborts any in-flight chain — the user signalled "enough".
+        this._activeChain = null;
+        this._chainIndex = 0;
+        this._cleanupTourSideEffects();
+    }
+
+    /**
+     * Return the id of the next tour to run after `finishedId` finishes,
+     * or null if there is none. Also initialises `_activeChain` the first
+     * time a chain-anchored tour completes, and nulls the chain out when
+     * the last tour in it finishes.
+     */
+    _nextChainedTour(finishedId) {
+        if (!finishedId) return null;
+        if (!this._activeChain) {
+            const tour = this._rawTour(finishedId);
+            const chain = tour && Array.isArray(tour.chain) ? tour.chain : null;
+            if (!chain || chain.length === 0) return null;
+            this._activeChain = chain.slice();
+            this._chainIndex = 0;
+        } else {
+            this._chainIndex += 1;
+        }
+        const nextId = this._activeChain[this._chainIndex];
+        if (!nextId) {
+            this._activeChain = null;
+            this._chainIndex = 0;
+            return null;
+        }
+        return nextId;
+    }
+
+    _startChainedTour(tourId) {
+        const coach = this.refs?.coach;
+        if (!coach) {
+            this._activeChain = null;
+            this._chainIndex = 0;
+            return;
+        }
+        coach.startTour(tourId, { force: true });
+    }
+
+    _rawTour(tourId) {
+        return managerTours.find((t) => t.id === tourId) || null;
     }
 
     connectedCallback() {
@@ -388,6 +494,10 @@ export default class QuestionListManager extends LightningElement {
         if (!tourId) return;
         const coach = this.refs?.coach;
         if (!coach) return;
+        // Reset any in-flight chain — the user explicitly picked a new tour,
+        // so we don't want a stale Welcome chain to flow through afterwards.
+        this._activeChain = null;
+        this._chainIndex = 0;
         coach.startTour(tourId, { force: true });
     }
 
