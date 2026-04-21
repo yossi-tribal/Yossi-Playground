@@ -3,6 +3,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import USER_ID from '@salesforce/user/Id';
 import managerTours from './tours';
+import { legacyActionToContext, advanceChain } from './tourOrchestration';
 import getAllQuestionLists from '@salesforce/apex/LQW_QuestionListManagerCtrl.getAllQuestionLists';
 import saveQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.saveQuestionList';
 import deleteQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.deleteQuestionList';
@@ -130,18 +131,10 @@ export default class QuestionListManager extends LightningElement {
      * Legacy `action` values are mapped to the matching context.
      */
     _augmentStep(tour, step) {
-        const context = step.context || this._legacyActionToContext(step.action);
+        const context = step.context || legacyActionToContext(step.action);
         if (!context) return step;
         const handler = () => this._ensureStepContext(context);
         return { ...step, onEnter: handler };
-    }
-
-    _legacyActionToContext(action) {
-        if (!action) return null;
-        if (action === 'openListModal') return 'list-modal';
-        if (action === 'openQuestionModal') return 'question-modal';
-        if (action === 'selectFirstListIfNone') return 'list-selected';
-        return null;
     }
 
     _ensureStepContext(context) {
@@ -291,27 +284,18 @@ export default class QuestionListManager extends LightningElement {
 
     /**
      * Return the id of the next tour to run after `finishedId` finishes,
-     * or null if there is none. Also initialises `_activeChain` the first
-     * time a chain-anchored tour completes, and nulls the chain out when
-     * the last tour in it finishes.
+     * or null if there is none. Delegates the decision logic to the pure
+     * `advanceChain` helper (see `tourOrchestration.js`) and just writes
+     * the returned state back to the component.
      */
     _nextChainedTour(finishedId) {
-        if (!finishedId) return null;
-        if (!this._activeChain) {
-            const tour = this._rawTour(finishedId);
-            const chain = tour && Array.isArray(tour.chain) ? tour.chain : null;
-            if (!chain || chain.length === 0) return null;
-            this._activeChain = chain.slice();
-            this._chainIndex = 0;
-        } else {
-            this._chainIndex += 1;
-        }
-        const nextId = this._activeChain[this._chainIndex];
-        if (!nextId) {
-            this._activeChain = null;
-            this._chainIndex = 0;
-            return null;
-        }
+        const current = {
+            activeChain: this._activeChain,
+            chainIndex: this._chainIndex
+        };
+        const { state, nextId } = advanceChain(current, finishedId, managerTours);
+        this._activeChain = state.activeChain;
+        this._chainIndex = state.chainIndex;
         return nextId;
     }
 
@@ -323,10 +307,6 @@ export default class QuestionListManager extends LightningElement {
             return;
         }
         coach.startTour(tourId, { force: true });
-    }
-
-    _rawTour(tourId) {
-        return managerTours.find((t) => t.id === tourId) || null;
     }
 
     connectedCallback() {
