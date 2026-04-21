@@ -1,10 +1,18 @@
 <template>
     <template lwc:if={active}>
-        <div class="oc-backdrop" onclick={handleBackdropClick} aria-hidden="true"></div>
-
+        <!--
+            DOM order matters: the spotlight must come BEFORE the backdrop so
+            the `.oc-spotlight ~ .oc-backdrop { background: transparent; }`
+            rule in onboardingCoach.css can match. Otherwise the backdrop
+            darkens the highlighted element too and the "spotlight" reads as
+            a faintly-less-dark rectangle instead of a clearly-highlighted
+            target.
+        -->
         <template lwc:if={hasTargetRect}>
             <div class="oc-spotlight" style={spotlightStyle} aria-hidden="true"></div>
         </template>
+
+        <div class="oc-backdrop" onclick={handleBackdropClick} aria-hidden="true"></div>
 
         <section
             class={popoverClass}

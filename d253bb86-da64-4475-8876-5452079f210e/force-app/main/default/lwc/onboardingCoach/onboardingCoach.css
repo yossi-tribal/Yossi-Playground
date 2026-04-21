@@ -34,7 +34,16 @@
     --oc-space-4: 16px;
     --oc-space-5: 20px;
     --oc-space-6: 24px;
-    --oc-spotlight-ring: 0 0 0 3px rgba(27, 82, 148, 0.45);
+    /*
+     * Multi-stop ring that reads as clearly "selected" on any background:
+     *   - 2px white halo right against the element (contrast for dark targets)
+     *   - 3px solid SLDS brand blue for the primary marker
+     *   - 12px soft blue glow for attention without screaming
+     */
+    --oc-spotlight-ring:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
+        0 0 0 5px #1b5296,
+        0 0 16px 4px rgba(27, 82, 148, 0.55);
     --oc-transition: 220ms cubic-bezier(0.4, 0, 0.2, 1);
     --oc-z: 9500;
 
@@ -54,9 +63,15 @@
     border-radius: var(--oc-radius-md);
     pointer-events: none;
     z-index: calc(var(--oc-z) + 1);
+    /*
+     * Layer order matters: earlier shadows are painted ON TOP of later ones.
+     * The ring must come first so it sits above the huge dark surround,
+     * otherwise the 9999px dark shadow covers the ring's few-pixel spread
+     * and the target just looks un-ringed.
+     */
     box-shadow:
-        0 0 0 9999px var(--oc-backdrop),
-        var(--oc-spotlight-ring);
+        var(--oc-spotlight-ring),
+        0 0 0 9999px var(--oc-backdrop);
     transition:
         top var(--oc-transition),
         left var(--oc-transition),
