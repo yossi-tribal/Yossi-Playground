@@ -776,22 +776,64 @@ private class CSD_CSMPortfolioControllerTest {
     }
 
     /**
-     * @description recalculatePortfolioHealthScores should return the count of accounts
-     * the handler recalculated, which equals the number of accounts where the current
-     * user is the Primary CSM (3 in the @testSetup). Full behavior is covered by the
-     * handler's own tests - this test only exercises the AuraEnabled wrapper.
+     * @description startPortfolioRecalc should enqueue a CSD_PortfolioRecalcBatch
+     * job and return its AsyncApexJob Id. We verify the job actually runs by
+     * wrapping the call in Test.startTest/stopTest (which forces async jobs to
+     * complete synchronously at stopTest) and then assert the AsyncApexJob
+     * record ended in a Completed state.
      */
     @isTest
-    static void testRecalculatePortfolioHealthScores() {
+    static void testStartPortfolioRecalc_EnqueuesBatchJob() {
         User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
-        Integer updatedCount;
+        Id jobId;
         Test.startTest();
         System.runAs(testUser) {
-            updatedCount = CSD_CSMPortfolioController.recalculatePortfolioHealthScores();
+            jobId = CSD_CSMPortfolioController.startPortfolioRecalc();
         }
         Test.stopTest();
-        System.assertEquals(3, updatedCount,
-            'Should recalculate all 3 accounts where the running user is Primary CSM');
+
+        System.assertNotEquals(null, jobId, 'startPortfolioRecalc should return an AsyncApexJob Id');
+        AsyncApexJob job = [
+            SELECT Id, Status, JobType, ApexClassId, ApexClass.Name
+            FROM AsyncApexJob
+            WHERE Id = :jobId
+            LIMIT 1
+        ];
+        System.assertEquals('Completed', job.Status,
+            'Batch job should complete inside Test.stopTest()');
+        System.assertEquals('CSD_PortfolioRecalcBatch', job.ApexClass.Name,
+            'Enqueued class should be CSD_PortfolioRecalcBatch');
+    }
+
+    /**
+     * @description getRecalcJobStatus should return a populated RecalcJobStatus
+     * snapshot for a real AsyncApexJob Id, with done=true once the batch has
+     * completed. Also covers the null-safety branch (unknown job Id returns null).
+     */
+    @isTest
+    static void testGetRecalcJobStatus_ReturnsProgressSnapshot() {
+        User testUser = [SELECT Id FROM User WHERE Username LIKE 'testcsm%' LIMIT 1];
+        Id jobId;
+        Test.startTest();
+        System.runAs(testUser) {
+            jobId = CSD_CSMPortfolioController.startPortfolioRecalc();
+        }
+        Test.stopTest();
+
+        CSD_CSMPortfolioController.RecalcJobStatus status =
+            CSD_CSMPortfolioController.getRecalcJobStatus(jobId);
+        System.assertNotEquals(null, status, 'Status should not be null for a real job Id');
+        System.assertEquals(jobId, status.jobId, 'Status should echo back the jobId');
+        System.assertEquals('Completed', status.status,
+            'Status.status should mirror AsyncApexJob.Status');
+        System.assertEquals(true, status.done,
+            'done should be true once the batch has finished');
+
+        // Null-safety: an unknown id should return null, not throw.
+        CSD_CSMPortfolioController.RecalcJobStatus missing =
+            CSD_CSMPortfolioController.getRecalcJobStatus(null);
+        System.assertEquals(null, missing,
+            'getRecalcJobStatus(null) should return null, not throw');
     }
 
     /**
@@ -813,5 +855,152 @@ private class CSD_CSMPortfolioControllerTest {
             'notAssessedAccounts should be populated');
         System.assert(summary.notAssessedAccounts >= 0,
             'notAssessedAccounts should be a non-negative integer');
+    }
+
+    /**
+     * @description Helper that inserts and updates accounts to set both
+     * the previous and current health bands without the Account trigger
+     * recomputing them. Uses the @TestVisible bypass flag on
+     * CSD_AccountHealthScoreHandler so the seed data is preserved
+     * exactly as written.
+     */
+    private static void seedAccountWithBands(Id ownerUserId, String name, String previousBand, String currentBand) {
+        Boolean priorBypass = CSD_AccountHealthScoreHandler.skipRecalculationInTests;
+        CSD_AccountHealthScoreHandler.skipRecalculationInTests = true;
+        try {
+            Account a = new Account(
+                Name = name,
+                CSD_Primary_CSM__c = ownerUserId,
+                CSD_Previous_Health_Score__c = previousBand,
+                CSD_Account_Health_Score__c = currentBand
+            );
+            insert a;
+        } finally {
+            CSD_AccountHealthScoreHandler.skipRecalculationInTests = priorBypass;
+        }
+    }
+
+    /**
+     * @description Portfolio health trend should report 'improving' when
+     * more accounts moved up a band than moved down. We seed a fresh
+     * portfolio for a dedicated user so we can assert exact counts.
+     */
+    @isTest
+    static void testPortfolioHealthTrend_Improving() {
+        User trendUser = createTrendUser('improvtrend');
+        System.runAs(trendUser) {
+            // Improved: At Risk → Healthy
+            seedAccountWithBands(trendUser.Id, 'Trend A', 'At Risk', 'Healthy');
+            // Improved: Needs Attention → Healthy
+            seedAccountWithBands(trendUser.Id, 'Trend B', 'Needs Attention', 'Healthy');
+            // Declined: Healthy → Needs Attention
+            seedAccountWithBands(trendUser.Id, 'Trend C', 'Healthy', 'Needs Attention');
+            // Stable (still Healthy)
+            seedAccountWithBands(trendUser.Id, 'Trend D', 'Healthy', 'Healthy');
+
+            Test.startTest();
+            CSD_CSMPortfolioController.PortfolioSummary summary =
+                CSD_CSMPortfolioController.getPortfolioSummary();
+            Test.stopTest();
+
+            System.assertEquals('improving', summary.portfolioHealthTrend,
+                'Two improvements vs one decline → improving');
+            System.assertEquals(2, summary.accountsImproved, 'Two accounts improved');
+            System.assertEquals(1, summary.accountsDeclined, 'One account declined');
+            System.assertEquals(1, summary.accountsStable, 'One account stable');
+            System.assertEquals(4, summary.accountsWithPriorScore,
+                'All four seed accounts had a previous score');
+        }
+    }
+
+    /**
+     * @description Portfolio health trend should report 'declining' when
+     * declines outnumber improvements.
+     */
+    @isTest
+    static void testPortfolioHealthTrend_Declining() {
+        User trendUser = createTrendUser('declntrend');
+        System.runAs(trendUser) {
+            seedAccountWithBands(trendUser.Id, 'Trend E', 'Healthy', 'At Risk');
+            seedAccountWithBands(trendUser.Id, 'Trend F', 'Needs Attention', 'At Risk');
+            seedAccountWithBands(trendUser.Id, 'Trend G', 'At Risk', 'Healthy');
+
+            Test.startTest();
+            CSD_CSMPortfolioController.PortfolioSummary summary =
+                CSD_CSMPortfolioController.getPortfolioSummary();
+            Test.stopTest();
+
+            System.assertEquals('declining', summary.portfolioHealthTrend,
+                'Two declines vs one improvement → declining');
+            System.assertEquals(1, summary.accountsImproved);
+            System.assertEquals(2, summary.accountsDeclined);
+        }
+    }
+
+    /**
+     * @description Portfolio health trend should be null when no account
+     * has a previous score (e.g., first run after deploy). The LWC uses
+     * null to hide the trend chip rather than show a misleading "Stable".
+     */
+    @isTest
+    static void testPortfolioHealthTrend_NullWhenNoPriorScores() {
+        User trendUser = createTrendUser('nopritrend');
+        System.runAs(trendUser) {
+            // No previous score on either account
+            seedAccountWithBands(trendUser.Id, 'Trend H', null, 'Healthy');
+            seedAccountWithBands(trendUser.Id, 'Trend I', null, 'At Risk');
+
+            Test.startTest();
+            CSD_CSMPortfolioController.PortfolioSummary summary =
+                CSD_CSMPortfolioController.getPortfolioSummary();
+            Test.stopTest();
+
+            System.assertEquals(null, summary.portfolioHealthTrend,
+                'No accounts with prior score → trend should be null');
+            System.assertEquals(0, summary.accountsWithPriorScore);
+        }
+    }
+
+    /**
+     * @description Portfolio health trend should be 'stable' when
+     * improvements and declines are tied (and at least some prior data exists).
+     */
+    @isTest
+    static void testPortfolioHealthTrend_StableOnTie() {
+        User trendUser = createTrendUser('stabltrend');
+        System.runAs(trendUser) {
+            seedAccountWithBands(trendUser.Id, 'Trend J', 'At Risk', 'Healthy');
+            seedAccountWithBands(trendUser.Id, 'Trend K', 'Healthy', 'At Risk');
+
+            Test.startTest();
+            CSD_CSMPortfolioController.PortfolioSummary summary =
+                CSD_CSMPortfolioController.getPortfolioSummary();
+            Test.stopTest();
+
+            System.assertEquals('stable', summary.portfolioHealthTrend,
+                'Tied improvements and declines → stable');
+        }
+    }
+
+    /**
+     * @description Helper that builds an isolated user so each trend test
+     * can assert exact counts without interference from the @testSetup
+     * portfolio (which is owned by a different user).
+     */
+    private static User createTrendUser(String aliasSeed) {
+        User u = new User(
+            FirstName = 'Trend',
+            LastName = aliasSeed,
+            Email = aliasSeed + '@example.com',
+            Username = aliasSeed + System.currentTimeMillis() + '@example.com',
+            Alias = aliasSeed.left(8),
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            ProfileId = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1].Id,
+            LanguageLocaleKey = 'en_US'
+        );
+        insert u;
+        return u;
     }
 }

@@ -77,6 +77,25 @@ export default class CsdEmptyState extends LightningElement {
         return this.size === 'full' ? 'large' : 'small';
     }
 
+    /*
+     * lightning-icon supports native variants that recolor the glyph:
+     * 'error' (red), 'warning' (amber), 'success' (green). We map our
+     * state variants to them so the icon color is guaranteed by SLDS
+     * instead of relying on --sds-c-icon-color-foreground-default to
+     * pierce into the lightning-icon shadow, which has been flaky for
+     * the error state in some orgs.
+     */
+    get iconVariant() {
+        switch (this.variant) {
+            case 'error':
+                return 'error';
+            case 'degraded':
+                return 'warning';
+            default:
+                return '';
+        }
+    }
+
     get hasActions() {
         return (this.showPrimary) || (this.showSecondary);
     }

@@ -1128,12 +1128,34 @@ export default class CustomerSuccessDashboard extends NavigationMixin(LightningE
 
     /** Permission set that unlocks this dashboard. Used by the copy-to-clipboard
      *  secondary CTA on the permission empty state. */
+    /**
+     * Permission set that unlocks this dashboard. Matches the API name of
+     * the permission set shipped with this project, so admins can paste
+     * it into Setup → Permission Sets search in any org this project is
+     * deployed to. See force-app/.../permissionsets/
+     * CSD_CS_Dashboard_Full_Access.permissionset-meta.xml.
+     */
+    /**
+     * Permission set that unlocks this dashboard. We surface the LABEL
+     * (what admins see in the Permission Sets list and Quick Find
+     * search), not the API name — this screen is for non-technical
+     * users who are pasting a name into a message to their admin.
+     * Sourced from the label in force-app/.../permissionsets/
+     * CSD_CS_Dashboard_Full_Access.permissionset-meta.xml so the value
+     * stays in sync across any org this project is deployed to.
+     */
     get permissionSetName() {
-        return 'CSD CS Dashboard Full Access';
+        return 'CS Dashboard Full Access';
     }
 
+    /**
+     * Supporting line on the permission card. Intentionally short and
+     * non-technical — the primary CTA below carries the "copy the
+     * permission set name" detail, so this line doesn't need to
+     * repeat it.
+     */
     get permissionErrorBody() {
-        return `Ask your admin to assign the "${this.permissionSetName}" permission set, then try again.`;
+        return 'Ask your admin to give you access.';
     }
 
     /**

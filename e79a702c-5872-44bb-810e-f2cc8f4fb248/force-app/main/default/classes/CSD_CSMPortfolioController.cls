@@ -121,6 +121,17 @@ public with sharing class CSD_CSMPortfolioController {
         @AuraEnabled public Decimal averageCaseResolutionHours { get; set; }
         @AuraEnabled public Integer closedCasesAllTimeCount { get; set; }
         @AuraEnabled public Integer openTasksCount { get; set; }
+        // Portfolio-wide health trend (improving / declining / stable / null).
+        // Computed from a single GROUP BY of current vs previous health
+        // bands across the user's accounts — see calculatePortfolioHealthTrend.
+        // Null when no account in the portfolio has a previous score yet
+        // (e.g., first run after deploy) so the LWC can hide the trend
+        // chip rather than show a misleading "Stable".
+        @AuraEnabled public String portfolioHealthTrend { get; set; }
+        @AuraEnabled public Integer accountsImproved { get; set; }
+        @AuraEnabled public Integer accountsDeclined { get; set; }
+        @AuraEnabled public Integer accountsStable { get; set; }
+        @AuraEnabled public Integer accountsWithPriorScore { get; set; }
     }
 
     /**
@@ -390,6 +401,17 @@ public with sharing class CSD_CSMPortfolioController {
                 AND CSD_Account_Health_Score__c = 'Healthy'
             ];
 
+            // ── Portfolio health trend ────────────────────────────────
+            // Determine net direction by comparing each account's current
+            // health band with its previous band (CSD_Previous_Health_Score__c).
+            // Implemented as a single GROUP BY query so the cost is
+            // O(unique band combinations) — at most 16 rows — regardless
+            // of portfolio size. Safe for orgs with 50k+ accounts.
+            // Skips accounts whose previous score is null (never assessed
+            // before) so we don't bias toward "declining" when new
+            // accounts are added.
+            populatePortfolioHealthTrend(summary, currentUserId);
+
             // Get all account IDs for current user
             Set<Id> accountIds = new Set<Id>();
             for (Account acc : [
@@ -556,6 +578,87 @@ public with sharing class CSD_CSMPortfolioController {
 
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving portfolio summary: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * @description Computes the portfolio-wide health trend by comparing
+     *   each account's previous health band to its current band, then
+     *   counting net improvements vs declines.
+     *
+     *   Implementation notes:
+     *   - Uses a single SOQL with GROUP BY on (previous, current) bands.
+     *     The result has at most 16 rows (4 bands × 4 bands), independent
+     *     of portfolio size — safe for 50k+ account portfolios.
+     *   - Skips accounts whose previous score is null (never assessed
+     *     before): a missing baseline isn't a decline.
+     *   - Excludes "Not Assessed" on either side from the movement count
+     *     so a freshly-assessed account doesn't artificially register as
+     *     "improving" just because the prior value was null/Not Assessed.
+     *   - Trend resolution: improved > declined → improving;
+     *     declined > improved → declining; tie → stable;
+     *     no comparable accounts → null (LWC hides the chip).
+     *
+     * @param summary The PortfolioSummary to mutate in place.
+     * @param currentUserId The CSM whose portfolio we're trending.
+     */
+    private static void populatePortfolioHealthTrend(PortfolioSummary summary, Id currentUserId) {
+        Integer improved = 0;
+        Integer declined = 0;
+        Integer stable = 0;
+
+        // Numeric rank for band comparisons. Higher = healthier.
+        // Not Assessed (null rank) is excluded from the movement math.
+        Map<String, Integer> bandRank = new Map<String, Integer>{
+            'At Risk' => 0,
+            'Needs Attention' => 1,
+            'Healthy' => 2
+        };
+
+        for (AggregateResult ar : [
+            SELECT CSD_Previous_Health_Score__c prevScore,
+                   CSD_Account_Health_Score__c currScore,
+                   COUNT(Id) accountCount
+            FROM Account
+            WHERE CSD_Primary_CSM__c = :currentUserId
+            AND CSD_Previous_Health_Score__c != null
+            AND CSD_Previous_Health_Score__c != 'Not Assessed'
+            AND CSD_Account_Health_Score__c != null
+            AND CSD_Account_Health_Score__c != 'Not Assessed'
+            GROUP BY CSD_Previous_Health_Score__c, CSD_Account_Health_Score__c
+        ]) {
+            String prev = (String) ar.get('prevScore');
+            String curr = (String) ar.get('currScore');
+            Integer count = ((Decimal) ar.get('accountCount')).intValue();
+            Integer prevRank = bandRank.get(prev);
+            Integer currRank = bandRank.get(curr);
+            if (prevRank == null || currRank == null) {
+                continue;
+            }
+            if (currRank > prevRank) {
+                improved += count;
+            } else if (currRank < prevRank) {
+                declined += count;
+            } else {
+                stable += count;
+            }
+        }
+
+        summary.accountsImproved = improved;
+        summary.accountsDeclined = declined;
+        summary.accountsStable = stable;
+        summary.accountsWithPriorScore = improved + declined + stable;
+
+        if (summary.accountsWithPriorScore == 0) {
+            // No comparable history yet — leave trend null so the LWC
+            // hides the chip rather than pretend the portfolio is "stable".
+            summary.portfolioHealthTrend = null;
+        } else if (improved > declined) {
+            summary.portfolioHealthTrend = 'improving';
+        } else if (declined > improved) {
+            summary.portfolioHealthTrend = 'declining';
+        } else {
+            summary.portfolioHealthTrend = 'stable';
         }
     }
 
@@ -2122,30 +2225,96 @@ public with sharing class CSD_CSMPortfolioController {
     }
 
     /**
-     * @description Recalculates health scores for every account where the current user
-     * is the Primary CSM. Used by the portfolio "Recalculate all" CTA that appears when
-     * every account in the portfolio is still Not Assessed.
-     * @return Number of accounts that were recalculated.
+     * Default batch size for the portfolio recalc job. 200 accounts per
+     * execute keeps the handler's internal Task/Event/Case queries well
+     * under the 50k-rows-per-query governor on activity-dense orgs while
+     * still giving reasonable throughput.
      */
-    @AuraEnabled(cacheable=false)
-    public static Integer recalculatePortfolioHealthScores() {
+    @TestVisible
+    private static final Integer RECALC_BATCH_SIZE = 200;
+
+    /**
+     * @description Kicks off an async batch job that recalculates health
+     * scores for every account where the running user is the Primary CSM.
+     * Returns the AsyncApexJob Id so the LWC can poll for progress via
+     * getRecalcJobStatus. Replaces the earlier synchronous implementation,
+     * which could not survive large portfolios (SOQL / DML / CPU limits)
+     * — the batch QueryLocator scales to portfolios of any size.
+     * @return AsyncApexJob Id of the enqueued batch job.
+     */
+    @AuraEnabled
+    public static Id startPortfolioRecalc() {
         try {
             Id currentUserId = UserInfo.getUserId();
-            Set<Id> accountIds = new Set<Id>();
-            for (Account acc : [
-                SELECT Id
-                FROM Account
-                WHERE CSD_Primary_CSM__c = :currentUserId
-            ]) {
-                accountIds.add(acc.Id);
-            }
-            if (accountIds.isEmpty()) {
-                return 0;
-            }
-            CSD_AccountHealthScoreHandler.calculateHealthScores(accountIds);
-            return accountIds.size();
+            CSD_PortfolioRecalcBatch job = new CSD_PortfolioRecalcBatch(currentUserId);
+            return Database.executeBatch(job, RECALC_BATCH_SIZE);
         } catch (Exception e) {
-            throw new AuraHandledException('Error recalculating portfolio health scores: ' + e.getMessage());
+            throw new AuraHandledException(
+                'Error starting portfolio recalculation: ' + e.getMessage()
+            );
+        }
+    }
+
+    /**
+     * @description Progress snapshot for a running/finished portfolio recalc
+     * job, surfaced to the LWC so it can show "Processing X of Y" UI and know
+     * when to refresh the dashboard data.
+     */
+    public class RecalcJobStatus {
+        @AuraEnabled public Id jobId;
+        /** Raw AsyncApexJob.Status: Holding, Queued, Preparing, Processing, Completed, Failed, Aborted. */
+        @AuraEnabled public String status;
+        /** Total batch chunks (a chunk = RECALC_BATCH_SIZE accounts). */
+        @AuraEnabled public Integer totalChunks;
+        /** Chunks successfully processed so far. */
+        @AuraEnabled public Integer processedChunks;
+        /** Chunks that hit an error. */
+        @AuraEnabled public Integer numberOfErrors;
+        /** Human-readable error string when status is Failed. */
+        @AuraEnabled public String extendedStatus;
+        /** True when the job is finished (Completed / Failed / Aborted). */
+        @AuraEnabled public Boolean done;
+    }
+
+    /**
+     * @description Polled by the LWC while a recalc job is running. We
+     * expose AsyncApexJob fields via a typed inner class so the wire-
+     * serialized payload is predictable across orgs.
+     * @param jobId AsyncApexJob Id returned by startPortfolioRecalc.
+     * @return Progress snapshot, or null if the job cannot be found.
+     */
+    @AuraEnabled(cacheable=false)
+    public static RecalcJobStatus getRecalcJobStatus(Id jobId) {
+        try {
+            if (jobId == null) {
+                return null;
+            }
+            List<AsyncApexJob> jobs = [
+                SELECT Id, Status, JobItemsProcessed, TotalJobItems,
+                       NumberOfErrors, ExtendedStatus
+                FROM AsyncApexJob
+                WHERE Id = :jobId
+                LIMIT 1
+            ];
+            if (jobs.isEmpty()) {
+                return null;
+            }
+            AsyncApexJob job = jobs[0];
+            RecalcJobStatus result = new RecalcJobStatus();
+            result.jobId = job.Id;
+            result.status = job.Status;
+            result.processedChunks = job.JobItemsProcessed;
+            result.totalChunks = job.TotalJobItems;
+            result.numberOfErrors = job.NumberOfErrors;
+            result.extendedStatus = job.ExtendedStatus;
+            result.done = (job.Status == 'Completed'
+                || job.Status == 'Failed'
+                || job.Status == 'Aborted');
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException(
+                'Error reading recalc job status: ' + e.getMessage()
+            );
         }
     }
 }

@@ -16,7 +16,8 @@ import getClosedWonOpportunitiesForPortfolio from '@salesforce/apex/CSD_CSMPortf
 import getCasesOpenedInLastDaysForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getCasesOpenedInLastDaysForPortfolio';
 import getCasesOpenedYtdForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getCasesOpenedYtdForPortfolio';
 import getUpcomingEventsForPortfolio from '@salesforce/apex/CSD_CSMPortfolioController.getUpcomingEventsForPortfolio';
-import recalculatePortfolioHealthScores from '@salesforce/apex/CSD_CSMPortfolioController.recalculatePortfolioHealthScores';
+import startPortfolioRecalc from '@salesforce/apex/CSD_CSMPortfolioController.startPortfolioRecalc';
+import getRecalcJobStatus from '@salesforce/apex/CSD_CSMPortfolioController.getRecalcJobStatus';
 import createTask from '@salesforce/apex/CSD_CSDashboardController.createTask';
 import createEvent from '@salesforce/apex/CSD_CSDashboardController.createEvent';
 import getTaskPicklistValues from '@salesforce/apex/CSD_CSDashboardController.getTaskPicklistValues';
@@ -33,8 +34,31 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track currentFilter = 'all';
     @track sortField = 'accountName';
     @track sortDirection = 'asc';
-    @track currentPage = 1;
+    /**
+     * Server-side fetch chunk size. We pull this many accounts per Apex
+     * call. Independent of how many we *show* at once (visibleCount) —
+     * loading 25 at a time means most "View more" clicks are an instant
+     * client-side reveal rather than a network round-trip.
+     */
     @track pageSize = 25;
+    /** Server cursor: which page have we fetched up through. */
+    @track currentPage = 1;
+    /**
+     * Number of accounts currently revealed in the table. Starts at 5
+     * and grows in 5-row increments via the "View more" row at the
+     * bottom of the table. Reset to 5 whenever filter or sort changes.
+     */
+    @track visibleCount = 5;
+    /** Increment used by each "View more" click. */
+    INITIAL_VISIBLE_COUNT = 5;
+    VIEW_MORE_INCREMENT = 5;
+    /**
+     * True when the last server response was a "full" page, meaning
+     * there might be more rows beyond what we've already loaded. We
+     * treat the server as "has more" optimistically until a partial
+     * page proves otherwise.
+     */
+    @track serverHasMore = false;
     @track totalAccountCount = 0;
     @track isAccountsLoading = false;
 
@@ -45,6 +69,31 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     @track snapshotExpanded = false;
     _snapshotStorageKey = 'csd.portfolio.snapshotExpanded';
     @track isRecalculatingAll = false;
+    /**
+     * Live progress of the async recalc job, populated by the poller.
+     * Shape: { status, processedChunks, totalChunks, numberOfErrors, done }.
+     * totalChunks = number of batch chunks (RECALC_BATCH_SIZE accounts
+     * each in the Apex controller), so "processed / total" is chunk-
+     * granular, not account-granular. That's deliberate: AsyncApexJob
+     * doesn't track per-record progress and queueing an extra counter
+     * would require a custom object. Chunks are good enough for a
+     * "Processing … of …" UI.
+     */
+    @track recalcProgress = null;
+    /**
+     * Structured error captured from a failed recalc run so we can
+     * render a dedicated modal ("what failed + copy-for-admin message")
+     * instead of a disappearing toast. Shape:
+     * { jobId, status, processedChunks, totalChunks, numberOfErrors,
+     *   extendedStatus, message, userMessage }.
+     * Null when there is no outstanding error to surface.
+     */
+    @track recalcError = null;
+    @track recalcAdminCopied = false;
+    /** Setinterval handle for the recalc status poller. */
+    _recalcPollTimer = null;
+    /** AsyncApexJob Id of the in-flight recalc run, if any. */
+    _recalcJobId = null;
 
     @track _activeTooltipKey = null;
     _touchTimer = null;
@@ -121,6 +170,16 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         this.loadPortfolioData();
     }
 
+    /*
+     * Stop any in-flight pollers when the component is torn down so we
+     * don't leak timers (e.g. user navigates away mid-recalc). The job
+     * itself keeps running on the server — this just stops the UI from
+     * asking about it.
+     */
+    disconnectedCallback() {
+        this._stopRecalcPolling();
+    }
+
     /**
      * Returns true when we handled the named demo state (and therefore the
      * normal Apex load should be skipped). Supported names:
@@ -129,6 +188,9 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
      *   - 'error'                → fatal load error (full-page)
      *   - 'permission'           → permission-denied error (full-page)
      *   - 'not-assessed-banner'  → portfolio has accounts, all Not Assessed
+     *   - 'recalc-error'         → healthy portfolio, recalc error modal open
+     *   - 'recalc-error-start'   → recalc error modal, failure before start
+     *   - 'large'                → 30 seeded accounts for testing View More
      */
     _applyDemoState(name) {
         if (!name) return false;
@@ -174,6 +236,135 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
                             'INSUFFICIENT_ACCESS: insufficient access rights on cross-reference id (demo mode).'
                     },
                     message: 'INSUFFICIENT_ACCESS (demo mode).'
+                };
+                return true;
+
+            case 'recalc-error':
+                // Real-shaped portfolio so the dashboard behind the modal
+                // looks like an actual run, then auto-open the error modal
+                // with a realistic governor-limit failure payload.
+                this.summary = {
+                    totalAccounts: 8432,
+                    healthyAccounts: 6100,
+                    needsAttentionAccounts: 1800,
+                    atRiskAccounts: 500,
+                    notAssessedAccounts: 32,
+                    portfolioHealthTrend: 'declining',
+                    accountsImproved: 145,
+                    accountsDeclined: 312,
+                    accountsStable: 7943,
+                    accountsWithPriorScore: 8400,
+                    currentUserName: 'Demo User'
+                };
+                this.accounts = [
+                    { accountId: 'demo-1', accountName: 'Acme Corp', healthBand: 'Healthy', healthScore: 92 },
+                    { accountId: 'demo-2', accountName: 'Globex LLC', healthBand: 'Needs Attention', healthScore: 68 },
+                    { accountId: 'demo-3', accountName: 'Umbrella Inc', healthBand: 'At Risk', healthScore: 41 }
+                ];
+                this.totalAccountCount = 8432;
+                this.recalcError = {
+                    jobId: '707D000000ABCDEF',
+                    status: 'Failed',
+                    processedChunks: 17,
+                    totalChunks: 42,
+                    numberOfErrors: 3,
+                    extendedStatus:
+                        'First error: Too many SOQL queries: 101'
+                };
+                return true;
+
+            case 'large': {
+                /*
+                 * Seeds a portfolio of 30 accounts so you can drive the
+                 * "View more" flow end-to-end. We start the user at 5
+                 * visible (the default), give them 30 in the local buffer,
+                 * and tell the component the server has nothing more to
+                 * fetch — every "View more" click resolves locally.
+                 */
+                const bands = ['Healthy', 'Needs Attention', 'At Risk'];
+                const colors = ['green', 'yellow', 'red'];
+                const companyRoots = [
+                    'Acme', 'Globex', 'Initech', 'Umbrella', 'Soylent',
+                    'Stark', 'Wayne', 'Wonka', 'Cyberdyne', 'Pied Piper',
+                    'Hooli', 'Massive Dynamic', 'Tyrell', 'Oscorp', 'Vandelay',
+                    'Vehement', 'Bluth', 'Rekall', 'Aperture', 'Black Mesa',
+                    'Sirius', 'Olivia Pope', 'Dunder Mifflin', 'Sterling Cooper',
+                    'Pendant', 'Nakatomi', 'Veridian', 'Globe-Tek',
+                    'Northwind', 'Contoso'
+                ];
+                const suffixes = ['Corp', 'LLC', 'Industries', 'Group',
+                    'Holdings', 'Partners', 'Inc'];
+                const seeded = companyRoots.map((root, i) => {
+                    const bandIdx = i % bands.length;
+                    const score = bandIdx === 0 ? 80 + (i % 18)
+                        : bandIdx === 1 ? 55 + (i % 15)
+                            : 25 + (i % 25);
+                    return {
+                        accountId: `demo-large-${i + 1}`,
+                        accountName: `${root} ${suffixes[i % suffixes.length]}`,
+                        healthBand: bands[bandIdx],
+                        healthScore: score,
+                        healthScoreColor: colors[bandIdx],
+                        daysSinceLastActivity: i % 7 === 0 ? null : (i * 3) % 30,
+                        daysUntilNextActivity: i % 5 === 0 ? null : (i * 2) % 21,
+                        nextActivityDate: null,
+                        openCasesCount: i % 4,
+                        highPriorityCasesCount: i % 9 === 0 ? 1 : 0,
+                        openTasksCount: i % 3,
+                        overdueTasksCount: i % 11 === 0 ? 1 : 0,
+                        openPipelineAmount: ((i * 137) % 900) * 1000,
+                        renewalDate: null,
+                        primaryContactName: null,
+                        primaryContactId: null,
+                        recentActivities: []
+                    };
+                });
+                this.summary = {
+                    totalAccounts: seeded.length,
+                    healthyAccounts: seeded.filter(a => a.healthBand === 'Healthy').length,
+                    needsAttentionAccounts: seeded.filter(a => a.healthBand === 'Needs Attention').length,
+                    atRiskAccounts: seeded.filter(a => a.healthBand === 'At Risk').length,
+                    notAssessedAccounts: 0,
+                    // Mock a healthy improvement vs last calculation so
+                    // the new portfolio trend chip has something to show.
+                    portfolioHealthTrend: 'improving',
+                    accountsImproved: 7,
+                    accountsDeclined: 2,
+                    accountsStable: 18,
+                    accountsWithPriorScore: 27,
+                    currentUserName: 'Demo User'
+                };
+                this.accounts = seeded;
+                this.totalAccountCount = seeded.length;
+                this.serverHasMore = false;
+                this.visibleCount = this.INITIAL_VISIBLE_COUNT;
+                return true;
+            }
+
+            case 'recalc-error-start':
+                // Same scaffolding, but the error shape represents a
+                // failure before the batch even started processing
+                // chunks (e.g. permissions, Apex compile issue).
+                this.summary = {
+                    totalAccounts: 8432,
+                    healthyAccounts: 6100,
+                    needsAttentionAccounts: 1800,
+                    atRiskAccounts: 500,
+                    notAssessedAccounts: 32,
+                    currentUserName: 'Demo User'
+                };
+                this.accounts = [
+                    { accountId: 'demo-1', accountName: 'Acme Corp', healthBand: 'Healthy', healthScore: 92 }
+                ];
+                this.totalAccountCount = 8432;
+                this.recalcError = {
+                    jobId: null,
+                    status: 'Failed',
+                    processedChunks: 0,
+                    totalChunks: 0,
+                    numberOfErrors: 1,
+                    extendedStatus:
+                        'System.QueryException: Insufficient privileges to access AsyncApexJob'
                 };
                 return true;
 
@@ -360,7 +551,14 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         Promise.all(promises).then(() => { this.isLoading = false; });
     }
 
-    loadAccounts() {
+    /**
+     * Fetch accounts from Apex.
+     * @param {boolean} append When true, the new page is appended to the
+     *   existing list (used by "View more" once we exhaust the locally
+     *   buffered rows). When false (default), the existing list is
+     *   replaced — the right behavior for filter/sort changes.
+     */
+    loadAccounts(append = false) {
         return getPortfolioAccounts({
             filterType: this.currentFilter,
             sortField: this.sortField,
@@ -369,8 +567,16 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             pageNumber: this.currentPage
         })
             .then(result => {
-                this.accounts = result || [];
-                this.expandedAccountId = null;
+                const list = result || [];
+                // A "full" page suggests there might be more rows behind
+                // it. A partial (or empty) page is the definitive end.
+                this.serverHasMore = list.length >= this.pageSize;
+                if (append) {
+                    this.accounts = [...(this.accounts || []), ...list];
+                } else {
+                    this.accounts = list;
+                    this.expandedAccountId = null;
+                }
             })
             .catch(err => {
                 this.handleError('Failed to load accounts', err);
@@ -588,26 +794,60 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
             this.sortDirection = 'asc';
         }
         this.currentPage = 1;
+        this.visibleCount = this.INITIAL_VISIBLE_COUNT;
         this.isAccountsLoading = true;
         this.loadAccounts().then(() => { this.isAccountsLoading = false; });
     }
 
-    // ── Pagination ──
+    // ── Progressive reveal ("View more") ──
 
-    handlePrevPage() {
-        if (this.currentPage > 1) {
-            this.currentPage--;
-            this.isAccountsLoading = true;
-            this.loadAccounts().then(() => { this.isAccountsLoading = false; });
+    /**
+     * Reveals the next slice of accounts. If we already have unrevealed
+     * rows in the local buffer (server returned more than we're showing),
+     * just bump visibleCount — instant. Otherwise fetch the next server
+     * page, append it, then bump. Idempotent and safe to spam-click.
+     */
+    handleViewMore() {
+        if (this.isAccountsLoading) return;
+
+        const totalLoaded = this.accounts ? this.accounts.length : 0;
+        const room = totalLoaded - this.visibleCount;
+
+        // Case 1: enough buffered to satisfy the click locally.
+        if (room >= this.VIEW_MORE_INCREMENT) {
+            this.visibleCount += this.VIEW_MORE_INCREMENT;
+            return;
         }
+
+        // Case 2: some buffered + we'll need to top up from the server.
+        // Reveal what we have first so the user sees movement immediately.
+        if (room > 0) {
+            this.visibleCount = totalLoaded;
+        }
+        if (!this.serverHasMore) {
+            // Buffer is empty, server has no more — nothing to do.
+            return;
+        }
+
+        // Case 3: fetch next page, then reveal.
+        this.currentPage += 1;
+        this.isAccountsLoading = true;
+        this.loadAccounts(true)
+            .then(() => {
+                const newTotal = this.accounts ? this.accounts.length : 0;
+                this.visibleCount = Math.min(
+                    newTotal,
+                    this.visibleCount + this.VIEW_MORE_INCREMENT
+                );
+            })
+            .finally(() => {
+                this.isAccountsLoading = false;
+            });
     }
 
-    handleNextPage() {
-        if (this.hasNextPage) {
-            this.currentPage++;
-            this.isAccountsLoading = true;
-            this.loadAccounts().then(() => { this.isAccountsLoading = false; });
-        }
+    /** Collapse back to the initial reveal count after the user has expanded. */
+    handleShowLess() {
+        this.visibleCount = this.INITIAL_VISIBLE_COUNT;
     }
 
     // ── Expansion & Modal ──
@@ -1004,6 +1244,18 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     }
 
     /**
+     * When true we render the full Accounts table shell (header row +
+     * columns + tbody). This keeps the table shape visible even when a
+     * filter hides every account, so the filter-empty state feels like
+     * "no matching rows in the table you already know" instead of a
+     * generic card that replaces the whole section. The filter-empty
+     * message itself is rendered as a single spanning row inside tbody.
+     */
+    get showAccountsTable() {
+        return this.hasAccounts || this.isFilterHidingAccounts;
+    }
+
+    /**
      * Greeting used in the onboarding card title. We intentionally keep this
      * short and warm — the "empty portfolio" idea is already conveyed by the
      * lead sentence below the title, so repeating it here just makes the card
@@ -1112,14 +1364,27 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         return !this.showFullPageEmpty;
     }
 
-    /** Permission set that unlocks this dashboard. Surfaced as the secondary
-     *  "copy to clipboard" action so users can paste it straight to their admin. */
+    /**
+     * Permission set that unlocks this dashboard. We surface the LABEL
+     * (what admins see in the Permission Sets list and Quick Find
+     * search), not the API name — this screen is for non-technical
+     * users who are pasting a name into a message to their admin.
+     * Sourced from the label in force-app/.../permissionsets/
+     * CSD_CS_Dashboard_Full_Access.permissionset-meta.xml so the value
+     * stays in sync across any org this project is deployed to.
+     */
     get permissionSetName() {
-        return 'CSD CS Dashboard Full Access';
+        return 'CS Dashboard Full Access';
     }
 
+    /**
+     * Supporting line on the permission card. Intentionally short and
+     * non-technical — the primary CTA below carries the "copy the
+     * permission set name" detail, so this line doesn't need to
+     * repeat it.
+     */
     get permissionErrorBody() {
-        return `Ask your admin to assign the "${this.permissionSetName}" permission set, then try again.`;
+        return 'Ask your admin to give you access.';
     }
 
     /**
@@ -1190,32 +1455,254 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
      * Trigger recalculation for every account in the user's portfolio and refresh
      * the dashboard. Safe to click multiple times - the button is disabled while in flight.
      */
+    /**
+     * Kicks off the server-side batch recalculation and starts polling for
+     * progress. The batch scales to portfolios of any size (50k+) because
+     * the work happens asynchronously inside Batch Apex chunks instead of
+     * a single synchronous transaction, so we stay well under the SOQL/DML/
+     * CPU governor limits no matter how big the portfolio.
+     *
+     * UX contract:
+     *   - Button stays disabled while isRecalculatingAll is true.
+     *   - recalcProgress exposes live "processed of total chunks" to the UI.
+     *   - On completion, we refresh dashboard data and show a success toast.
+     *   - On failure, we clear the progress + show an error toast.
+     */
     handleRecalculateAll() {
         if (this.isRecalculatingAll) return;
         this.isRecalculatingAll = true;
-        recalculatePortfolioHealthScores()
-            .then((count) => {
-                this.dispatchEvent(new ShowToastEvent({
-                    title: 'Portfolio recalculated',
-                    message: `Refreshed ${count} account${count === 1 ? '' : 's'} from the latest data.`,
-                    variant: 'success'
-                }));
-                this.handleRefresh();
+        this.recalcError = null;
+        this.recalcAdminCopied = false;
+        this.recalcProgress = { status: 'Queued', processedChunks: 0, totalChunks: 0, done: false };
+        startPortfolioRecalc()
+            .then((jobId) => {
+                this._recalcJobId = jobId;
+                this._startRecalcPolling();
             })
             .catch((error) => {
-                const message =
-                    (error && error.body && error.body.message) ||
-                    (error && error.message) ||
-                    'Unknown error';
-                this.dispatchEvent(new ShowToastEvent({
-                    title: 'Could not recalculate portfolio',
-                    message: message,
-                    variant: 'error'
-                }));
-            })
-            .finally(() => {
-                this.isRecalculatingAll = false;
+                // start failure: no job id yet, so fall back to a generic payload.
+                this._failRecalc({
+                    status: 'Failed',
+                    extendedStatus: this._extractErrorMessage(error),
+                    processedChunks: 0,
+                    totalChunks: 0,
+                    numberOfErrors: 1
+                });
             });
+    }
+
+    /**
+     * Polls AsyncApexJob every second while the batch runs. One second is
+     * snappy enough that a small portfolio (a handful of accounts, typically
+     * one batch chunk) feels near-instant, and gentle enough that a large
+     * portfolio (hundreds of chunks over many minutes) doesn't hammer the
+     * server. Stops automatically when the job hits a terminal state.
+     */
+    _startRecalcPolling() {
+        this._stopRecalcPolling();
+        const tick = () => {
+            if (!this._recalcJobId) return;
+            getRecalcJobStatus({ jobId: this._recalcJobId })
+                .then((status) => {
+                    if (!status) return;
+                    this.recalcProgress = status;
+                    if (status.done) {
+                        this._stopRecalcPolling();
+                        const hadErrors =
+                            status.status !== 'Completed' ||
+                            (status.numberOfErrors && status.numberOfErrors > 0);
+                        if (hadErrors) {
+                            this._failRecalc(status);
+                        } else {
+                            this._succeedRecalc();
+                        }
+                    }
+                })
+                .catch((error) => {
+                    // Polling failure is itself a failure we should surface —
+                    // the backend job may still be running, but from the UI's
+                    // perspective we can no longer trust the progress state.
+                    this._stopRecalcPolling();
+                    this._failRecalc({
+                        jobId: this._recalcJobId,
+                        status: 'Failed',
+                        extendedStatus: this._extractErrorMessage(error),
+                        processedChunks: (this.recalcProgress && this.recalcProgress.processedChunks) || 0,
+                        totalChunks: (this.recalcProgress && this.recalcProgress.totalChunks) || 0,
+                        numberOfErrors: 1
+                    });
+                });
+        };
+        // Fire one tick immediately so the user sees progress ASAP, then poll.
+        tick();
+        this._recalcPollTimer = setInterval(tick, 1000);
+    }
+
+    _stopRecalcPolling() {
+        if (this._recalcPollTimer) {
+            clearInterval(this._recalcPollTimer);
+            this._recalcPollTimer = null;
+        }
+    }
+
+    /**
+     * Success path: clear state, toast, refresh dashboard.
+     */
+    _succeedRecalc() {
+        this.isRecalculatingAll = false;
+        this._recalcJobId = null;
+        this.recalcProgress = null;
+        this.dispatchEvent(new ShowToastEvent({
+            title: 'Portfolio recalculated',
+            message: 'Health scores refreshed from the latest data.',
+            variant: 'success'
+        }));
+        this.handleRefresh();
+    }
+
+    /**
+     * Failure path: stash the structured error so the error modal can
+     * render a clear "what went wrong + copy-for-admin" screen. We do
+     * NOT toast here — a toast disappears, and the point of this flow
+     * is giving the user a paste-ready message they can send to their
+     * admin without re-triggering the failure.
+     */
+    _failRecalc(status) {
+        this.isRecalculatingAll = false;
+        this._recalcJobId = null;
+        this.recalcProgress = null;
+        this.recalcAdminCopied = false;
+        this.recalcError = status || { status: 'Failed' };
+    }
+
+    _extractErrorMessage(error) {
+        return (error && error.body && error.body.message) ||
+            (error && error.message) ||
+            'Unknown error';
+    }
+
+    // ── Recalc error modal ─────────────────────────────────────
+
+    get showRecalcErrorModal() {
+        return !!this.recalcError;
+    }
+
+    /**
+     * Short, human-readable explanation of the failure shown in the
+     * modal body. We prefer the Salesforce-provided extendedStatus when
+     * we have it (that's the real cause); otherwise we fall back to a
+     * neutral message so the modal never shows an empty paragraph.
+     */
+    get recalcErrorReason() {
+        const err = this.recalcError || {};
+        if (err.extendedStatus) {
+            return err.extendedStatus;
+        }
+        return 'The recalculation job stopped before it could finish.';
+    }
+
+    /**
+     * Rendered inside a monospace block in the modal — this is the part
+     * the user copies.
+     */
+    get recalcAdminMessage() {
+        const err = this.recalcError || {};
+        const jobLine = err.jobId
+            ? `• Job ID: ${err.jobId} (AsyncApexJob, class CSD_PortfolioRecalcBatch)`
+            : '• Job: CSD_PortfolioRecalcBatch (did not start — see reason below)';
+        const progressLine =
+            err.totalChunks
+                ? `• Progress at failure: ${err.processedChunks || 0} of ${err.totalChunks} chunks processed`
+                : '• Progress at failure: job did not start processing chunks';
+        const errorCount = err.numberOfErrors || 0;
+        const errorsLine = `• Error count: ${errorCount}`;
+        const reasonLine = `• Salesforce reason: ${err.extendedStatus || '(no detail returned by Salesforce)'}`;
+        const user = (this.summary && this.summary.currentUserName) || 'the running CSM';
+        return [
+            'Hi,',
+            '',
+            `The Customer Success Dashboard's "Recalculate all" job failed while refreshing health scores for ${user}'s portfolio.`,
+            '',
+            jobLine,
+            progressLine,
+            errorsLine,
+            reasonLine,
+            '',
+            'The job runs as Batch Apex in chunks of 200 accounts to stay within Salesforce governor limits, but one of the chunks still hit a limit — usually SOQL row count, DML row count, or CPU time. That normally means this org has accounts with a very high volume of activity records (tasks, events, or cases) that the current architecture can\'t process in a single chunk.',
+            '',
+            'Please edit the architecture in Tribal so CSD_PortfolioRecalcBatch can support the number of records in this org. A smaller batch size on Database.executeBatch, or sub-batched activity queries inside CSD_AccountHealthScoreHandler, would most likely fix it.',
+            '',
+            'Thanks!'
+        ].join('\n');
+    }
+
+    get recalcCopyButtonLabel() {
+        return this.recalcAdminCopied ? 'Copied!' : 'Copy message for your admin';
+    }
+
+    handleCloseRecalcError() {
+        this.recalcError = null;
+        this.recalcAdminCopied = false;
+    }
+
+    handleCopyRecalcAdminMessage() {
+        const text = this.recalcAdminMessage;
+        const finish = () => {
+            this.recalcAdminCopied = true;
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Message copied',
+                message: 'Paste it into Slack, email, or anywhere your admin will see it.',
+                variant: 'success'
+            }));
+        };
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(finish).catch(() => {
+                this._fallbackCopyToClipboard(text);
+                finish();
+            });
+        } else {
+            this._fallbackCopyToClipboard(text);
+            finish();
+        }
+    }
+
+    _fallbackCopyToClipboard(text) {
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand && document.execCommand('copy');
+            document.body.removeChild(textarea);
+        } catch (e) {
+            // Best-effort; the toast will still have fired so the user
+            // at least knows the intent succeeded at the UI layer.
+        }
+    }
+
+    handleRetryRecalcFromError() {
+        this.recalcError = null;
+        this.recalcAdminCopied = false;
+        this.handleRecalculateAll();
+    }
+
+    /**
+     * Text shown on the "Recalculate all" button. While a batch is in
+     * flight we surface live progress so the user knows work is happening
+     * — long-running async jobs with a silent UI are a known trust killer.
+     */
+    get recalcButtonText() {
+        if (!this.isRecalculatingAll) {
+            return 'Recalculate all';
+        }
+        const p = this.recalcProgress;
+        if (p && p.totalChunks && p.totalChunks > 0) {
+            return `Recalculating… ${p.processedChunks || 0} / ${p.totalChunks}`;
+        }
+        return 'Recalculating…';
     }
 
     /**
@@ -1280,6 +1767,70 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
 
     get heroScoreValue() {
         return this.healthyPercent;
+    }
+
+    // ── Portfolio Health Trend ──
+    // Mirrors the per-account trend display on the account dashboard.
+    // The trend value comes from Apex (PortfolioSummary.portfolioHealthTrend)
+    // — see CSD_CSMPortfolioController.populatePortfolioHealthTrend for
+    // how it's computed (single GROUP BY query that scales to 50k+
+    // accounts). When the value is null, we hide the trend chip rather
+    // than show a misleading "Stable" — that signals "no historical
+    // baseline yet" (e.g., first run after deploy).
+
+    get hasPortfolioTrend() {
+        return !!(this.summary && this.summary.portfolioHealthTrend);
+    }
+
+    get portfolioTrendIcon() {
+        if (!this.hasPortfolioTrend) return '→';
+        const t = this.summary.portfolioHealthTrend;
+        if (t === 'improving') return '↑';
+        if (t === 'declining') return '↓';
+        return '→';
+    }
+
+    get portfolioTrendText() {
+        if (!this.hasPortfolioTrend) return '';
+        const t = this.summary.portfolioHealthTrend;
+        if (t === 'improving') return 'Improving';
+        if (t === 'declining') return 'Declining';
+        return 'Stable';
+    }
+
+    get portfolioTrendValueClass() {
+        if (!this.hasPortfolioTrend) return 'trend-value';
+        const t = this.summary.portfolioHealthTrend;
+        if (t === 'improving') return 'trend-value trend-value--improving';
+        if (t === 'declining') return 'trend-value trend-value--declining';
+        return 'trend-value trend-value--stable';
+    }
+
+    /**
+     * Human-readable subtext for the trend chip — e.g. "5 improved · 2 declined"
+     * — so the CSM can see the underlying movement at a glance, not just the
+     * direction. Hidden when there are no movements (pure stable, all
+     * unchanged) since "0 improved · 0 declined" is noise.
+     */
+    get portfolioTrendDetail() {
+        if (!this.hasPortfolioTrend || !this.summary) return '';
+        const improved = this.summary.accountsImproved || 0;
+        const declined = this.summary.accountsDeclined || 0;
+        if (improved === 0 && declined === 0) return '';
+        const parts = [];
+        if (improved > 0) parts.push(`${improved} improved`);
+        if (declined > 0) parts.push(`${declined} declined`);
+        return parts.join(' · ');
+    }
+
+    /** ARIA label for the trend chip — gives screen readers the full picture. */
+    get portfolioTrendAriaLabel() {
+        if (!this.hasPortfolioTrend) return '';
+        const direction = this.portfolioTrendText.toLowerCase();
+        const detail = this.portfolioTrendDetail;
+        return detail
+            ? `Portfolio health trend: ${direction}. ${detail}.`
+            : `Portfolio health trend: ${direction}.`;
     }
 
     get heroHealthBadgeClass() {
@@ -1996,21 +2547,94 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
     get sortIndicatorAccountName() { return this.getSortIndicator('accountName'); }
     get sortIndicatorHealthScore() { return this.getSortIndicator('healthScore'); }
 
-    // ── Pagination ──
+    // ── Progressive reveal ("View more") ──
 
     get tableSectionClass() {
         return this.isAccountsLoading ? 'table-section table-section--loading' : 'table-section';
     }
 
-    get hasPrevPage() { return this.currentPage > 1; }
-    get hasNextPage() { return this.accounts && this.accounts.length >= this.pageSize; }
-    get noPrevPage() { return !this.hasPrevPage; }
-    get noNextPage() { return !this.hasNextPage; }
+    /**
+     * The slice of decorated accounts actually shown to the user. Caps
+     * at visibleCount so we never render the entire local buffer at once
+     * — the whole point of progressive reveal.
+     */
+    get visibleAccountsDecorated() {
+        const all = this.accountsDecorated;
+        return all.slice(0, this.visibleCount);
+    }
 
+    /**
+     * True when there's at least one more account we could surface,
+     * either already in the local buffer or fetchable from the server.
+     */
+    get hasMoreAccountsToReveal() {
+        const totalLoaded = this.accounts ? this.accounts.length : 0;
+        return this.visibleCount < totalLoaded || this.serverHasMore;
+    }
+
+    /** True once the user has expanded past the initial 5. */
+    get isExpandedBeyondInitial() {
+        return this.visibleCount > this.INITIAL_VISIBLE_COUNT
+            && (this.accounts && this.accounts.length > this.INITIAL_VISIBLE_COUNT);
+    }
+
+    /**
+     * Text for the "View more" CTA. We show the exact count we'd reveal
+     * on the next click, so users know what they're getting:
+     *   - "View 5 more" when buffer has ≥5 unrevealed
+     *   - "View 3 more" when buffer is the limiting factor (last partial)
+     *   - "Load 5 more" when we'll have to round-trip to the server
+     *   - "Loading…" while a server fetch is in flight
+     */
+    get viewMoreLabel() {
+        if (this.isAccountsLoading) {
+            return 'Loading more…';
+        }
+        const totalLoaded = this.accounts ? this.accounts.length : 0;
+        const room = totalLoaded - this.visibleCount;
+        if (room >= this.VIEW_MORE_INCREMENT) {
+            return `View ${this.VIEW_MORE_INCREMENT} more`;
+        }
+        if (room > 0) {
+            // Local buffer is small; we'll reveal what's there + a server
+            // fetch in the same click. Communicate the local part — the
+            // user sees movement either way.
+            return this.serverHasMore
+                ? `View ${this.VIEW_MORE_INCREMENT} more`
+                : `View ${room} more`;
+        }
+        return `Load ${this.VIEW_MORE_INCREMENT} more`;
+    }
+
+    /**
+     * Friendly count copy shown next to the section title. Avoids the
+     * old "1–25" pagination range, which forced users to do mental math
+     * to know the total.
+     */
+    get accountCountLabel() {
+        const visible = Math.min(
+            this.visibleCount,
+            this.accounts ? this.accounts.length : 0
+        );
+        const known = this.accounts ? this.accounts.length : 0;
+        if (known === 0) {
+            return '';
+        }
+        const allRevealedAndKnown = visible >= known && !this.serverHasMore;
+        if (allRevealedAndKnown) {
+            return known === 1 ? '1 account' : `${known} accounts`;
+        }
+        const suffix = this.serverHasMore ? '+' : '';
+        return `Showing ${visible} of ${known}${suffix}`;
+    }
+
+    /*
+     * Backwards-compat alias — older code paths still reference
+     * paginationInfo. Returning the new label keeps any straggling
+     * callers working without a behavior change.
+     */
     get paginationInfo() {
-        const start = ((this.currentPage - 1) * this.pageSize) + 1;
-        const end = start + (this.accounts ? this.accounts.length : 0) - 1;
-        return `${start}–${end}`;
+        return this.accountCountLabel;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -2022,6 +2646,7 @@ export default class CsmPortfolioDashboard extends NavigationMixin(LightningElem
         this.sortField = sortField;
         this.sortDirection = sortDirection;
         this.currentPage = 1;
+        this.visibleCount = this.INITIAL_VISIBLE_COUNT;
         this.isAccountsLoading = true;
         this.loadAccounts().then(() => { this.isAccountsLoading = false; });
     }

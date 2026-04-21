@@ -57,8 +57,7 @@
                                 variant="onboarding"
                                 icon="utility:lock"
                                 title-text="You don't have access to this dashboard yet"
-                                body-text="Your user is missing the data permissions this dashboard needs."
-                                supporting-text={permissionErrorBody}
+                                body-text={permissionErrorBody}
                                 primary-label="Copy permission set name"
                                 primary-variant="brand"
                                 secondary-label="Try again"
@@ -121,8 +120,7 @@
                                     class="custom-btn custom-btn--primary"
                                     onclick={handleRecalculateAll}
                                     disabled={isRecalculatingAll}>
-                                <template if:true={isRecalculatingAll}>Recalculating…</template>
-                                <template if:false={isRecalculatingAll}>Recalculate all</template>
+                                {recalcButtonText}
                             </button>
                         </div>
                     </div>
@@ -140,6 +138,24 @@
                                     {heroScoreValue}<span class="hero-value-unit">%</span>
                                 </div>
                                 <div class="hero-sub">Healthy</div>
+
+                                <!--
+                                    Portfolio health trend.
+                                    Mirrors the per-account trend chip on
+                                    the account dashboard. Hidden when
+                                    Apex returns no trend (no historical
+                                    baseline yet) — see hasPortfolioTrend.
+                                -->
+                                <template if:true={hasPortfolioTrend}>
+                                    <div class={portfolioTrendValueClass}
+                                         aria-label={portfolioTrendAriaLabel}>
+                                        <span class="trend-arrow">{portfolioTrendIcon}</span>
+                                        <span class="trend-label">{portfolioTrendText}</span>
+                                        <template if:true={portfolioTrendDetail}>
+                                            <span class="trend-detail">· {portfolioTrendDetail}</span>
+                                        </template>
+                                    </div>
+                                </template>
 
                                 <!-- Health Distribution Bar -->
                                 <div class="health-distribution">
@@ -470,9 +486,9 @@
                     </template>
                     <div class="table-header">
                         <div class="table-header-left">
-                            <span class="table-title">ACCOUNTS</span>
+                            <h3 class="table-title">Accounts</h3>
                             <template if:true={hasAccounts}>
-                                <span class="table-count">{paginationInfo}</span>
+                                <span class="table-count">{accountCountLabel}</span>
                             </template>
                         </div>
                         <div class="filter-pills">
@@ -488,8 +504,18 @@
                         </div>
                     </div>
 
-                    <!-- Desktop Table -->
-                    <template if:true={hasAccounts}>
+                    <!--
+                        Desktop Table.
+                        The table shell (header + columns + tbody) is rendered
+                        whenever we have accounts OR a filter is hiding them
+                        all. In the filter-empty case we render a single
+                        spanning row inside tbody so the user still sees the
+                        familiar table shape with their column headers and
+                        filter pills — the "empty" state is just one row that
+                        says "no matching accounts," instead of a card that
+                        replaces the whole section.
+                    -->
+                    <template if:true={showAccountsTable}>
                         <div class="table-container data-table-desktop">
                             <table class="data-table">
                                 <thead>
@@ -510,7 +536,28 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template for:each={accountsDecorated} for:item="account">
+                                    <template if:true={isFilterHidingAccounts}>
+                                        <tr class="filter-empty-row">
+                                            <td colspan="9">
+                                                <div class="filter-empty-cell" role="status">
+                                                    <lightning-icon icon-name="utility:filter"
+                                                                    size="small"
+                                                                    class="filter-empty-icon"
+                                                                    alternative-text=""></lightning-icon>
+                                                    <div class="filter-empty-copy">
+                                                        <span class="filter-empty-title">{filterEmptyTitle}</span>
+                                                        <span class="filter-empty-hint">Clear filters to see your whole portfolio.</span>
+                                                    </div>
+                                                    <button class="custom-btn custom-btn--primary filter-empty-btn"
+                                                            type="button"
+                                                            onclick={handleClearFilters}>
+                                                        Clear filters
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <template for:each={visibleAccountsDecorated} for:item="account">
                                         <tr key={account.accountId}
                                             class={account.rowClass}
                                             data-id={account.accountId}
@@ -620,13 +667,62 @@
                                             </tr>
                                         </template>
                                     </template>
+                                    <!--
+                                        View More row. Lives inside the
+                                        tbody so the table shape stays
+                                        intact and the action feels like a
+                                        natural extension of the list, not
+                                        a chrome bar floating below it.
+                                    -->
+                                    <template if:true={hasMoreAccountsToReveal}>
+                                        <tr class="view-more-row">
+                                            <td colspan="9">
+                                                <button class="view-more-btn"
+                                                        type="button"
+                                                        onclick={handleViewMore}
+                                                        disabled={isAccountsLoading}>
+                                                    <span class="view-more-btn__label">{viewMoreLabel}</span>
+                                                    <lightning-icon icon-name="utility:chevrondown"
+                                                                    size="x-small"
+                                                                    class="view-more-btn__chevron"
+                                                                    alternative-text=""></lightning-icon>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <template if:true={isExpandedBeyondInitial}>
+                                        <tr class="show-less-row">
+                                            <td colspan="9">
+                                                <button class="show-less-btn"
+                                                        type="button"
+                                                        onclick={handleShowLess}>
+                                                    Show fewer
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
                                 </tbody>
                             </table>
                         </div>
 
                         <!-- Mobile Cards -->
                         <div class="mobile-card-list">
-                            <template for:each={accountsDecorated} for:item="account">
+                            <template if:true={isFilterHidingAccounts}>
+                                <div class="mobile-filter-empty" role="status">
+                                    <lightning-icon icon-name="utility:filter"
+                                                    size="small"
+                                                    class="filter-empty-icon"
+                                                    alternative-text=""></lightning-icon>
+                                    <span class="filter-empty-title">{filterEmptyTitle}</span>
+                                    <span class="filter-empty-hint">Clear filters to see your whole portfolio.</span>
+                                    <button class="custom-btn custom-btn--primary filter-empty-btn"
+                                            type="button"
+                                            onclick={handleClearFilters}>
+                                        Clear filters
+                                    </button>
+                                </div>
+                            </template>
+                            <template for:each={visibleAccountsDecorated} for:item="account">
                                 <div key={account.accountId}
                                      class="mobile-account-card"
                                      data-id={account.accountId}
@@ -719,53 +815,48 @@
                                     </template>
                                 </div>
                             </template>
-                        </div>
-
-                        <!-- Pagination -->
-                        <div class="pagination">
-                            <button class="pagination-btn"
-                                    onclick={handlePrevPage}
-                                    disabled={noPrevPage}
-                                    type="button">
-                                ← Previous
-                            </button>
-                            <span class="pagination-info">Page {currentPage}</span>
-                            <button class="pagination-btn"
-                                    onclick={handleNextPage}
-                                    disabled={noNextPage}
-                                    type="button">
-                                Next →
-                            </button>
+                            <!--
+                                View More / Show fewer for the mobile
+                                card list. Lives at the bottom of the
+                                stack, mirroring the desktop tbody rows.
+                            -->
+                            <template if:true={hasMoreAccountsToReveal}>
+                                <button class="view-more-card"
+                                        type="button"
+                                        onclick={handleViewMore}
+                                        disabled={isAccountsLoading}>
+                                    <span class="view-more-card__label">{viewMoreLabel}</span>
+                                    <lightning-icon icon-name="utility:chevrondown"
+                                                    size="x-small"
+                                                    class="view-more-card__chevron"
+                                                    alternative-text=""></lightning-icon>
+                                </button>
+                            </template>
+                            <template if:true={isExpandedBeyondInitial}>
+                                <button class="show-less-card"
+                                        type="button"
+                                        onclick={handleShowLess}>
+                                    Show fewer
+                                </button>
+                            </template>
                         </div>
                     </template>
 
-                    <!-- Empty State (note: the portfolio-wide "no accounts
-                         assigned" case is now rendered as a full-page takeover
-                         above, not here). -->
-                    <template if:false={hasAccounts}>
-                        <!-- Active filter hides everything -->
-                        <template if:true={isFilterHidingAccounts}>
-                            <c-csd-empty-state
-                                variant="empty"
-                                icon="utility:filter"
-                                title-text={filterEmptyTitle}
-                                body-text="No accounts match the current filter."
-                                supporting-text="Clear it to see your whole portfolio."
-                                primary-label="Clear filters"
-                                primary-variant="brand"
-                                onprimaryclick={handleClearFilters}>
-                            </c-csd-empty-state>
-                        </template>
-
-                        <!-- Fallback for any other case (accounts query
-                             returned an empty list unexpectedly). -->
-                        <template if:true={isGenericAccountsEmpty}>
-                            <div class="empty-state">
-                                <lightning-icon icon-name="utility:search" size="medium" class="empty-icon"></lightning-icon>
-                                <p class="empty-text">No accounts found</p>
-                                <p class="empty-hint">Try refreshing or contact your admin if this looks wrong.</p>
-                            </div>
-                        </template>
+                    <!--
+                        Fallback for the unexpected case: the accounts query
+                        returned zero rows when no filter is active and the
+                        portfolio isn't empty. Rare (usually a stale cache or
+                        a failed request) — the portfolio-wide onboarding and
+                        permission/error states are handled earlier as full-
+                        page takeovers, and filter-empty is rendered inline
+                        inside the table above.
+                    -->
+                    <template if:true={isGenericAccountsEmpty}>
+                        <div class="empty-state">
+                            <lightning-icon icon-name="utility:search" size="medium" class="empty-icon"></lightning-icon>
+                            <p class="empty-text">No accounts found</p>
+                            <p class="empty-hint">Try refreshing or contact your admin if this looks wrong.</p>
+                        </div>
                     </template>
                 </div>
 
@@ -1627,6 +1718,75 @@
                     <footer class="slds-modal__footer">
                         <button class="custom-btn custom-btn--secondary" onclick={handleCloseKpiModal} type="button">
                             Close
+                        </button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!--
+            Recalc Error Modal
+            Shown when the async recalc batch fails (either at start() or during
+            polling). Gives the user:
+              1. A clear human reason for the failure
+              2. Job-level metadata (chunks processed, errors) so they know where
+                 it stopped
+              3. A pre-written, paste-ready message for their Salesforce admin
+                 that says "edit the architecture in Tribal to support this org"
+              4. CTAs to copy the message, retry the job, or dismiss
+        -->
+        <template if:true={showRecalcErrorModal}>
+            <section role="dialog"
+                     tabindex="-1"
+                     class="slds-modal slds-fade-in-open slds-modal_medium recalc-error-modal"
+                     aria-modal="true"
+                     aria-labelledby="recalcErrorModalHeading">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header recalc-error-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                title="Close"
+                                onclick={handleCloseRecalcError}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <div class="recalc-error-modal__header-inner">
+                            <div class="recalc-error-modal__icon-wrap">
+                                <lightning-icon icon-name="utility:error" variant="error" size="medium" alternative-text=""></lightning-icon>
+                            </div>
+                            <h2 id="recalcErrorModalHeading" class="slds-modal__title recalc-error-modal__title">
+                                We couldn't finish recalculating your portfolio
+                            </h2>
+                            <p class="recalc-error-modal__subtitle">
+                                {recalcErrorReason}
+                            </p>
+                        </div>
+                    </header>
+                    <div class="slds-modal__content recalc-error-modal__content">
+                        <p class="recalc-error-modal__lede">
+                            This usually means the org has more records than the current recalc architecture can handle in one pass. Send your admin the message below — it has everything they need to fix it in Tribal.
+                        </p>
+                        <label class="recalc-error-modal__admin-label" for="recalcAdminMsg">
+                            Message for your admin
+                        </label>
+                        <pre id="recalcAdminMsg" class="recalc-error-modal__admin-msg" readonly>{recalcAdminMessage}</pre>
+                    </div>
+                    <footer class="slds-modal__footer recalc-error-modal__footer">
+                        <button class="custom-btn custom-btn--secondary recalc-error-modal__btn-secondary recalc-error-modal__btn-close"
+                                type="button"
+                                onclick={handleCloseRecalcError}>
+                            Close
+                        </button>
+                        <button class="custom-btn custom-btn--secondary recalc-error-modal__btn-secondary"
+                                type="button"
+                                onclick={handleRetryRecalcFromError}>
+                            Try again
+                        </button>
+                        <button class="custom-btn custom-btn--primary recalc-error-modal__btn-primary"
+                                type="button"
+                                onclick={handleCopyRecalcAdminMessage}>
+                            <lightning-icon icon-name="utility:copy" size="x-small" variant="inverse" class="recalc-error-modal__btn-icon"></lightning-icon>
+                            {recalcCopyButtonLabel}
                         </button>
                     </footer>
                 </div>

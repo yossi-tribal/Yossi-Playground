@@ -8,10 +8,20 @@
  * the parent's :host declarations reach us here.
  */
 
+/*
+ * The empty-state card uses the warm "paper" surface tone used by the
+ * Portfolio Success Snapshot and other raised sections of the dashboard,
+ * not a stark white. This makes the card feel like a piece of stationery
+ * or a physical folder page — calmer, more at home in the dashboard's
+ * visual language — instead of a generic SaaS empty state.
+ *
+ * Error / degraded variants further below override this background with
+ * their amber / red tints, so those states still pop.
+ */
 .csd-empty {
     text-align: center;
     padding: var(--csd-space-6, 24px) var(--csd-space-5, 20px);
-    background: var(--csd-surface, #FFFFFF);
+    background: var(--csd-surface-raised, #FAF9F7);
     border: 1px solid var(--csd-border, #E8E5E1);
     border-radius: var(--csd-radius-md, 10px);
     box-shadow: var(--csd-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
@@ -75,9 +85,15 @@
 .csd-empty--error .csd-empty__lightning-icon {
     --sds-c-icon-color-foreground-default: var(--csd-red-dark, #B91C1C);
 }
+/*
+ * Error variant keeps the paper surface of a normal card so the page
+ * doesn't feel alarming. The red icon and red "Try again" CTA already
+ * signal that something failed; a saturated red background on top of
+ * that tips the UI from "informative" into "panic."
+ */
 .csd-empty--error {
-    background: var(--csd-red-50, #FEF2F2);
-    border-color: var(--csd-red-100, #FEE2E2);
+    background: var(--csd-surface-raised, #FAF9F7);
+    border-color: var(--csd-border, #E8E5E1);
 }
 
 .csd-empty--onboarding .csd-empty__lightning-icon {
@@ -174,15 +190,30 @@
     justify-content: flex-start;
 }
 
+/*
+ * In full-page takeovers, stack the CTAs vertically with the primary on
+ * top and the secondary below. Keeps the visual hierarchy crystal clear
+ * (one obvious next step, plus a quieter fallback) and matches standard
+ * mobile-friendly dialog patterns. Horizontal button pairs on a big
+ * empty page also tend to float, creating an awkward "which one first?"
+ * moment — stacking removes that ambiguity. The generous gap between
+ * stacked buttons gives each action its own breathing room so the
+ * screen never feels crowded at the decision point.
+ */
 .csd-empty--full .csd-empty__actions {
-    gap: var(--csd-space-3, 12px);
-    margin-top: var(--csd-space-2, 8px);
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 18rem;
+    margin-left: auto;
+    margin-right: auto;
+    gap: var(--csd-space-4, 16px);
 }
 
 .csd-empty--full .csd-empty__btn {
     padding: 12px 24px;
     font-size: var(--csd-text-base, 14px);
     border-radius: var(--csd-radius-md, 10px);
+    width: 100%;
 }
 
 /* Native button styling that mirrors the parent LWC's .custom-btn family,
@@ -209,6 +240,12 @@
     box-shadow: 0 0 0 2px var(--csd-blue-muted, #DBEAFE);
 }
 
+/*
+ * Primary CTA: filled blue gradient with white text, matching the
+ * dashboard's .custom-btn--primary family. Sits clearly on the paper
+ * card as the page's primary action while still feeling part of the
+ * dashboard's visual language.
+ */
 .csd-empty__btn--primary {
     background: linear-gradient(
         135deg,
@@ -216,6 +253,7 @@
         var(--csd-blue-dark, #0369A1) 100%
     );
     color: #FFFFFF;
+    border: 1px solid transparent;
     box-shadow: 0 2px 4px rgba(27, 150, 255, 0.2);
 }
 
@@ -225,10 +263,21 @@
         var(--csd-blue-dark, #0369A1) 0%,
         var(--csd-blue-darker, #075985) 100%
     );
-    box-shadow: 0 4px 12px rgba(27, 150, 255, 0.35);
+    color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(27, 150, 255, 0.32);
     transform: translateY(-1px);
 }
 
+.csd-empty__btn--primary:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(27, 150, 255, 0.3) inset;
+}
+
+/*
+ * Secondary CTA: even quieter paper-chip. White surface with warm neutral
+ * border, matching the .custom-btn--secondary family used for "Log call",
+ * "New task" etc. in the main dashboard.
+ */
 .csd-empty__btn--secondary {
     background: var(--csd-surface, #FFFFFF);
     color: var(--csd-gray-700, #44403C);
@@ -250,33 +299,73 @@
         var(--csd-red-dark, #B91C1C) 0%,
         var(--csd-red-darker, #991B1B) 100%
     );
+    color: #FFFFFF;
+    border-color: transparent;
     box-shadow: 0 2px 4px rgba(185, 28, 28, 0.2);
 }
 .csd-empty--error .csd-empty__btn--primary:hover {
     box-shadow: 0 4px 12px rgba(185, 28, 28, 0.3);
 }
 
-/* Technical-details disclosure (error variant) */
+/*
+ * Technical-details disclosure (error variant).
+ * Intentionally low in the hierarchy: separated from the CTA above by a
+ * hairline divider and generous whitespace, with muted typography so
+ * the user's eye lands on "Try again" first. The body uses the same
+ * tokens as the rest of the card (paper-tinted surface, border, radius)
+ * so it feels like a nested secondary panel rather than a raw code
+ * dump.
+ */
 .csd-empty__details {
-    margin-top: var(--csd-space-3, 12px);
-    text-align: left;
+    margin-top: var(--csd-space-6, 24px);
+    padding-top: var(--csd-space-4, 16px);
+    border-top: 1px solid var(--csd-border, #E8E5E1);
+    text-align: center;
     max-width: 100%;
 }
+
+.csd-empty--full .csd-empty__details {
+    margin-top: var(--csd-space-7, 32px);
+    padding-top: var(--csd-space-5, 20px);
+    max-width: 28rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .csd-empty__details-summary {
     cursor: pointer;
     font-size: var(--csd-text-xs, 11px);
-    color: var(--csd-blue, #1B96FF);
+    font-weight: 500;
+    color: var(--csd-text-tertiary, #A8A29E);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    list-style: none;
+    padding: 2px 0;
+    transition: color 0.15s ease;
 }
+
+.csd-empty__details-summary::-webkit-details-marker {
+    display: none;
+}
+
+.csd-empty__details-summary:hover,
+.csd-empty__details[open] .csd-empty__details-summary {
+    color: var(--csd-text-secondary, #57534E);
+}
+
 .csd-empty__details-body {
+    font-family: var(--csd-font-mono,
+        ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace);
     font-size: var(--csd-text-xs, 11px);
+    line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
-    max-height: 6rem;
+    max-height: 7rem;
     overflow: auto;
-    margin: var(--csd-space-2, 8px) 0 0 0;
+    margin: var(--csd-space-3, 12px) 0 0 0;
     text-align: left;
-    background: var(--csd-gray-50, #FAF9F7);
-    padding: var(--csd-space-2, 8px);
+    background: var(--csd-surface, #FFFFFF);
+    padding: var(--csd-space-3, 12px) var(--csd-space-4, 16px);
     border-radius: var(--csd-radius-sm, 6px);
     border: 1px solid var(--csd-border, #E8E5E1);
     color: var(--csd-text-secondary, #57534E);
