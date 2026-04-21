@@ -60,6 +60,52 @@
     color: white;
 }
 
+/* Onboarding menu + coach theming — matches the wizard exactly since both
+   share the --lqw-* token set. The menu trigger stays white against the
+   gradient header; the dropdown panel and the coach overlay adopt the
+   standard LQW palette. */
+.manager-header-spacer {
+    flex: 1 1 auto;
+}
+
+.manager-header-menu {
+    --oc-trigger-size: 28px;
+    --oc-trigger-icon: #ffffff;
+    --oc-border: rgba(255, 255, 255, 0.32);
+    --oc-border-strong: rgba(255, 255, 255, 0.48);
+    --oc-primary: #ffffff;
+    --oc-focus-ring: 0 0 0 3px rgba(255, 255, 255, 0.4);
+}
+
+c-onboarding-menu.manager-header-menu {
+    --oc-primary: var(--lqw-primary);
+    --oc-primary-dark: var(--lqw-primary-dark);
+    --oc-text: var(--lqw-neutral-900);
+    --oc-text-muted: var(--lqw-neutral-600);
+    --oc-text-subtle: var(--lqw-neutral-500);
+    --oc-border: var(--lqw-neutral-200);
+    --oc-border-strong: var(--lqw-neutral-300);
+    --oc-surface: #ffffff;
+    --oc-radius-md: var(--lqw-radius-md);
+    --oc-radius-lg: var(--lqw-radius-lg);
+    --oc-shadow-md: var(--lqw-shadow-md);
+}
+
+c-onboarding-coach.manager-coach {
+    --oc-primary: #1B5294;
+    --oc-primary-dark: #0D47A1;
+    --oc-surface: #ffffff;
+    --oc-text: var(--lqw-neutral-900);
+    --oc-text-muted: var(--lqw-neutral-600);
+    --oc-text-subtle: var(--lqw-neutral-500);
+    --oc-border: var(--lqw-neutral-200);
+    --oc-border-strong: var(--lqw-neutral-300);
+    --oc-radius-md: var(--lqw-radius-md);
+    --oc-radius-lg: var(--lqw-radius-lg);
+    --oc-shadow-lg: var(--lqw-shadow-lg);
+    --oc-spotlight-ring: 0 0 0 3px rgba(27, 82, 148, 0.55);
+}
+
 /* Loading Overlay */
 .loading-overlay {
     position: fixed;

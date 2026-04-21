@@ -1,6 +1,8 @@
 import { LightningElement, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
+import USER_ID from '@salesforce/user/Id';
+import managerTours from './tours';
 import getAllQuestionLists from '@salesforce/apex/LQW_QuestionListManagerCtrl.getAllQuestionLists';
 import saveQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.saveQuestionList';
 import deleteQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.deleteQuestionList';
@@ -16,6 +18,10 @@ import createDefaultQuestionList from '@salesforce/apex/LQW_QuestionListManagerC
 
 export default class QuestionListManager extends LightningElement {
     @track questionLists = [];
+    // True once the @wire has resolved at least once. Used to gate the
+    // welcome empty state so it doesn't flash on initial page load before
+    // the wire returns.
+    @track questionListsLoaded = false;
     @track selectedList = null;
     @track selectedQuestion = null;
     @track isLoading = false;
@@ -67,9 +73,322 @@ export default class QuestionListManager extends LightningElement {
     dealbreakerValueOptions = [];
     wiredQuestionListsResult;
 
+    // Onboarding coach wiring. Tours are imported as pure data from tours.js
+    // and augmented here with onEnter callbacks keyed off each step's
+    // `action` metadata (e.g. 'openListModal'). This keeps tour copy
+    // declarative while allowing steps to open modals before the coach
+    // measures their targets.
+    currentUserId = USER_ID;
+    _coachBootstrapped = false;
+    // Tracks which modal (if any) a tour opened, so we can close it when the
+    // tour ends (complete or skip) — the user just watched a walkthrough,
+    // they shouldn't be left staring at an empty draft.
+    _tourOpenedModal = null;
+
+    get tours() {
+        return managerTours.map((tour) => ({
+            ...tour,
+            steps: tour.steps.map((step) => this._augmentStep(tour, step))
+        }));
+    }
+
+    /**
+     * Each tour step declares the host context it needs via `step.context`
+     * (and/or the legacy `step.action`). We attach an `onEnter` callback
+     * that puts the LWC into that state — selecting a list, opening a
+     * modal, etc. — *before* the coach measures the step's target. This is
+     * what lets a step like "List details" actually point at a populated
+     * details panel instead of the empty-selection placeholder.
+     *
+     * Supported context values:
+     *   'list-selected'              — make sure a list is selected; close
+     *                                   any tour-opened modals.
+     *   'list-with-rules-expanded'   — list selected + Assignment Rules
+     *                                   section expanded (so the lifecycle
+     *                                   tour can point at populated rules).
+     *   'list-modal'                 — open the New List modal (closes
+     *                                   question modal if it was open).
+     *   'question-modal'             — make sure a list is selected, open
+     *                                   the New Question modal.
+     *   'question-modal-dealbreaker' — like 'question-modal', but also flips
+     *                                   Is Dealbreaker on so the
+     *                                   Dealbreaker Value combobox renders.
+     *   'no-modal'                   — page-level step; close any
+     *                                   tour-opened modals.
+     *
+     * Legacy `action` values are mapped to the matching context.
+     */
+    _augmentStep(tour, step) {
+        const context = step.context || this._legacyActionToContext(step.action);
+        if (!context) return step;
+        const handler = () => this._ensureStepContext(context);
+        return { ...step, onEnter: handler };
+    }
+
+    _legacyActionToContext(action) {
+        if (!action) return null;
+        if (action === 'openListModal') return 'list-modal';
+        if (action === 'openQuestionModal') return 'question-modal';
+        if (action === 'selectFirstListIfNone') return 'list-selected';
+        return null;
+    }
+
+    _ensureStepContext(context) {
+        switch (context) {
+            case 'list-modal':
+                this._closeQuestionModalIfTourOpened();
+                this._ensureListModalOpen();
+                break;
+            case 'question-modal':
+                this._closeListModalIfTourOpened();
+                this._ensureQuestionModalOpen();
+                break;
+            case 'question-modal-dealbreaker':
+                this._closeListModalIfTourOpened();
+                this._ensureQuestionModalOpen();
+                // Flip Is Dealbreaker on so the Dealbreaker Value combobox
+                // renders and the tour can point at it. Wrapped in a
+                // new-object assignment so LWC reactivity picks it up.
+                if (!this.questionFormData.isDealbreaker) {
+                    this.questionFormData = {
+                        ...this.questionFormData,
+                        isDealbreaker: true
+                    };
+                }
+                break;
+            case 'list-selected':
+                this._closeListModalIfTourOpened();
+                this._closeQuestionModalIfTourOpened();
+                this._ensureListSelected();
+                break;
+            case 'list-with-rules-expanded':
+                this._closeListModalIfTourOpened();
+                this._closeQuestionModalIfTourOpened();
+                this._ensureListSelected();
+                this.isAssignmentRulesExpanded = true;
+                break;
+            case 'no-modal':
+            default:
+                this._closeListModalIfTourOpened();
+                this._closeQuestionModalIfTourOpened();
+                break;
+        }
+    }
+
+    _ensureListSelected() {
+        if (!this.selectedList && this.questionLists.length > 0) {
+            this.selectedList = this.questionLists[0];
+        }
+    }
+
+    _ensureListModalOpen() {
+        if (!this.showListModal) {
+            this.handleNewList();
+            this._tourOpenedModal = 'list';
+        }
+    }
+
+    _ensureQuestionModalOpen() {
+        this._ensureListSelected();
+        if (!this.selectedList) return;
+        if (!this.showQuestionModal) {
+            this.handleNewQuestion();
+            this._tourOpenedModal = 'question';
+        }
+    }
+
+    _closeListModalIfTourOpened() {
+        if (this.showListModal && this._tourOpenedModal === 'list') {
+            this.showListModal = false;
+            this._tourOpenedModal = null;
+        }
+    }
+
+    _closeQuestionModalIfTourOpened() {
+        if (this.showQuestionModal && this._tourOpenedModal === 'question') {
+            this.showQuestionModal = false;
+            this._tourOpenedModal = null;
+        }
+    }
+
+    handleTourEnd() {
+        // Close whichever modal the tour opened. If the user opened a modal
+        // themselves (e.g. during a tour they navigated back through), we
+        // still close it — tours are meant to be non-destructive walkthroughs.
+        if (this._tourOpenedModal === 'list') {
+            this.showListModal = false;
+        } else if (this._tourOpenedModal === 'question') {
+            this.showQuestionModal = false;
+        }
+        this._tourOpenedModal = null;
+    }
+
     connectedCallback() {
         this.loadPicklistValues();
         this.loadConflictDetection();
+        this._hideAppPageHeader();
+    }
+
+    /**
+     * Hide the App Page banner Salesforce auto-renders above this LWC (icon
+     * + tab label). That banner lives outside our shadow root, so the
+     * component CSS file can't touch it. This uses a portable two-layer
+     * approach so it survives both LWS sandboxing and future Salesforce
+     * markup changes:
+     *
+     *   Layer 1: inject a global stylesheet hiding every known SLDS / Aura
+     *            page-header class. Fast, idempotent, allowed under LWS.
+     *   Layer 2: walk the DOM outside our shadow root (crossing shadow
+     *            boundaries via getRootNode().host) and hide siblings that
+     *            look like a page header but slipped through Layer 1.
+     *
+     * IMPORTANT: this LWC's own header MUST NOT use the .slds-page-header
+     * class, or Layer 1 would hide it too. We use .manager-header instead.
+     *
+     * Layer 2 fires three times (0 / 200 / 800ms) because Salesforce sometimes
+     * re-renders the header asynchronously after we mount. There's no
+     * disconnectedCallback cleanup on purpose — leaving the global style in
+     * place avoids a brief flash of the header during Aura nav transitions
+     * where the old LWC unmounts a moment before the new one mounts.
+     */
+    _hideAppPageHeader() {
+        if (typeof document === 'undefined') return;
+        try {
+            const STYLE_ID = 'qlm-hide-app-page-header';
+            if (!document.getElementById(STYLE_ID)) {
+                const style = document.createElement('style');
+                style.id = STYLE_ID;
+                style.textContent = [
+                    '.slds-page-header',
+                    '.slds-page-header_joined',
+                    '.forceAppBuilderAppPageHeader',
+                    '.appBuilderPageHeader',
+                    '.appPageHeader',
+                    '.entityNameTitle',
+                    '.entityHeader',
+                    '.forceCommunityThemeLayout .slds-page-header',
+                    '.oneCenterStage > .slds-page-header',
+                    'div[data-component-id="flexipage_appHomeTemplateDesktop"] > .slds-page-header',
+                    'div[data-aura-class*="AppHomeTemplate"] > .slds-page-header',
+                    'div[data-aura-class*="appBuilderTabset"] > :first-child',
+                    'div[data-component-id*="appHomeTemplate"] > div:first-child'
+                ].join(',\n') + '{display:none !important;}';
+                document.head.appendChild(style);
+            }
+        } catch (_) { /* hardened context — ignore */ }
+
+        // Fire the DOM-walk fallback now and again on a couple of delays so we
+        // catch the App Page header on its late re-render.
+        this._walkAndHideHeaderSiblings();
+        setTimeout(() => this._walkAndHideHeaderSiblings(), 200);
+        setTimeout(() => this._walkAndHideHeaderSiblings(), 800);
+        setTimeout(() => this._walkAndHideHeaderSiblings(), 2000);
+    }
+
+    _walkAndHideHeaderSiblings() {
+        if (typeof document === 'undefined') return;
+        const HEADER_CLASS_RE = /page.?header|PageHeader|highlightsPanel|entityNameTitle|entityHeader|appBuilder/i;
+        const APP_PAGE_LABEL = 'Question List Manager';
+        const MAX_HOPS = 15;
+        try {
+            const host = this.template?.host;
+            if (!host) return;
+
+            const isSelfOrInside = (el, refSet) => {
+                for (const ref of refSet) {
+                    if (ref === el || ref.contains(el) || el.contains(ref)) return true;
+                }
+                return false;
+            };
+
+            // Hide the H1 itself and at most one immediate wrapper (the band
+            // that holds the icon next to it). Stay extremely conservative:
+            // never walk into anything tall enough to be a layout container,
+            // because hiding those creates phantom click-intercepts.
+            const hideHeadingBand = (heading, stopAt) => {
+                try { heading.style.display = 'none'; } catch (_) { /* read-only */ }
+                const direct = heading.parentElement;
+                if (!direct || direct === stopAt) return;
+                const r = direct.getBoundingClientRect();
+                if (r.height > 0 && r.height <= 100) {
+                    try { direct.style.display = 'none'; } catch (_) { /* read-only */ }
+                }
+            };
+
+            // Build set of nodes we never want to hide (self + every ancestor
+            // host across shadow boundaries).
+            const ancestors = new Set();
+            let node = host;
+            for (let i = 0; i < MAX_HOPS && node; i++) {
+                ancestors.add(node);
+                const root = node.getRootNode && node.getRootNode();
+                node = (node.parentElement)
+                    || (root && root.host)
+                    || null;
+            }
+
+            // Walk up again, this time scanning each parent's children for
+            // anything header-shaped.
+            node = host;
+            for (let i = 0; i < MAX_HOPS && node; i++) {
+                const parent = node.parentElement
+                    || (node.getRootNode && node.getRootNode().host);
+                if (!parent || !parent.querySelectorAll) {
+                    node = parent;
+                    continue;
+                }
+                const candidates = parent.querySelectorAll('*');
+                for (const el of candidates) {
+                    if (isSelfOrInside(el, ancestors)) continue;
+                    const cls = String(el.getAttribute && el.getAttribute('class') || '');
+                    const role = el.getAttribute && el.getAttribute('role');
+                    const tag = el.tagName;
+                    const isLevel1Heading = tag === 'H1'
+                        || (role === 'heading' && el.getAttribute('aria-level') === '1');
+                    const matchesByText = isLevel1Heading
+                        && (el.textContent || '').trim() === APP_PAGE_LABEL;
+                    const looksLikeHeader = HEADER_CLASS_RE.test(cls) || role === 'banner';
+                    if (matchesByText) {
+                        // Found the App Page label heading — hide its visible band.
+                        hideHeadingBand(el, parent);
+                        continue;
+                    }
+                    if (!looksLikeHeader) continue;
+                    try { el.style.display = 'none'; } catch (_) { /* SVG style is read-only sometimes */ }
+                }
+                node = parent;
+            }
+        } catch (_) { /* hardened context — ignore */ }
+    }
+
+    renderedCallback() {
+        // Only bootstrap the onboarding coach once at least one Question List
+        // is on screen. The welcome (no-lists) state has nothing meaningful to
+        // walk through, so we keep the coach unmounted until then. The coach
+        // element itself is also gated by lwc:if={hasQuestionLists} in the
+        // template, so this.refs.coach is null until lists arrive.
+        if (this._coachBootstrapped) return;
+        if (!this.hasQuestionLists) return;
+        const coach = this.refs?.coach;
+        if (!coach) return;
+        this._coachBootstrapped = true;
+        coach.setTargetResolver((selector) => {
+            if (!selector) return null;
+            try {
+                return this.template.querySelector(selector);
+            } catch (e) {
+                return null;
+            }
+        });
+        coach.autoStartIfUnseen('intro');
+    }
+
+    handleTourSelect(event) {
+        const tourId = event?.detail?.tourId;
+        if (!tourId) return;
+        const coach = this.refs?.coach;
+        if (!coach) return;
+        coach.startTour(tourId, { force: true });
     }
 
     @wire(getAllQuestionLists)
@@ -78,6 +397,7 @@ export default class QuestionListManager extends LightningElement {
         if (result.data) {
             this.questionLists = result.data;
             this.error = null;
+            this.questionListsLoaded = true;
             // If a list was selected, re-select it after refresh
             if (this.selectedList) {
                 const updatedList = this.questionLists.find(list => list.listId === this.selectedList.listId);
@@ -88,6 +408,7 @@ export default class QuestionListManager extends LightningElement {
         } else if (result.error) {
             this.error = result.error;
             this.questionLists = [];
+            this.questionListsLoaded = true;
             this.showToast('Error', 'Failed to load question lists', 'error');
         }
     }
@@ -125,6 +446,13 @@ export default class QuestionListManager extends LightningElement {
 
     get hasQuestionLists() {
         return this.questionLists && this.questionLists.length > 0;
+    }
+
+    // Show the welcome state only after the wire has resolved AND it confirmed
+    // the user has zero lists. Prevents a brief flash of the welcome state on
+    // initial page load before the @wire fulfills.
+    get showWelcomeState() {
+        return this.questionListsLoaded && !this.hasQuestionLists;
     }
 
     get selectedListQuestions() {

@@ -3,7 +3,18 @@
         <!-- Header -->
         <div class="manager-header">
             <lightning-icon icon-name="utility:einstein" size="small" class="header-icon" alternative-text="Question lists"></lightning-icon>
-            <span class="header-title">Question List Manager</span>
+            <span class="header-title">Qualification Question List Manager</span>
+            <div class="manager-header-spacer"></div>
+            <template if:true={hasQuestionLists}>
+                <c-onboarding-menu
+                    class="manager-header-menu"
+                    data-tour="info-icon"
+                    component-name="questionListManager"
+                    user-id={currentUserId}
+                    tours={tours}
+                    ontourselect={handleTourSelect}
+                ></c-onboarding-menu>
+            </template>
         </div>
 
         <!-- Loading Spinner -->
@@ -17,8 +28,10 @@
         <!-- Main Layout -->
         <div class="manager-content">
 
-            <!-- Welcome State - Full Width (No Lists) -->
-            <template if:false={hasQuestionLists}>
+            <!-- Welcome State - Full Width (No Lists). Gated on the wire
+                 having resolved at least once so it doesn't flash on initial
+                 page load before data arrives. -->
+            <template if:true={showWelcomeState}>
                 <div class="welcome-state">
                     <lightning-icon icon-name="utility:einstein" size="large" class="welcome-icon" alternative-text="Question lists"></lightning-icon>
                     <h1 class="welcome-title">Welcome to Question List Manager</h1>
@@ -56,12 +69,12 @@
 
                 <!-- Left Panel: Question Lists -->
                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-large-size_1-of-4">
-                    <div class="list-panel">
+                    <div class="list-panel" data-tour="lists-panel">
 
                         <!-- List Header -->
                         <div class="list-panel-header">
                             <h2 class="list-panel-title">Question Lists</h2>
-                            <button class="add-list-button" onclick={handleNewList} title="New List">
+                            <button class="add-list-button" onclick={handleNewList} title="New List" data-tour="new-list-button">
                                 <lightning-icon icon-name="utility:add" size="xx-small"></lightning-icon>
                             </button>
                         </div>
@@ -106,10 +119,10 @@
                 <!-- Right Panel: Question Details -->
                 <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3 slds-large-size_3-of-4">
                 <template if:true={hasSelectedList}>
-                    <div class="detail-panel">
+                    <div class="detail-panel" data-tour="details-panel">
 
                         <!-- Detail Header -->
-                        <div class="detail-header">
+                        <div class="detail-header" data-tour="list-header">
                             <div class="detail-header-content">
                                 <div class="detail-title-row">
                                     <h1 class="detail-title">{selectedList.listName}</h1>
@@ -117,7 +130,7 @@
                                 <p class="detail-subtitle">{selectedListSummary}</p>
                             </div>
                             <div class="detail-header-actions">
-                                <div class="list-status-control">
+                                <div class="list-status-control" data-tour="list-status-toggle">
                                     <div class={toggleSwitchClass} onclick={handleToggleListStatus} title={listStatusToggleTitle} role="switch" tabindex="0">
                                         <div class="toggle-knob"></div>
                                     </div>
@@ -146,7 +159,7 @@
                         </template>
 
                         <!-- Assignment Rules Section (Read-Only) -->
-                        <div class="assignment-rules-section">
+                        <div class="assignment-rules-section" data-tour="assignment-rules">
                             <div class="assignment-rules-card">
                                 <div class="assignment-rules-header" onclick={handleToggleAssignmentRules}>
                                     <div class="assignment-rules-header-left">
@@ -241,7 +254,7 @@
                         </div>
 
                         <!-- Scoring Guide Card -->
-                        <div class="scoring-guide-section">
+                        <div class="scoring-guide-section" data-tour="scoring-guide">
                             <div class="scoring-guide-card">
                                 <div class="scoring-guide-header">
                                     <div>
@@ -250,7 +263,7 @@
                                     </div>
                                     <div class="scoring-guide-actions">
                                         <template if:false={isScoringGuideEditing}>
-                                            <button class="edit-guide-button" onclick={handleEditScoringGuide} title="Edit Scoring Guide">
+                                            <button class="edit-guide-button" onclick={handleEditScoringGuide} title="Edit Scoring Guide" data-tour="scoring-edit-button">
                                                 <lightning-icon icon-name="utility:edit" size="xx-small"></lightning-icon>
                                                 <span>Edit</span>
                                             </button>
@@ -446,7 +459,7 @@
                         </div>
 
                         <!-- Active Question Overview -->
-                        <div class="active-question-overview-section">
+                        <div class="active-question-overview-section" data-tour="questions-overview">
                             <div class="overview-header">
                                 <h3 class="overview-title">Active Question Overview</h3>
                                 <p class="overview-subtitle">Summary of currently active questions in this list</p>
@@ -589,7 +602,7 @@
                                             </tr>
                                         </template>
                                         <!-- Add Question Row - Always visible as last row -->
-                                        <tr class="add-question-row" onclick={handleNewQuestion}>
+                                        <tr class="add-question-row" onclick={handleNewQuestion} data-tour="new-question-row">
                                             <td class="table-cell table-cell-center">
                                                 <!-- Empty cell for drag handle column -->
                                             </td>
@@ -640,9 +653,9 @@
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                         </button>
                     </header>
-                    <div class="slds-modal__content custom-modal-body">
+                    <div class="slds-modal__content custom-modal-body" data-tour="list-modal-body">
                         <!-- Basic Information Section -->
-                        <div class="modal-section">
+                        <div class="modal-section" data-tour="list-modal-basic">
                             <div class="modal-section-header">
                                 <lightning-icon icon-name="utility:info" size="x-small"></lightning-icon>
                                 <h3 class="modal-section-title">Basic Information</h3>
@@ -651,6 +664,7 @@
                                 label="List Name"
                                 value={listFormData.listName}
                                 data-field="listName"
+                                data-tour="list-modal-name"
                                 onchange={handleListFieldChange}
                                 required>
                             </lightning-input>
@@ -679,7 +693,7 @@
                             </template>
 
                             <!-- High Quality Tier -->
-                            <div class="threshold-tier-card tier-high-config slds-m-bottom_small">
+                            <div class="threshold-tier-card tier-high-config slds-m-bottom_small" data-tour="list-modal-high-tier">
                                 <h4 class="slds-text-heading_small slds-m-bottom_x-small">🟢 High Quality Tier</h4>
                                 <div class="slds-grid slds-wrap slds-gutters_small">
                                     <div class="slds-col slds-size_1-of-2">
@@ -717,7 +731,7 @@
                             </div>
 
                             <!-- Medium Quality Tier -->
-                            <div class="threshold-tier-card tier-medium-config slds-m-bottom_small">
+                            <div class="threshold-tier-card tier-medium-config slds-m-bottom_small" data-tour="list-modal-medium-tier">
                                 <h4 class="slds-text-heading_small slds-m-bottom_x-small">🟡 Medium Quality Tier</h4>
                                 <div class="slds-grid slds-wrap slds-gutters_small">
                                     <div class="slds-col slds-size_1-of-2">
@@ -755,7 +769,7 @@
                             </div>
 
                             <!-- Low Quality Tier -->
-                            <div class="threshold-tier-card tier-low-config slds-m-bottom_small">
+                            <div class="threshold-tier-card tier-low-config slds-m-bottom_small" data-tour="list-modal-low-tier">
                                 <h4 class="slds-text-heading_small slds-m-bottom_x-small">🔴 Low Quality Tier</h4>
                                 <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">Applies to leads scoring below the Medium threshold (0 points)</p>
                                 <div class="slds-grid slds-wrap slds-gutters_small">
@@ -794,7 +808,7 @@
                     </div>
                     <footer class="slds-modal__footer custom-modal-footer">
                         <lightning-button label="Cancel" onclick={handleCloseListModal} class="modal-footer-cancel"></lightning-button>
-                        <lightning-button variant="brand" label="Save" onclick={handleSaveList} class="modal-footer-save"></lightning-button>
+                        <lightning-button variant="brand" label="Save" onclick={handleSaveList} class="modal-footer-save" data-tour="list-modal-save"></lightning-button>
                     </footer>
                 </div>
             </section>
@@ -820,7 +834,7 @@
                                 <h3 class="modal-section-title">Question Details</h3>
                             </div>
                             <div class="slds-grid slds-wrap slds-gutters">
-                                <div class="slds-col slds-size_1-of-1">
+                                <div class="slds-col slds-size_1-of-1" data-tour="question-modal-text">
                                     <lightning-textarea
                                         label="Question Text"
                                         value={questionFormData.questionText}
@@ -829,7 +843,7 @@
                                         required>
                                     </lightning-textarea>
                                 </div>
-                                <div class="slds-col slds-size_1-of-1">
+                                <div class="slds-col slds-size_1-of-1" data-tour="question-modal-score">
                                     <lightning-input
                                         type="number"
                                         label="Score Value"
@@ -852,7 +866,7 @@
 
                             <!-- Row 1: Point Earning Answer and Active -->
                             <div class="slds-grid slds-wrap slds-gutters behavior-settings-row">
-                                <div class="slds-col slds-size_1-of-2">
+                                <div class="slds-col slds-size_1-of-2" data-tour="question-modal-earning">
                                     <lightning-combobox
                                         label="Point Earning Answer"
                                         value={questionFormData.pointEarningAnswer}
@@ -862,7 +876,7 @@
                                         onchange={handleQuestionFieldChange}>
                                     </lightning-combobox>
                                 </div>
-                                <div class="slds-col slds-size_1-of-2 active-checkbox-col">
+                                <div class="slds-col slds-size_1-of-2 active-checkbox-col" data-tour="question-modal-active">
                                     <lightning-input
                                         type="checkbox"
                                         label="Active"
@@ -874,7 +888,7 @@
                             </div>
 
                             <!-- Dealbreaker Configuration Sub-Card -->
-                            <div class="dealbreaker-config-card">
+                            <div class="dealbreaker-config-card" data-tour="question-modal-dealbreaker">
                                 <div class="dealbreaker-config-header">
                                     <lightning-icon icon-name="utility:warning" size="x-small"></lightning-icon>
                                     <h4 class="dealbreaker-config-title">Dealbreaker Configuration</h4>
@@ -891,7 +905,7 @@
                                         </lightning-input>
                                     </div>
                                     <template if:true={questionFormData.isDealbreaker}>
-                                        <div class="slds-col slds-size_1-of-1">
+                                        <div class="slds-col slds-size_1-of-1" data-tour="question-modal-dealbreaker-value">
                                             <lightning-combobox
                                                 label="Dealbreaker Value"
                                                 value={questionFormData.dealbreakerValue}
@@ -908,7 +922,7 @@
                     </div>
                     <footer class="slds-modal__footer custom-modal-footer">
                         <lightning-button label="Cancel" onclick={handleCloseQuestionModal} class="modal-footer-cancel"></lightning-button>
-                        <lightning-button variant="brand" label="Save" onclick={handleSaveQuestion} class="modal-footer-save"></lightning-button>
+                        <lightning-button variant="brand" label="Save" onclick={handleSaveQuestion} class="modal-footer-save" data-tour="question-modal-save"></lightning-button>
                     </footer>
                 </div>
             </section>
@@ -1011,6 +1025,22 @@
                 </div>
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Onboarding coach: overlay walkthrough engine. Tours + targets are
+             defined in tours.js; host JS wires the resolver + auto-start.
+             Only mounts once at least one Question List exists — the welcome
+             state has nothing to walk through. -->
+        <template if:true={hasQuestionLists}>
+            <c-onboarding-coach
+                lwc:ref="coach"
+                class="manager-coach"
+                component-name="questionListManager"
+                user-id={currentUserId}
+                tours={tours}
+                oncomplete={handleTourEnd}
+                onskip={handleTourEnd}
+            ></c-onboarding-coach>
         </template>
 
         <!-- Watermark -->
