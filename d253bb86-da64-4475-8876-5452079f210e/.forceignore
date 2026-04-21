@@ -1,0 +1,10 @@
+# Node / Jest / tooling
+node_modules
+package.json
+package-lock.json
+jest.config.js
+.jest-cache
+
+# LWC jest test folders should never deploy
+**/__tests__
+**/*.test.js
