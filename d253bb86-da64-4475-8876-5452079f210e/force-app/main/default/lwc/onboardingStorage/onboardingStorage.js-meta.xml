@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <description>Shared storage seam for the onboarding utility. Partitions per-user/per-component completion state. Defaults to localStorage with an in-memory fallback; swappable to server-side persistence later without touching host LWCs.</description>
+    <isExposed>false</isExposed>
+</LightningComponentBundle>

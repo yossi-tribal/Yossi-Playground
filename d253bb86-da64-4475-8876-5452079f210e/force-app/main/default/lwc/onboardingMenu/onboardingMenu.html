@@ -1,0 +1,75 @@
+<template>
+    <div class="oc-menu" onclick={handleRootClick} onkeydown={handleKeydown}>
+        <button
+            type="button"
+            class={triggerClass}
+            onclick={handleToggle}
+            aria-haspopup="menu"
+            aria-expanded={triggerAriaExpanded}
+            aria-label={label}
+            title={label}
+            disabled={noTours}
+        >
+            <lightning-icon
+                icon-name="utility:info_alt"
+                size="x-small"
+                alternative-text={label}
+            ></lightning-icon>
+        </button>
+
+        <template lwc:if={isOpen}>
+            <div class="oc-menu__panel" role="menu" aria-label={label}>
+                <div class="oc-menu__head">
+                    <div class="oc-menu__title">Walkthroughs</div>
+                    <div class="oc-menu__subtitle">
+                        Short tours of this component's features.
+                    </div>
+                </div>
+                <ul class="oc-menu__list">
+                    <template for:each={decoratedTours} for:item="tour">
+                        <li key={tour._key} class="oc-menu__item-wrap" role="none">
+                            <button
+                                type="button"
+                                role="menuitem"
+                                class="oc-menu__item"
+                                data-tour-id={tour.id}
+                                onclick={handleSelect}
+                            >
+                                <template lwc:if={tour.icon}>
+                                    <div class="oc-menu__item-icon">
+                                        <lightning-icon
+                                            icon-name={tour.icon}
+                                            size="x-small"
+                                        ></lightning-icon>
+                                    </div>
+                                </template>
+                                <div class="oc-menu__item-body">
+                                    <div class="oc-menu__item-title">{tour.title}</div>
+                                    <template lwc:if={tour.summary}>
+                                        <div class="oc-menu__item-summary">
+                                            {tour.summary}
+                                        </div>
+                                    </template>
+                                </div>
+                                <span
+                                    class={tour._statusClass}
+                                    title={tour._statusLabel}
+                                    aria-hidden="true"
+                                ></span>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <div class="oc-menu__foot">
+                    <button
+                        type="button"
+                        class="oc-menu__reset"
+                        onclick={handleResetAll}
+                    >
+                        Restart all introductions
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

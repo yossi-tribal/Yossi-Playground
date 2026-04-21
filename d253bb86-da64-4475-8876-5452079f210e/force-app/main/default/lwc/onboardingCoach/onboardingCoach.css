@@ -1,0 +1,300 @@
+/*
+ * onboardingCoach — default tokens and structural styles.
+ *
+ * Hosts override the --oc-* vars to match their design system:
+ *   c-onboarding-coach { --oc-primary: var(--lqw-primary); ... }
+ *
+ * Keep this file purely visual. All positioning math stays in JS so the
+ * element computes against the real viewport (no shadow surprises).
+ */
+
+:host {
+    --oc-primary: #1B5294;
+    --oc-primary-dark: #0D47A1;
+    --oc-primary-contrast: #ffffff;
+    --oc-surface: #ffffff;
+    --oc-text: #181818;
+    --oc-text-muted: #6b6f75;
+    --oc-text-subtle: #8a8f96;
+    --oc-border: #e5e7eb;
+    --oc-border-strong: #d0d5dc;
+    --oc-backdrop: rgba(15, 23, 42, 0.52);
+    --oc-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.22), 0 2px 6px rgba(15, 23, 42, 0.08);
+    --oc-radius-md: 8px;
+    --oc-radius-lg: 12px;
+    --oc-radius-full: 9999px;
+    --oc-font: inherit;
+    --oc-font-size-eyebrow: 0.6875rem;
+    --oc-font-size-title: 1.0625rem;
+    --oc-font-size-body: 0.9375rem;
+    --oc-font-size-btn: 0.875rem;
+    --oc-space-1: 4px;
+    --oc-space-2: 8px;
+    --oc-space-3: 12px;
+    --oc-space-4: 16px;
+    --oc-space-5: 20px;
+    --oc-space-6: 24px;
+    --oc-spotlight-ring: 0 0 0 3px rgba(27, 82, 148, 0.45);
+    --oc-transition: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    --oc-z: 9500;
+
+    font-family: var(--oc-font);
+}
+
+.oc-backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--oc-backdrop);
+    z-index: var(--oc-z);
+    animation: oc-fade-in 180ms ease-out;
+}
+
+.oc-spotlight {
+    position: fixed;
+    border-radius: var(--oc-radius-md);
+    pointer-events: none;
+    z-index: calc(var(--oc-z) + 1);
+    box-shadow:
+        0 0 0 9999px var(--oc-backdrop),
+        var(--oc-spotlight-ring);
+    transition:
+        top var(--oc-transition),
+        left var(--oc-transition),
+        width var(--oc-transition),
+        height var(--oc-transition);
+}
+
+/* When spotlight is visible, the backdrop shouldn't double-darken.
+   We let the spotlight's huge box-shadow be the darkener instead. */
+.oc-spotlight ~ .oc-backdrop,
+.oc-spotlight + .oc-backdrop {
+    background: transparent;
+}
+
+.oc-popover {
+    position: fixed;
+    z-index: calc(var(--oc-z) + 2);
+    color: var(--oc-text);
+    animation: oc-pop-in 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.oc-popover--narrow {
+    width: 320px;
+}
+.oc-popover--standard {
+    width: 380px;
+}
+.oc-popover--wide {
+    width: 460px;
+}
+
+.oc-card {
+    background: var(--oc-surface);
+    border: 1px solid var(--oc-border);
+    border-radius: var(--oc-radius-lg);
+    box-shadow: var(--oc-shadow-lg);
+    padding: var(--oc-space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--oc-space-4);
+}
+
+.oc-card__head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--oc-space-3);
+}
+
+.oc-card__icon {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--oc-radius-full);
+    background: linear-gradient(135deg, var(--oc-primary) 0%, var(--oc-primary-dark) 100%);
+    color: var(--oc-primary-contrast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.12);
+}
+
+.oc-card__heading {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.oc-card__eyebrow {
+    font-size: var(--oc-font-size-eyebrow);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--oc-text-subtle);
+    margin-bottom: 4px;
+}
+
+.oc-card__title {
+    margin: 0;
+    font-size: var(--oc-font-size-title);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--oc-text);
+}
+
+.oc-card__body {
+    margin: 0;
+    font-size: var(--oc-font-size-body);
+    line-height: 1.55;
+    color: var(--oc-text-muted);
+}
+
+.oc-card__foot {
+    display: flex;
+    align-items: center;
+    gap: var(--oc-space-2);
+}
+
+.oc-card__spacer {
+    flex: 1 1 auto;
+}
+
+.oc-btn {
+    font: inherit;
+    font-size: var(--oc-font-size-btn);
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: var(--oc-radius-md);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+    line-height: 1.2;
+}
+
+.oc-btn:focus-visible {
+    outline: 2px solid var(--oc-primary);
+    outline-offset: 2px;
+}
+
+.oc-btn--primary {
+    background: var(--oc-primary);
+    color: var(--oc-primary-contrast);
+    border-color: var(--oc-primary);
+}
+
+.oc-btn--primary:hover {
+    background: var(--oc-primary-dark);
+    border-color: var(--oc-primary-dark);
+}
+
+.oc-btn--secondary {
+    background: var(--oc-surface);
+    color: var(--oc-text);
+    border-color: var(--oc-border-strong);
+}
+
+.oc-btn--secondary:hover {
+    background: #f6f7f9;
+}
+
+.oc-btn--ghost {
+    background: transparent;
+    color: var(--oc-text-muted);
+    border-color: transparent;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.oc-btn--ghost:hover {
+    color: var(--oc-text);
+    background: rgba(15, 23, 42, 0.04);
+}
+
+/* ---------- Arrow (optional, positions itself to popover edge) ---------- */
+.oc-arrow {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--oc-surface);
+    border: 1px solid var(--oc-border);
+    transform: rotate(45deg);
+}
+
+.oc-arrow--top {
+    bottom: -7px;
+    left: 50%;
+    margin-left: -6px;
+    border-top: none;
+    border-left: none;
+}
+.oc-arrow--bottom {
+    top: -7px;
+    left: 50%;
+    margin-left: -6px;
+    border-bottom: none;
+    border-right: none;
+}
+.oc-arrow--left {
+    right: -7px;
+    top: 50%;
+    margin-top: -6px;
+    border-left: none;
+    border-bottom: none;
+}
+.oc-arrow--right {
+    left: -7px;
+    top: 50%;
+    margin-top: -6px;
+    border-right: none;
+    border-top: none;
+}
+
+@keyframes oc-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes oc-pop-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Center-placement popovers are transformed via inline style; apply their
+   own animation so the translate(-50%, -50%) isn't clobbered. */
+.oc-popover--center {
+    animation: oc-pop-in-center 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes oc-pop-in-center {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -48%) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .oc-backdrop,
+    .oc-popover,
+    .oc-popover--center,
+    .oc-spotlight {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+@media (max-width: 540px) {
+    .oc-popover--narrow,
+    .oc-popover--standard,
+    .oc-popover--wide {
+        width: calc(100vw - 24px);
+        max-width: 420px;
+    }
+}

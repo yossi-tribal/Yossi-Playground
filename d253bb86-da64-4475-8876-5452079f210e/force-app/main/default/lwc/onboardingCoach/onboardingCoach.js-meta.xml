@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <description>Overlay walkthrough engine: renders a stepper, backdrop, spotlight, and popover that anchors to host-supplied target elements. Themable via CSS custom properties. Embedded by host LWCs; not exposed in App Builder.</description>
+    <isExposed>false</isExposed>
+</LightningComponentBundle>
