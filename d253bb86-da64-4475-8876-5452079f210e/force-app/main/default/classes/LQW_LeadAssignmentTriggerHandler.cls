@@ -164,8 +164,12 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
             syncAssignmentCriteriaJSON(questionLists);
 
         } catch (Exception e) {
-            System.debug('Error in LeadAssignmentTriggerHandler: ' + e.getMessage());
-            // Continue execution - don't block lead creation/update
+            // Swallow errors on purpose — a broken assignment must never block
+            // the Lead DML a user is performing. Log at ERROR so the exception
+            // still shows up in filtered debug logs and System Log traces.
+            System.debug(LoggingLevel.ERROR,
+                'LQW_LeadAssignmentTriggerHandler failed: ' + e.getTypeName()
+                + ': ' + e.getMessage() + '\n' + e.getStackTraceString());
         }
     }
 
