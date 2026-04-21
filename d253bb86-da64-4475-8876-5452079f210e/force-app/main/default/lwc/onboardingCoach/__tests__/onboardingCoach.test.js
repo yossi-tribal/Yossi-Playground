@@ -299,6 +299,133 @@ describe('c-onboarding-coach', () => {
         });
     });
 
+    describe('skipIfTargetMissing', () => {
+        // Responsive tours ship paired steps (e.g. "lists-panel" for wide
+        // viewports, "switch-list-button" for narrow) both flagged with
+        // skipIfTargetMissing. Only one resolves at a time; the other must
+        // silently hop so the user sees one step, not a broken center card.
+        const RESPONSIVE_TOURS = [
+            {
+                id: 'respond',
+                version: 1,
+                title: 'Responsive',
+                steps: [
+                    { id: 'intro', title: 'Hi', body: 'Hi', placement: 'center' },
+                    {
+                        id: 'wide',
+                        title: 'Wide',
+                        body: 'Wide only',
+                        target: '[data-tour="wide"]',
+                        placement: 'right',
+                        skipIfTargetMissing: true
+                    },
+                    {
+                        id: 'narrow',
+                        title: 'Narrow',
+                        body: 'Narrow only',
+                        target: '[data-tour="narrow"]',
+                        placement: 'bottom',
+                        skipIfTargetMissing: true
+                    },
+                    { id: 'outro', title: 'Bye', body: 'Done', placement: 'center' }
+                ]
+            }
+        ];
+
+        function stubElement() {
+            return {
+                scrollIntoView: () => {},
+                getBoundingClientRect: () => ({
+                    top: 10,
+                    left: 10,
+                    right: 110,
+                    bottom: 110,
+                    width: 100,
+                    height: 100
+                })
+            };
+        }
+
+        it('skips forward past a step whose target is missing', async () => {
+            const el = create({ tours: RESPONSIVE_TOURS });
+            // Only the "narrow" target resolves (simulates a mobile layout).
+            el.setTargetResolver((selector) =>
+                selector === '[data-tour="narrow"]' ? stubElement() : null
+            );
+            el.startTour('respond');
+            await flush();
+            // Advance from intro — the "wide" step should auto-skip and we
+            // should land on "narrow".
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
+            const title = el.shadowRoot.querySelector('.oc-card__title');
+            expect(title.textContent.trim()).toBe('Narrow');
+        });
+
+        it('finishes the tour if the final step would auto-skip', async () => {
+            const el = create({ tours: RESPONSIVE_TOURS });
+            // Only "wide" resolves. Step order: intro → wide → narrow (skip) →
+            // outro. Advancing from "wide" should skip "narrow" and land on
+            // the regular "outro" step (not finish the tour).
+            el.setTargetResolver((selector) =>
+                selector === '[data-tour="wide"]' ? stubElement() : null
+            );
+            el.startTour('respond');
+            await flush();
+            el.shadowRoot.querySelector('.oc-btn--primary').click(); // intro → wide
+            await flush();
+            el.shadowRoot.querySelector('.oc-btn--primary').click(); // wide → (skip narrow) → outro
+            await flush();
+            const title = el.shadowRoot.querySelector('.oc-card__title');
+            expect(title.textContent.trim()).toBe('Bye');
+        });
+
+        it('variantOf collapses paired responsive steps into one counter slot', async () => {
+            // Mark the narrow step as a variant of the wide step — they now
+            // share a slot in the "Step N of M" counter regardless of which
+            // one actually renders.
+            const tours = RESPONSIVE_TOURS.map((t) => ({
+                ...t,
+                steps: t.steps.map((s) =>
+                    s.id === 'narrow' ? { ...s, variantOf: 'wide' } : s
+                )
+            }));
+            const el = create({ tours });
+            el.setTargetResolver((selector) =>
+                selector === '[data-tour="narrow"]' ? stubElement() : null
+            );
+            el.startTour('respond');
+            await flush();
+            // Advance from intro chapter to the (auto-skipped wide → narrow)
+            // responsive slot. Counter should read "Step 2 of 3" — because
+            // the narrow variant shares the wide step's slot.
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
+            const eyebrow = el.shadowRoot.querySelector('.oc-card__eyebrow');
+            expect(eyebrow).not.toBeNull();
+            expect(eyebrow.textContent).toMatch(/Step\s+2\s+of\s+3/i);
+        });
+
+        it('skipping backwards also hops over an unresolvable step', async () => {
+            const el = create({ tours: RESPONSIVE_TOURS });
+            el.setTargetResolver((selector) =>
+                selector === '[data-tour="narrow"]' ? stubElement() : null
+            );
+            el.startTour('respond');
+            await flush();
+            // Forward: intro → (skip wide) → narrow
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
+            expect(el.shadowRoot.querySelector('.oc-card__title').textContent.trim())
+                .toBe('Narrow');
+            // Back: narrow → (skip wide) → intro
+            el.shadowRoot.querySelector('.oc-btn--secondary').click();
+            await flush();
+            expect(el.shadowRoot.querySelector('.oc-card__title').textContent.trim())
+                .toBe('Hi');
+        });
+    });
+
     describe('target resolver', () => {
         it('invokes the resolver for targeted steps', async () => {
             const el = create();

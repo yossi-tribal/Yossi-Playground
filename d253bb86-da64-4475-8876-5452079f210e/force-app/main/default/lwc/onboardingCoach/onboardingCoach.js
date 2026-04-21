@@ -53,6 +53,12 @@ export default class OnboardingCoach extends LightningElement {
     _targetResizeObserver = null;
     _targetPollTimer = null;
 
+    // Direction of the last step transition. Used when a step with
+    // step.skipIfTargetMissing resolves to a hidden/off-viewport target:
+    // we auto-advance in the same direction the user was navigating so
+    // responsive step pairs (wide vs narrow target) feel like one step.
+    _navDirection = 'forward';
+
     // --------------------------------------------------------------
     // Public API
     // --------------------------------------------------------------
@@ -80,6 +86,7 @@ export default class OnboardingCoach extends LightningElement {
         if (!opts.force && isCompleted(this._scopeKey, tour.id, tour.version)) return;
         this.activeTour = tour;
         this.currentStepIndex = 0;
+        this._navDirection = 'forward';
         this._attachEnvListeners();
         this._layoutCurrentStep();
     }
@@ -122,8 +129,43 @@ export default class OnboardingCoach extends LightningElement {
         return this.activeTour ? this.activeTour.steps.length : 0;
     }
 
+    /**
+     * Number of user-visible groups for the active tour. Responsive step
+     * variants (step.variantOf set) collapse into the group of their
+     * anchor step, so the user sees one slot in the counter for the pair
+     * regardless of which variant renders. Non-variant steps each form
+     * their own group.
+     */
+    get displayTotalSteps() {
+        if (!this.activeTour) return 0;
+        return this.activeTour.steps.filter((s) => !s.variantOf).length;
+    }
+
+    /**
+     * 1-based counter for the current step within displayTotalSteps.
+     * If the current step is a variant, the counter reports its anchor's
+     * position so the displayed "Step N of M" stays monotonic across a
+     * responsive skip.
+     */
+    get displayStepNumber() {
+        if (!this.activeTour) return 1;
+        const steps = this.activeTour.steps;
+        const current = steps[this.currentStepIndex];
+        if (!current) return 1;
+        const anchorId = current.variantOf || current.id;
+        let position = 0;
+        for (let i = 0; i < steps.length; i++) {
+            const s = steps[i];
+            if (!s.variantOf) {
+                position += 1;
+                if (s.id === anchorId) return position;
+            }
+        }
+        return position || 1;
+    }
+
     get showStepIndicator() {
-        return this.totalSteps > 1;
+        return this.displayTotalSteps > 1;
     }
 
     get canGoBack() {
@@ -262,12 +304,14 @@ export default class OnboardingCoach extends LightningElement {
             this.stop();
             return;
         }
+        this._navDirection = 'forward';
         this.currentStepIndex += 1;
         this._layoutCurrentStep();
     }
 
     handleBack() {
         if (!this.canGoBack) return;
+        this._navDirection = 'back';
         this.currentStepIndex -= 1;
         this._layoutCurrentStep();
     }
@@ -363,6 +407,16 @@ export default class OnboardingCoach extends LightningElement {
         }
         const el = this._resolver ? this._resolver(step.target) : null;
         if (!el) {
+            // Responsive step pairs (e.g. a wide-viewport "new list button"
+            // step and its narrow-viewport "switch list button" sibling)
+            // both set skipIfTargetMissing. The absent one is deterministic
+            // — no amount of retrying will summon a DOM node that's simply
+            // not rendered at this viewport — so skip fast and let the
+            // resolvable sibling step take over.
+            if (step.skipIfTargetMissing) {
+                this._autoSkipCurrentStep();
+                return;
+            }
             // Target may not be in the DOM yet (e.g., a modal is still
             // animating in). Retry a few times before giving up so tours
             // that open overlays land cleanly.
@@ -412,6 +466,10 @@ export default class OnboardingCoach extends LightningElement {
             rect.top >= vh;
         const isZeroSize = rect.width === 0 && rect.height === 0;
         if (isZeroSize || isOffscreen) {
+            if (step.skipIfTargetMissing) {
+                this._autoSkipCurrentStep();
+                return;
+            }
             this._detachTargetTracking();
             this.placement = 'center';
             this.targetRect = null;
@@ -428,6 +486,47 @@ export default class OnboardingCoach extends LightningElement {
         this.placement = this._resolveBestPlacement(step.placement || 'auto', rect);
         this._computePopoverPosition();
         this._attachTargetTracking(el);
+    }
+
+    /**
+     * Auto-skip the current step when skipIfTargetMissing is set and the
+     * target isn't showable. Travels in the user's current nav direction so
+     * responsive step pairs (e.g. a wide-viewport "Click + to start" step
+     * paired with a narrow-viewport "Tap Switch list to open the panel"
+     * step) feel like a single step — one of them resolves, the other is
+     * silently hopped over.
+     *
+     * If no showable step remains in the nav direction, we finish the tour
+     * (on forward) or stay put on the first step (on back).
+     */
+    _autoSkipCurrentStep() {
+        if (!this.activeTour) return;
+        this._detachTargetTracking();
+        if (this._navDirection === 'forward') {
+            if (this.currentStepIndex >= this.totalSteps - 1) {
+                markCompleted(
+                    this._scopeKey,
+                    this.activeTour.id,
+                    this.activeTour.version || 1
+                );
+                this._emit('complete', { tourId: this.activeTour.id });
+                this.stop();
+                return;
+            }
+            this.currentStepIndex += 1;
+            this._layoutCurrentStep();
+            return;
+        }
+        // direction === 'back'
+        if (this.currentStepIndex <= 0) {
+            // Can't go further back; render the step as center-fallback so
+            // the user isn't looking at an empty overlay.
+            this.placement = 'center';
+            this.targetRect = null;
+            return;
+        }
+        this.currentStepIndex -= 1;
+        this._layoutCurrentStep();
     }
 
     /**

@@ -304,7 +304,7 @@ function _execCommandCopyFallback(text) {
 export const MANAGER_TOURS = [
     {
         id: 'intro',
-        version: 5,
+        version: 6,
         title: 'Welcome tour',
         summary: 'Guided walkthrough of every tour, end to end.',
         icon: 'utility:einstein',
@@ -322,6 +322,10 @@ export const MANAGER_TOURS = [
                 width: 'standard',
                 context: 'no-modal'
             },
+            // Responsive pair — only one of `lists` / `lists-mobile` renders,
+            // depending on which target is visible. On wide viewports the
+            // list column is pinned to the side; on narrow viewports it's
+            // transformed off-canvas and reached via the Switch list button.
             {
                 id: 'lists',
                 title: 'Your question lists',
@@ -329,7 +333,21 @@ export const MANAGER_TOURS = [
                 target: '[data-tour="lists-panel"]',
                 placement: 'right',
                 width: 'standard',
-                context: 'list-selected'
+                context: 'list-selected',
+                skipIfTargetMissing: true
+            },
+            {
+                id: 'lists-mobile',
+                // Responsive variant of `lists` — shares its counter slot.
+                variantOf: 'lists',
+                title: 'Find your lists in Switch list',
+                body:
+                    'Tap Switch list anytime to browse every list, search, or create a new one.',
+                target: '[data-tour="switch-list-button"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'list-selected',
+                skipIfTargetMissing: true
             },
             {
                 id: 'details',
@@ -355,7 +373,7 @@ export const MANAGER_TOURS = [
     },
     {
         id: 'lists',
-        version: 6,
+        version: 7,
         title: 'Creating a list',
         summary: 'Walk through every field in the New List modal.',
         icon: 'utility:list',
@@ -372,6 +390,9 @@ export const MANAGER_TOURS = [
                 width: 'standard',
                 context: 'no-modal'
             },
+            // Responsive pair — only one renders per viewport. On wide
+            // viewports the + sits in the pinned list column; on narrow
+            // viewports the user has to tap Switch list first.
             {
                 id: 'lists-new-button',
                 title: 'Click + to start',
@@ -379,7 +400,21 @@ export const MANAGER_TOURS = [
                 target: '[data-tour="new-list-button"]',
                 placement: 'right',
                 width: 'standard',
-                context: 'no-modal'
+                context: 'no-modal',
+                skipIfTargetMissing: true
+            },
+            {
+                id: 'lists-new-button-mobile',
+                // Responsive variant of `lists-new-button` — shares counter.
+                variantOf: 'lists-new-button',
+                title: 'Open the lists panel first',
+                body:
+                    'On smaller screens, tap Switch list to open your lists — the + button inside creates a new one. We\'ll open the New List modal for you now.',
+                target: '[data-tour="switch-list-button"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'no-modal',
+                skipIfTargetMissing: true
             },
             {
                 id: 'list-modal-name',
