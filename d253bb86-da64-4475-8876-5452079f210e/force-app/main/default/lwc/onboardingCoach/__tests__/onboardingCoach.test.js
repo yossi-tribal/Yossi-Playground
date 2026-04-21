@@ -380,6 +380,160 @@ describe('c-onboarding-coach', () => {
             expect(title.textContent.trim()).toBe('Bye');
         });
 
+        it('auto-skips when the target resolves but sits off-viewport', async () => {
+            // Real-world case: the narrow-viewport list column is parked
+            // off-canvas with transform: translateX(-105%). The target
+            // element is measurable but entirely outside the viewport, so
+            // a skipIfTargetMissing step should hop — not land in the
+            // corner pointing at nothing.
+            const el = create({ tours: RESPONSIVE_TOURS });
+            const offscreenEl = {
+                scrollIntoView: () => {},
+                getBoundingClientRect: () => ({
+                    top: 10,
+                    left: -500,
+                    right: -400,
+                    bottom: 110,
+                    width: 100,
+                    height: 100
+                })
+            };
+            el.setTargetResolver((selector) =>
+                selector === '[data-tour="wide"]'
+                    ? offscreenEl
+                    : selector === '[data-tour="narrow"]'
+                    ? stubElement()
+                    : null
+            );
+            el.startTour('respond');
+            await flush();
+            // intro → wide (offscreen, skipIfTargetMissing) → narrow
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
+            expect(el.shadowRoot.querySelector('.oc-card__title').textContent.trim())
+                .toBe('Narrow');
+        });
+
+        it('falls back to center when the first step auto-skips backward', async () => {
+            // Degenerate case: the user navigates back into a step that is
+            // itself unresolvable AND has nothing earlier to land on. Rather
+            // than leave the user staring at an empty overlay, the coach
+            // renders the step as a center-fallback.
+            const firstStepSkipTour = [
+                {
+                    id: 'firstSkip',
+                    version: 1,
+                    title: 'First skip',
+                    steps: [
+                        {
+                            id: 'head',
+                            title: 'Head',
+                            body: 'Only on wide',
+                            target: '[data-tour="head"]',
+                            skipIfTargetMissing: true
+                        },
+                        { id: 'tail', title: 'Tail', body: 'Bye', placement: 'center' }
+                    ]
+                }
+            ];
+            const el = create({ tours: firstStepSkipTour });
+            // head's target exists so the tour opens on it normally...
+            let headResolves = true;
+            el.setTargetResolver((selector) =>
+                selector === '[data-tour="head"]' && headResolves
+                    ? stubElement()
+                    : null
+            );
+            el.startTour('firstSkip');
+            await flush();
+            // Advance to tail, then make head unresolvable and go Back.
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
+            headResolves = false;
+            el.shadowRoot.querySelector('.oc-btn--secondary').click();
+            await flush();
+            // With nowhere earlier to hop to, the coach stays on head and
+            // the popover still renders (center placement, no spotlight).
+            expect(el.shadowRoot.querySelector('.oc-popover')).not.toBeNull();
+            expect(el.shadowRoot.querySelector('.oc-spotlight')).toBeNull();
+        });
+
+        it('falls back to center (no skip) when target is off-viewport without the flag', async () => {
+            // Same off-viewport rect, but the step does NOT set
+            // skipIfTargetMissing — the coach should keep the step active
+            // and center-fallback the popover, matching legacy behaviour.
+            const tours = [
+                {
+                    id: 'stay',
+                    version: 1,
+                    title: 'Stay put',
+                    steps: [
+                        {
+                            id: 'stuck',
+                            title: 'Stuck',
+                            body: 'Stays',
+                            target: '[data-tour="stuck"]'
+                            // no skipIfTargetMissing
+                        },
+                        { id: 'next', title: 'Next', body: 'Next', placement: 'center' }
+                    ]
+                }
+            ];
+            const el = create({ tours });
+            el.setTargetResolver(() => ({
+                scrollIntoView: () => {},
+                getBoundingClientRect: () => ({
+                    top: 10,
+                    left: -500,
+                    right: -400,
+                    bottom: 110,
+                    width: 100,
+                    height: 100
+                })
+            }));
+            el.startTour('stay');
+            await flush();
+            const title = el.shadowRoot.querySelector('.oc-card__title');
+            expect(title.textContent.trim()).toBe('Stuck');
+            expect(el.shadowRoot.querySelector('.oc-spotlight')).toBeNull();
+        });
+
+        it('finishes the tour when the last step auto-skips forward', async () => {
+            // A tour whose final step is only reachable on a missing
+            // target should finish cleanly (mark completed + tear down)
+            // instead of getting stuck on a broken last step.
+            const trailingSkipTour = [
+                {
+                    id: 'trail',
+                    version: 1,
+                    title: 'Trail',
+                    steps: [
+                        { id: 'intro', title: 'Hi', body: 'Hi', placement: 'center' },
+                        {
+                            id: 'tail',
+                            title: 'Tail',
+                            body: 'Only on wide',
+                            target: '[data-tour="tail"]',
+                            skipIfTargetMissing: true
+                        }
+                    ]
+                }
+            ];
+            const el = create({ tours: trailingSkipTour });
+            const handler = jest.fn();
+            el.addEventListener('complete', handler);
+            el.startTour('trail');
+            await flush();
+            // Advancing from intro triggers the tail step, which skips
+            // because tail is unresolvable — the tour should finish.
+            el.shadowRoot.querySelector('.oc-btn--primary').click();
+            await flush();
+            expect(handler).toHaveBeenCalledTimes(1);
+            expect(handler.mock.calls[0][0].detail).toEqual({ tourId: 'trail' });
+            expect(el.shadowRoot.querySelector('.oc-popover')).toBeNull();
+            expect(getStatus(buildScopeKey(USER, COMPONENT), 'trail').completed).toBe(true);
+        });
+
         it('variantOf collapses paired responsive steps into one counter slot', async () => {
             // Mark the narrow step as a variant of the wide step — they now
             // share a slot in the "Step N of M" counter regardless of which
