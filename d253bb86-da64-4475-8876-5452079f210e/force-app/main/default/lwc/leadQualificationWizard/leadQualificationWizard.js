@@ -1,11 +1,14 @@
 import { LightningElement, api, wire } from 'lwc';
 import { getRecord, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import USER_ID from '@salesforce/user/Id';
 import getLeadQualificationData from '@salesforce/apex/LQW_LeadQualificationController.getLeadQualificationData';
 import saveQuestionResponse from '@salesforce/apex/LQW_LeadQualificationController.saveQuestionResponse';
 import getResponseHistory from '@salesforce/apex/LQW_LeadQualificationController.getResponseHistory';
+import wizardTours from './tours';
 
 const LEAD_FIELDS = ['Lead.Id', 'Lead.Status'];
+const AUTO_RUN_TOUR_ID = 'intro';
 
 export default class LeadQualificationWizard extends LightningElement {
     @api recordId; // Lead record ID from the page
@@ -33,6 +36,12 @@ export default class LeadQualificationWizard extends LightningElement {
     responseHistory = [];
     isLoadingHistory = false;
     expandedSections = new Set();
+
+    // Onboarding coach wiring. tours are static from tours.js.
+    // _coachBootstrapped ensures we only set the resolver + trigger autorun once.
+    tours = wizardTours;
+    currentUserId = USER_ID;
+    _coachBootstrapped = false;
 
     // Computed properties
     get hasError() {
@@ -263,6 +272,40 @@ export default class LeadQualificationWizard extends LightningElement {
     // Lifecycle hooks
     connectedCallback() {
         this.loadQualificationData();
+    }
+
+    renderedCallback() {
+        // Bootstrap the onboarding coach once the wizard has settled on real
+        // content (hasData or an empty state). We wait for hasData so the
+        // intro tour's target selectors actually resolve; if the wizard is
+        // still loading or in an empty state, we skip.
+        if (this._coachBootstrapped) return;
+        if (!this.hasData) return;
+        const coach = this.refs?.coach;
+        if (!coach) return;
+        this._coachBootstrapped = true;
+        coach.setTargetResolver((selector) => {
+            if (!selector) return null;
+            try {
+                if (selector === '__dealbreaker_question__') {
+                    const flag = this.template.querySelector('.dealbreaker-explanation');
+                    return flag ? flag.closest('.question-row') : null;
+                }
+                return this.template.querySelector(selector);
+            } catch (e) {
+                return null;
+            }
+        });
+        coach.autoStartIfUnseen(AUTO_RUN_TOUR_ID);
+    }
+
+    // Handle tour selection from the onboarding menu dropdown.
+    handleTourSelect(event) {
+        const tourId = event?.detail?.tourId;
+        if (!tourId) return;
+        const coach = this.refs?.coach;
+        if (!coach) return;
+        coach.startTour(tourId, { force: true });
     }
 
     // Load qualification data from Apex

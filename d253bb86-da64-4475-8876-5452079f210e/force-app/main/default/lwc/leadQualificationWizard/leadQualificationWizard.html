@@ -4,6 +4,16 @@
         <div class="wizard-header">
             <lightning-icon icon-name="utility:magicwand" size="small" class="header-icon"></lightning-icon>
             <span class="header-title">Lead Qualification Wizard</span>
+            <div class="wizard-header-spacer"></div>
+            <template if:true={hasData}>
+                <c-onboarding-menu
+                    class="wizard-header-menu"
+                    component-name="leadQualificationWizard"
+                    user-id={currentUserId}
+                    tours={tours}
+                    ontourselect={handleTourSelect}
+                ></c-onboarding-menu>
+            </template>
         </div>
 
         <!-- Loading State -->
@@ -109,7 +119,7 @@
             <div class="wizard-content">
                 <!-- Top Section with Lead Quality and Recommended Action -->
                 <div class="top-info-section">
-                    <div class={infoLeftClass}>
+                    <div class={infoLeftClass} data-tour="lead-quality">
                         <div class="info-label">
                             Lead Quality
                             <lightning-helptext
@@ -119,14 +129,14 @@
                         </div>
                         <div class={rankValueClass}>{leadRank}</div>
                     </div>
-                    <div class="info-right">
+                    <div class="info-right" data-tour="recommended-action">
                         <div class="info-label">Recommended Action</div>
                         <div class="info-value">{recommendationText}</div>
                     </div>
                 </div>
 
                 <!-- Progress Bar -->
-                <div class="progress-section">
+                <div class="progress-section" data-tour="progress">
                     <div class="progress-header">
                         <span class="progress-label">Progress</span>
                         <span class="progress-percentage">{progressPercentage}%</span>
@@ -158,7 +168,7 @@
                 </template>
 
                 <!-- Questions Section -->
-                <div class="questions-section">
+                <div class="questions-section" data-tour="questions">
                     <h2 class="section-title">Qualification Questions</h2>
                     <p class="section-subtitle">Answer each question to qualify this lead</p>
 
@@ -385,6 +395,20 @@
                 </div>
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Onboarding coach: overlay walkthrough engine. Tours + targets are
+             defined in tours.js; host JS wires the resolver + auto-start.
+             Only mounts once a Question List with questions is loaded — there's
+             nothing meaningful to walk through otherwise. -->
+        <template if:true={hasData}>
+            <c-onboarding-coach
+                lwc:ref="coach"
+                class="wizard-coach"
+                component-name="leadQualificationWizard"
+                user-id={currentUserId}
+                tours={tours}
+            ></c-onboarding-coach>
         </template>
 
         <!-- Watermark -->
