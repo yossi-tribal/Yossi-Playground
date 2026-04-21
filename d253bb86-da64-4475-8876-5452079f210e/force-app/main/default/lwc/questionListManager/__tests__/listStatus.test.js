@@ -2,7 +2,7 @@ import {
     listHasQuestions,
     canListGoLive,
     listActivationBlockReason
-} from '../listStatus';
+} from '../questionListManager';
 
 describe('listHasQuestions', () => {
     it('returns false for null / undefined', () => {

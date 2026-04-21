@@ -2,14 +2,6 @@ import { LightningElement, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import USER_ID from '@salesforce/user/Id';
-import managerTours from './tours';
-import { legacyActionToContext, advanceChain } from './tourOrchestration';
-import { buildAdminRequestText, copyTextToClipboard } from './adminRequest';
-import {
-    listHasQuestions,
-    canListGoLive,
-    listActivationBlockReason
-} from './listStatus';
 import getAllQuestionLists from '@salesforce/apex/LQW_QuestionListManagerCtrl.getAllQuestionLists';
 import saveQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.saveQuestionList';
 import deleteQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.deleteQuestionList';
@@ -22,6 +14,648 @@ import getDealbreakerValuePicklistValues from '@salesforce/apex/LQW_QuestionList
 import detectCriteriaConflicts from '@salesforce/apex/LQW_QuestionListManagerCtrl.detectCriteriaConflicts';
 import reorderQuestions from '@salesforce/apex/LQW_QuestionListManagerCtrl.reorderQuestions';
 import createDefaultQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.createDefaultQuestionList';
+
+
+// ============================================================================
+// Inlined helpers
+//
+// These helpers previously lived in sibling files (./tours, ./tourOrchestration,
+// ./adminRequest, ./listStatus) but Tribal's deploy packager only deploys the
+// canonical <bundleName>.{js,html,css,js-meta.xml} files for a
+// LightningComponentBundle and silently drops the rest, which caused
+// LWC1011 "failed to resolve import ./tours" at deploy time. Inlining keeps
+// the bundle self-contained while preserving testability: tests import the
+// named exports directly from questionListManager.js (see __tests__/).
+// ============================================================================
+
+// ---- listStatus ------------------------------------------------------------
+
+
+/**
+ * Returns true when the given list has at least one question that could
+ * actually be asked. Prefers `activeQuestions` (server-provided) and falls
+ * back to `totalQuestions` for older payload shapes so existing lists
+ * aren't accidentally locked out by a schema mismatch.
+ *
+ * @param {object|null|undefined} list
+ * @returns {boolean}
+ */
+export function listHasQuestions(list) {
+    if (!list) return false;
+    if (typeof list.activeQuestions === 'number') {
+        return list.activeQuestions > 0;
+    }
+    return (typeof list.totalQuestions === 'number' ? list.totalQuestions : 0) > 0;
+}
+
+/**
+ * Returns true when the list is allowed to go live. A list can go live when:
+ *   1. it has at least one question, AND
+ *   2. it has assignment criteria configured OR is the default-fallback list.
+ *
+ * @param {object|null|undefined} list
+ * @param {boolean} hasCriteria whether the list has assignment criteria
+ * @returns {boolean}
+ */
+export function canListGoLive(list, hasCriteria) {
+    if (!list) return false;
+    if (!listHasQuestions(list)) return false;
+    return Boolean(hasCriteria) || Boolean(list.isDefault);
+}
+
+/**
+ * When a list can't go live, tells you which guard is tripping so callers
+ * can surface a precise error message instead of a generic "can't activate".
+ * Returns null when the list *can* go live.
+ *
+ *   'no-list'      — no list passed (defensive)
+ *   'no-questions' — list has zero questions
+ *   'no-criteria'  — list has questions but no criteria (and isn't default)
+ *
+ * @param {object|null|undefined} list
+ * @param {boolean} hasCriteria
+ * @returns {'no-list'|'no-questions'|'no-criteria'|null}
+ */
+export function listActivationBlockReason(list, hasCriteria) {
+    if (!list) return 'no-list';
+    if (!listHasQuestions(list)) return 'no-questions';
+    if (!hasCriteria && !list.isDefault) return 'no-criteria';
+    return null;
+}
+
+// ---- tourOrchestration -----------------------------------------------------
+
+
+const LEGACY_ACTION_MAP = {
+    openListModal: 'list-modal',
+    openQuestionModal: 'question-modal',
+    selectFirstListIfNone: 'list-selected'
+};
+
+/**
+ * Map the legacy `step.action` metadata to the current `context` vocabulary.
+ * Returns null when the action is unset or unrecognized; callers should treat
+ * null as "no onEnter hook needed — the step just renders".
+ */
+export function legacyActionToContext(action) {
+    if (!action) return null;
+    return LEGACY_ACTION_MAP[action] || null;
+}
+
+/**
+ * Decide which tour (if any) should run after `finishedId` completes, and
+ * return the updated chain state. The caller owns the state — this function
+ * is pure.
+ *
+ * First completion: pass `{ activeChain: null, chainIndex: 0 }`. If the
+ * finished tour declares a `chain: [...]`, the first entry is returned as
+ * `nextId` and the chain is initialised. Subsequent completions advance
+ * the index until the chain is exhausted, at which point the returned
+ * state is reset and `nextId` is null.
+ *
+ * An unknown tour id, a tour with no `chain`, or an empty chain all return
+ * `{ state: cleared, nextId: null }` — there is nothing to chain into.
+ */
+export function advanceChain(state, finishedId, tours) {
+    const cleared = { activeChain: null, chainIndex: 0 };
+    if (!finishedId) return { state: cleared, nextId: null };
+
+    let activeChain =
+        state && Array.isArray(state.activeChain) ? state.activeChain : null;
+    let chainIndex =
+        state && Number.isInteger(state.chainIndex) ? state.chainIndex : 0;
+
+    if (!activeChain) {
+        const tour = Array.isArray(tours)
+            ? tours.find((t) => t && t.id === finishedId)
+            : null;
+        const chain = tour && Array.isArray(tour.chain) ? tour.chain : null;
+        if (!chain || chain.length === 0) {
+            return { state: cleared, nextId: null };
+        }
+        // Copy so we never mutate the source tour definition.
+        activeChain = chain.slice();
+        chainIndex = 0;
+    } else {
+        chainIndex += 1;
+    }
+
+    const nextId = activeChain[chainIndex] || null;
+    if (!nextId) {
+        return { state: cleared, nextId: null };
+    }
+    return { state: { activeChain, chainIndex }, nextId };
+}
+
+// ---- adminRequest ----------------------------------------------------------
+
+
+/**
+ * Build the admin handoff text block from an explicit context object.
+ *
+ * The component passes everything it already derives for the UI so this
+ * function stays stateless and free of LWC ceremony. Callers should pass:
+ *   - list:                the selectedList object (or null)
+ *   - hasCriteria:         boolean, from the component's hasAssignmentCriteria
+ *   - parsedCriteriaRules: array of rule pills with displayOperator/displayValue
+ *   - scoringTiers:        array of {label, threshold, recommendation}
+ *   - formattedCriteria:   fallback criteria string if parsed rules are empty
+ *
+ * Returns a plain-text string ready to paste into email/Slack/Jira.
+ */
+export function buildAdminRequestText({
+    list = {},
+    hasCriteria = false,
+    parsedCriteriaRules = [],
+    scoringTiers = [],
+    formattedCriteria = ''
+} = {}) {
+    const safeList = list || {};
+    const lines = [];
+
+    lines.push('Lead Qualification List — Admin Request');
+    lines.push('========================================');
+    lines.push('');
+    lines.push(`List Name:   ${safeList.listName || '(unnamed)'}`);
+    lines.push(`List ID:     ${safeList.listId || '(unknown)'}`);
+    if (safeList.description) {
+        lines.push(`Description: ${safeList.description}`);
+    }
+
+    const statusBits = [];
+    statusBits.push(safeList.isActive ? 'Active' : 'Inactive');
+    if (safeList.isDefault) statusBits.push('Default Fallback');
+    lines.push(`Status:      ${statusBits.join(' • ')}`);
+
+    let currentAssignment;
+    if (safeList.isDefault) {
+        currentAssignment = 'Default fallback list (assigned when no other list matches)';
+    } else if (hasCriteria) {
+        currentAssignment = 'Criteria-based (see existing rules below)';
+    } else {
+        currentAssignment = 'None configured yet';
+    }
+    lines.push(`Current Assignment: ${currentAssignment}`);
+    lines.push('');
+
+    lines.push('Questions & Scoring');
+    lines.push('-------------------');
+    lines.push(`Active questions:      ${safeList.activeQuestions ?? 0} of ${safeList.totalQuestions ?? 0}`);
+    lines.push(`Total possible points: ${safeList.totalPossiblePoints ?? 0}`);
+    lines.push(`Dealbreakers:          ${safeList.dealbreakerCount ?? 0}`);
+
+    const tiers = Array.isArray(scoringTiers) ? scoringTiers : [];
+    if (tiers.length) {
+        lines.push('');
+        lines.push('Scoring tiers:');
+        tiers.forEach((tier) => {
+            if (!tier) return;
+            lines.push(`  • ${tier.label}: ${tier.threshold}+ pts → ${tier.recommendation}`);
+        });
+    }
+    lines.push('');
+
+    if (hasCriteria) {
+        lines.push('Existing Assignment Criteria');
+        lines.push('----------------------------');
+        const rules = Array.isArray(parsedCriteriaRules) ? parsedCriteriaRules : [];
+        if (rules.length) {
+            rules.forEach((rule) => {
+                if (!rule) return;
+                lines.push(`  • ${rule.label} ${rule.displayOperator} ${rule.displayValue}`);
+            });
+        } else {
+            lines.push(formattedCriteria || '(unparseable)');
+        }
+        lines.push('');
+    }
+
+    lines.push('Proposed Assignment Criteria');
+    lines.push('----------------------------');
+    lines.push('[Replace this line with the criteria you want, e.g.');
+    lines.push(' Industry equals "SaaS" AND Annual Revenue greater than 1000000]');
+    lines.push('');
+    lines.push('Additional Notes');
+    lines.push('----------------');
+    lines.push('[Anything else the admin should know — context, urgency, etc.]');
+    lines.push('');
+    lines.push('Thanks!');
+
+    return lines.join('\n');
+}
+
+/**
+ * Attempt to copy `text` to the clipboard, falling back to a hidden
+ * textarea + document.execCommand when the async Clipboard API is
+ * unavailable or blocked (older browsers, some Salesforce contexts).
+ *
+ * Returns true on success. Takes optional `deps` to make the whole
+ * thing testable without touching real DOM clipboard APIs:
+ *   - deps.clipboardWrite: async (text) => void
+ *   - deps.fallbackCopy:   (text) => boolean
+ */
+export async function copyTextToClipboard(text, deps = {}) {
+    const clipboardWrite =
+        deps.clipboardWrite
+        || (typeof navigator !== 'undefined'
+            && navigator.clipboard
+            && navigator.clipboard.writeText
+            && ((t) => navigator.clipboard.writeText(t)));
+
+    if (clipboardWrite) {
+        try {
+            await clipboardWrite(text);
+            return true;
+        } catch (err) {
+            // fall through to the textarea fallback
+        }
+    }
+
+    const fallback = deps.fallbackCopy || _execCommandCopyFallback;
+    try {
+        return Boolean(fallback(text));
+    } catch (err) {
+        return false;
+    }
+}
+
+function _execCommandCopyFallback(text) {
+    if (typeof document === 'undefined') return false;
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    let ok = false;
+    try {
+        ok = document.execCommand && document.execCommand('copy');
+    } catch (e) {
+        ok = false;
+    }
+    document.body.removeChild(textarea);
+    return ok;
+}
+
+// ---- tours (MANAGER_TOURS) -------------------------------------------------
+
+
+export const MANAGER_TOURS = [
+    {
+        id: 'intro',
+        version: 5,
+        title: 'Welcome tour',
+        summary: 'Guided walkthrough of every tour, end to end.',
+        icon: 'utility:einstein',
+        // The Welcome tour chains into every other tour automatically: once
+        // this tour's steps end, the host starts each of these in order.
+        // Skipping at any point aborts the chain.
+        chain: ['lists', 'scoring', 'questions', 'lifecycle'],
+        steps: [
+            {
+                id: 'welcome',
+                title: 'Question List Manager',
+                body:
+                    'Build the qualification playbook your reps see in the wizard. We\'ll walk through everything — lists, scoring, questions, and going live — one tour at a time.',
+                placement: 'center',
+                width: 'standard',
+                context: 'no-modal'
+            },
+            {
+                id: 'lists',
+                title: 'Your question lists',
+                body: 'Each playbook is a list. Create, switch, or search on the left.',
+                target: '[data-tour="lists-panel"]',
+                placement: 'right',
+                width: 'standard',
+                context: 'list-selected'
+            },
+            {
+                id: 'details',
+                title: 'List details',
+                body:
+                    'When you pick a list, its rules, scoring, and questions show here. Below: Assignment Rules, Scoring Guide, and the Question Overview.',
+                target: '[data-tour="list-header"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'list-selected'
+            },
+            {
+                id: 'replay',
+                title: 'Replay anytime',
+                body:
+                    'Click this info icon to replay any tour. Hit Next and we\'ll dive into Creating a list, Scoring, Questions, and Going Live — back-to-back.',
+                target: '[data-tour="info-icon"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'list-selected'
+            }
+        ]
+    },
+    {
+        id: 'lists',
+        version: 6,
+        title: 'Creating a list',
+        summary: 'Walk through every field in the New List modal.',
+        icon: 'utility:list',
+        // When this tour ends (finish or skip), host should close any modal
+        // it opened so the user isn't left staring at an empty draft.
+        closeModalOnEnd: 'list',
+        steps: [
+            {
+                id: 'lists-intro',
+                title: 'A list is a playbook',
+                body:
+                    'Each list has a name, point thresholds, and recommended actions. We\'ll open the New List modal so you can see them.',
+                placement: 'center',
+                width: 'standard',
+                context: 'no-modal'
+            },
+            {
+                id: 'lists-new-button',
+                title: 'Click + to start',
+                body: 'This is how you create a new list at any time.',
+                target: '[data-tour="new-list-button"]',
+                placement: 'right',
+                width: 'standard',
+                context: 'no-modal'
+            },
+            {
+                id: 'list-modal-name',
+                title: 'Give it a name',
+                body: 'Pick something your team will recognize — e.g. "UK Enterprise Leads".',
+                target: '[data-tour="list-modal-name"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'list-modal'
+            },
+            {
+                id: 'list-modal-high',
+                title: 'High Quality tier',
+                body:
+                    'Set the minimum points for a hot lead, the label reps see, and what they should do (e.g. convert now).',
+                target: '[data-tour="list-modal-high-tier"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'list-modal'
+            },
+            {
+                id: 'list-modal-medium',
+                title: 'Medium Quality tier',
+                body:
+                    'The warm zone — between the High threshold above and this minimum. Usually routed to a manager for review.',
+                target: '[data-tour="list-modal-medium-tier"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'list-modal'
+            },
+            {
+                id: 'list-modal-low',
+                title: 'Low Quality tier',
+                body:
+                    'Everything below Medium. Common actions: Nurture, or Do Not Convert.',
+                target: '[data-tour="list-modal-low-tier"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'list-modal'
+            },
+            {
+                id: 'list-modal-finish',
+                title: 'Hit Save to create the list',
+                body:
+                    'You can edit thresholds and labels later from the list\'s detail panel. Closing this walkthrough discards the draft.',
+                target: '[data-tour="list-modal-save"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'list-modal'
+            }
+        ]
+    },
+    {
+        id: 'scoring',
+        version: 4,
+        title: 'Scoring thresholds',
+        summary: 'Walk every field in the Scoring Guide editor.',
+        icon: 'utility:rating',
+        // When this tour ends (finish or skip), host should exit scoring edit
+        // mode if the tour was the one that opened it.
+        closeScoringEditOnEnd: true,
+        steps: [
+            {
+                id: 'scoring-what',
+                title: 'Points add up to a tier',
+                body:
+                    'Every active question contributes points. Thresholds decide where a lead lands: Low, Medium, or High.',
+                target: '[data-tour="scoring-guide"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'list-selected'
+            },
+            {
+                id: 'scoring-edit',
+                title: 'Hit Edit to tune the guide',
+                body:
+                    'Edit lets you change thresholds, the labels reps see, and the recommended action for each tier. We\'ll open it for you next.',
+                target: '[data-tour="scoring-edit-button"]',
+                placement: 'left',
+                width: 'standard',
+                context: 'list-selected'
+            },
+            {
+                id: 'scoring-min-score',
+                title: 'Minimum Score sets the floor',
+                body:
+                    'A lead scoring this or higher lands in the High tier. Pick it based on the Active Points total below — e.g. if your questions add up to 10, a High floor of 7 means "answered most of the high-value questions right".',
+                target: '[data-tour="scoring-edit-high-min"]',
+                placement: 'bottom',
+                width: 'wide',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-label',
+                title: 'Display Label is what reps see',
+                body:
+                    'The badge in the wizard for this tier — "Hot Lead", "Qualified", "Priority". Short and specific beats generic.',
+                target: '[data-tour="scoring-edit-high-label"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-recommendation',
+                title: 'Recommendation tells them what to do',
+                body:
+                    'The suggested action rendered alongside the badge — "Convert to Opportunity", "Book a demo", "Schedule discovery". This is the nudge that closes the loop.',
+                target: '[data-tour="scoring-edit-high-reco"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-low-tier',
+                title: 'Low has no minimum',
+                body:
+                    'Low is the catch-all: anything below the Medium threshold lands here. Only Label and Recommendation are editable — common choices are "Nurture" or "Do Not Convert".',
+                target: '[data-tour="scoring-edit-low-tier"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'scoring-editing'
+            },
+            {
+                id: 'scoring-save',
+                title: 'Save Changes to apply',
+                body:
+                    'Save updates this list\'s guide immediately. Closing this walkthrough keeps your current values — nothing is saved until you click here yourself.',
+                target: '[data-tour="scoring-edit-save"]',
+                placement: 'left',
+                width: 'standard',
+                context: 'scoring-editing'
+            }
+        ]
+    },
+    {
+        id: 'questions',
+        version: 7,
+        title: 'Building a question',
+        summary: 'Walk through every field in the New Question modal.',
+        icon: 'utility:questions_and_answers',
+        closeModalOnEnd: 'question',
+        steps: [
+            {
+                id: 'questions-intro',
+                title: 'A question is a scorable prompt',
+                body:
+                    'Reps answer each one in the wizard. We\'ll open the New Question modal so you can see every field.',
+                placement: 'center',
+                width: 'standard',
+                context: 'list-selected'
+            },
+            {
+                id: 'questions-new-row',
+                title: 'Add a new question',
+                body:
+                    'The "Add New Question" row at the bottom of any list opens the modal. We\'ll open it for you next.',
+                target: '[data-tour="new-question-row"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'list-selected'
+            },
+            {
+                id: 'question-modal-text',
+                title: 'Write the question',
+                body:
+                    'Keep it clear and Yes/No-friendly — e.g. "Does the lead have budget confirmed?".',
+                target: '[data-tour="question-modal-text"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'question-modal'
+            },
+            {
+                id: 'question-modal-score',
+                title: 'Points if answered the right way',
+                body: 'How much this question contributes to the total score.',
+                target: '[data-tour="question-modal-score"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'question-modal'
+            },
+            {
+                id: 'question-modal-earning',
+                title: 'Which answer earns the points',
+                body:
+                    'Yes, No, or Both. "Both" means either answer earns the points — useful when you just need confirmation.',
+                target: '[data-tour="question-modal-earning"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'question-modal'
+            },
+            {
+                id: 'question-modal-active',
+                title: 'Only Active questions reach reps',
+                body:
+                    'The wizard skips inactive questions, so untoggle to retire one without deleting it (history is kept). Inactive questions don\'t count toward the score either.',
+                target: '[data-tour="question-modal-active"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'question-modal'
+            },
+            {
+                id: 'question-modal-dealbreaker',
+                title: 'Dealbreaker (optional)',
+                body:
+                    'Toggle this on to mark the question as a dealbreaker — a specific answer will then auto-disqualify the lead.',
+                target: '[data-tour="question-modal-dealbreaker"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'question-modal'
+            },
+            {
+                id: 'question-modal-dealbreaker-value',
+                title: 'Pick the disqualifying answer',
+                body:
+                    'This is the answer that triggers disqualification. If a rep picks it the lead is marked Not Qualified — they get a confirmation prompt first.',
+                target: '[data-tour="question-modal-dealbreaker-value"]',
+                placement: 'top',
+                width: 'standard',
+                // Forces Is Dealbreaker on so this combobox is rendered.
+                context: 'question-modal-dealbreaker'
+            },
+            {
+                id: 'question-modal-finish',
+                title: 'Save to add it to the list',
+                body:
+                    'The new question appears in this list\'s table and rolls into your scoring. Closing this walkthrough discards the draft.',
+                target: '[data-tour="question-modal-save"]',
+                placement: 'top',
+                width: 'standard',
+                context: 'question-modal'
+            }
+        ]
+    },
+    {
+        id: 'lifecycle',
+        version: 1,
+        title: 'Going Live',
+        summary: 'How a list reaches reps in the wizard.',
+        icon: 'utility:broadcast',
+        steps: [
+            {
+                id: 'lifecycle-intro',
+                title: 'Lists go Live for the wizard',
+                body:
+                    'Reps only see Live lists in the wizard. Going Live takes three things: questions, scoring, and assignment rules.',
+                placement: 'center',
+                width: 'standard',
+                context: 'list-selected'
+            },
+            {
+                id: 'lifecycle-assignment',
+                title: 'Assignment rules come from Tribal',
+                body:
+                    'Who-gets-which-list is configured in code by Tribal — not editable here. The badge tells you the state: Criteria-Based, Default Fallback, or No Criteria Set.',
+                target: '[data-tour="assignment-rules"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'list-with-rules-expanded'
+            },
+            {
+                id: 'lifecycle-live',
+                title: 'Flip Live to publish',
+                body:
+                    'Only Live lists appear in the wizard. A list can\'t go Live without assignment rules (unless it\'s the Default Fallback) — ask Tribal to wire them up first.',
+                target: '[data-tour="list-status-toggle"]',
+                placement: 'bottom',
+                width: 'standard',
+                context: 'list-with-rules-expanded'
+            }
+        ]
+    }
+];
+
+
+// Internal alias so the class code below can keep using the existing name.
+const managerTours = MANAGER_TOURS;
 
 export default class QuestionListManager extends LightningElement {
     @track questionLists = [];

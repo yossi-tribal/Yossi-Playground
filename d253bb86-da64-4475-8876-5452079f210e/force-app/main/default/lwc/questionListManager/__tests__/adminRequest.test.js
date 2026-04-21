@@ -5,7 +5,7 @@
  *   - buildAdminRequestText(context): pure string builder
  *   - copyTextToClipboard(text, deps): async copy w/ fallback
  */
-import { buildAdminRequestText, copyTextToClipboard } from '../adminRequest';
+import { buildAdminRequestText, copyTextToClipboard } from '../questionListManager';
 
 // Canonical happy-path list used in most cases. Tests override fields
 // as needed. The admin handoff text should surface identity + state.

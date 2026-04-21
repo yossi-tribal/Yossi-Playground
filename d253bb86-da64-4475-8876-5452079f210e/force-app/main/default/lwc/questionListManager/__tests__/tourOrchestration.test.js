@@ -2,7 +2,7 @@
  * Tests for the Question List Manager tour orchestration helpers.
  * Pure functions — no LWC mounting required.
  */
-import { legacyActionToContext, advanceChain } from '../tourOrchestration';
+import { legacyActionToContext, advanceChain } from '../questionListManager';
 
 describe('legacyActionToContext', () => {
     it('returns null when no action is set', () => {
