@@ -16,6 +16,21 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
 
     private static Boolean hasAutoCreatedExample = false;
 
+    // Name of the Custom Permission that, when granted to a user, makes this
+    // handler skip all work for any Lead DML that user performs. Used by data
+    // loaders, integration users, and migration scripts that should not trigger
+    // auto-assignment of Question Lists. Grant via the LQW_Bypass_Auto_Assignment
+    // permission set.
+    @TestVisible
+    private static final String BYPASS_CUSTOM_PERMISSION = 'LQW_Bypass_Lead_Assignment';
+
+    // Test-only override for the bypass check. When null (the default), the
+    // real FeatureManagement.checkPermission call is used. Tests can set this
+    // to true or false to exercise either branch without constructing a
+    // permission-set assignment for a System.runAs test user.
+    @TestVisible
+    private static Boolean bypassOverrideForTest = null;
+
     /**
      * @description Main handler method for after insert/update events
      * @param newLeads List of new/updated Lead records
@@ -23,6 +38,12 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
      */
     public void handleAfterInsertUpdate(List<Lead> newLeads, Map<Id, Lead> oldLeadMap) {
         try {
+            // Opt-out: skip entirely if the current user holds the bypass
+            // custom permission (e.g. data loader / integration user).
+            if (isAssignmentBypassed()) {
+                return;
+            }
+
             // Auto-create example list if no lists exist (one-time operation)
             ensureExampleListExists();
 
@@ -85,6 +106,17 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
             System.debug('Error in LeadAssignmentTriggerHandler: ' + e.getMessage());
             // Continue execution - don't block lead creation/update
         }
+    }
+
+    /**
+     * @description Returns true when the current user holds the bypass custom
+     * permission, or a test has explicitly set the override.
+     */
+    private static Boolean isAssignmentBypassed() {
+        if (bypassOverrideForTest != null) {
+            return bypassOverrideForTest;
+        }
+        return FeatureManagement.checkPermission(BYPASS_CUSTOM_PERMISSION);
     }
 
     /**

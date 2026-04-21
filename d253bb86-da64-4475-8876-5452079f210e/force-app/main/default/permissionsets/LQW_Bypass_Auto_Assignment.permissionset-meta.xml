@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>LQW Bypass Auto Assignment</label>
+    <description>Grants the LQW_Bypass_Lead_Assignment custom permission. Skips auto-assignment of Question Lists on Lead insert/update. Assign to data-loader or integration users, or temporarily during migrations. Not for end users.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>LQW_Bypass_Lead_Assignment</name>
+    </customPermissions>
+</PermissionSet>

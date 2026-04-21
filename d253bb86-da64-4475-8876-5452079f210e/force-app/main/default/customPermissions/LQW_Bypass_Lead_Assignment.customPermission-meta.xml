@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Skips the LQW auto-assignment trigger for users holding this permission. For data loaders, integrations, and migrations. Assign via the LQW_Bypass_Auto_Assignment permission set; do not grant broadly.</description>
+    <isLicensed>false</isLicensed>
+    <label>LQW: Bypass Lead Assignment Trigger</label>
+</CustomPermission>
