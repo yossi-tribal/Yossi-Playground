@@ -1896,6 +1896,50 @@ c-onboarding-coach.wizard-coach {
     -webkit-user-select: none;
 }
 
+/* History modal body — cap height so long histories always scroll inside
+   the modal rather than letting the modal grow past the viewport. */
+.slds-modal .slds-modal__content {
+    max-height: calc(100vh - 12rem);
+    overflow-y: auto;
+}
+
+/* On phones, the change + history modals become a full-screen sheet with
+   a sticky header/footer and a scrollable body. This matches the modal
+   treatment in the list manager for a consistent product feel. */
+@media (max-width: 600px) {
+    .slds-modal .slds-modal__container {
+        width: 100vw;
+        max-width: 100vw;
+        min-width: 0;
+        height: 100dvh;
+        max-height: 100dvh;
+        margin: 0;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .slds-modal .slds-modal__header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: white;
+    }
+
+    .slds-modal .slds-modal__content {
+        flex: 1 1 auto;
+        max-height: none;
+        overflow-y: auto;
+    }
+
+    .slds-modal .slds-modal__footer {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        border-top: 1px solid var(--lqw-neutral-200);
+    }
+}
+
 /* Confetti Celebration Animation 🎉
    Note: Confetti is now dynamically injected into document.body via JS
    using the Web Animations API to escape Shadow DOM containment.

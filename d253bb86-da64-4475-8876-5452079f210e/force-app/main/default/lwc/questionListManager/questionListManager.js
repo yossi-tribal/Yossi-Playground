@@ -94,6 +94,11 @@ export default class QuestionListManager extends LightningElement {
     _activeChain = null;
     _chainIndex = 0;
 
+    // On narrow viewports the list panel is presented as an off-canvas
+    // drawer instead of a persistent sidebar. The CSS handles layout;
+    // this flag just toggles the class that reveals the drawer.
+    @track _mobileListOpen = false;
+
     get tours() {
         return managerTours.map((tour) => ({
             ...tour,
@@ -573,6 +578,7 @@ export default class QuestionListManager extends LightningElement {
                 (this.draggedQuestionId === question.questionId ? ' dragging' : '') +
                 (this.dragOverQuestionId === question.questionId ? ' drag-over' : '') +
                 (!question.isActive ? ' inactive-row' : '');
+            displayQuestion.cardClass = 'question-card' + (!question.isActive ? ' question-card-inactive' : '');
             displayQuestion.numberBadgeClass = question.isActive ? 'question-number-badge' : 'question-number-badge-inactive';
 
             return displayQuestion;
@@ -842,6 +848,23 @@ export default class QuestionListManager extends LightningElement {
     handleSelectList(event) {
         const listId = event.currentTarget.dataset.listId;
         this.selectedList = this.questionLists.find(list => list.listId === listId);
+        // On mobile the sidebar is a drawer; picking a list should dismiss
+        // it so the detail view is immediately visible.
+        this._mobileListOpen = false;
+    }
+
+    handleOpenMobileList() {
+        this._mobileListOpen = true;
+    }
+
+    handleCloseMobileList() {
+        this._mobileListOpen = false;
+    }
+
+    get managerContainerClass() {
+        return this._mobileListOpen
+            ? 'manager-container manager-container--list-drawer-open'
+            : 'manager-container';
     }
 
     handleNewList() {

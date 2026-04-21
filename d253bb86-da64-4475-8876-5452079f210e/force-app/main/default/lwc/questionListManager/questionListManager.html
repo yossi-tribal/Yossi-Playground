@@ -1,5 +1,5 @@
 <template>
-    <div class="manager-container">
+    <div class={managerContainerClass}>
         <!-- Header -->
         <div class="manager-header">
             <lightning-icon icon-name="utility:einstein" size="small" class="header-icon" alternative-text="Question lists"></lightning-icon>
@@ -74,9 +74,14 @@
                         <!-- List Header -->
                         <div class="list-panel-header">
                             <h2 class="list-panel-title">Question Lists</h2>
-                            <button class="add-list-button" onclick={handleNewList} title="New List" data-tour="new-list-button">
-                                <lightning-icon icon-name="utility:add" size="xx-small"></lightning-icon>
-                            </button>
+                            <div class="list-panel-header-actions">
+                                <button class="add-list-button" onclick={handleNewList} title="New List" data-tour="new-list-button">
+                                    <lightning-icon icon-name="utility:add" size="xx-small"></lightning-icon>
+                                </button>
+                                <button class="mobile-drawer-close" onclick={handleCloseMobileList} title="Close list picker" aria-label="Close list picker">
+                                    <lightning-icon icon-name="utility:close" size="xx-small"></lightning-icon>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Search -->
@@ -124,6 +129,10 @@
                         <!-- Detail Header -->
                         <div class="detail-header" data-tour="list-header">
                             <div class="detail-header-content">
+                                <button class="mobile-switch-list" onclick={handleOpenMobileList} aria-label="Switch list">
+                                    <lightning-icon icon-name="utility:rows" size="xx-small"></lightning-icon>
+                                    <span>Switch list</span>
+                                </button>
                                 <div class="detail-title-row">
                                     <h1 class="detail-title">{selectedList.listName}</h1>
                                 </div>
@@ -517,18 +526,74 @@
 
                         <!-- Questions Table -->
                         <template if:true={hasQuestions}>
+                            <!-- Mobile-only card view of questions (hidden on desktop via CSS) -->
+                            <ul class="question-card-list">
+                                <template for:each={displayQuestions} for:item="question">
+                                    <li key={question.questionId}
+                                        class={question.cardClass}
+                                        data-question-id={question.questionId}>
+                                        <div class="qcard-top">
+                                            <span class={question.numberBadgeClass}>{question.displayOrderText}</span>
+                                            <div class="qcard-text">{question.questionText}</div>
+                                            <div class="qcard-actions">
+                                                <button class="action-icon-button"
+                                                    data-question-id={question.questionId}
+                                                    onclick={handleEditQuestion}
+                                                    title="Edit" aria-label="Edit question">
+                                                    <lightning-icon icon-name="utility:edit" size="xx-small"></lightning-icon>
+                                                </button>
+                                                <button class="action-icon-button"
+                                                    data-question-id={question.questionId}
+                                                    onclick={handleDeleteQuestion}
+                                                    title="Delete" aria-label="Delete question">
+                                                    <lightning-icon icon-name="utility:delete" size="xx-small"></lightning-icon>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="qcard-meta">
+                                            <span class="qcard-chip qcard-chip-points">
+                                                <strong>{question.scoreValue}</strong>
+                                                <span>pt</span>
+                                            </span>
+                                            <template if:true={question.pointEarningAnswer}>
+                                                <span class="qcard-chip qcard-chip-answer">
+                                                    Points on: {question.pointEarningAnswer}
+                                                </span>
+                                            </template>
+                                            <template if:true={question.isDealbreaker}>
+                                                <span class="qcard-chip qcard-chip-dealbreaker">
+                                                    Dealbreaker: {question.dealbreakerValue}
+                                                </span>
+                                            </template>
+                                            <template if:false={question.isActive}>
+                                                <span class="qcard-chip qcard-chip-inactive">Inactive</span>
+                                            </template>
+                                        </div>
+                                    </li>
+                                </template>
+                                <li class="question-card-add" onclick={handleNewQuestion}>
+                                    <div class="add-question-icon-container">
+                                        <lightning-icon icon-name="utility:add" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="add-question-row-content">
+                                        <span class="add-question-row-text">Add New Question</span>
+                                        <span class="add-question-row-hint">Tap to create a new question</span>
+                                    </div>
+                                </li>
+                            </ul>
+
                             <div class="questions-table-container">
                                 <table class="questions-table">
                                     <thead>
                                         <tr>
-                                            <th class="table-header-cell" style="width: 50px;"></th>
-                                            <th class="table-header-cell" style="width: 60px;">#</th>
-                                            <th class="table-header-cell">Question</th>
-                                            <th class="table-header-cell" style="width: 80px;">Points</th>
-                                            <th class="table-header-cell" style="width: 120px;">Point Answer</th>
-                                            <th class="table-header-cell" style="width: 100px;">Dealbreaker</th>
-                                            <th class="table-header-cell" style="width: 80px;">Active</th>
-                                            <th class="table-header-cell" style="width: 120px;">Actions</th>
+                                            <th class="table-header-cell table-col-drag"></th>
+                                            <th class="table-header-cell table-col-num">#</th>
+                                            <th class="table-header-cell table-col-text">Question</th>
+                                            <th class="table-header-cell table-col-points">Points</th>
+                                            <th class="table-header-cell table-col-answer">Point Answer</th>
+                                            <th class="table-header-cell table-col-dealbreaker">Dealbreaker</th>
+                                            <th class="table-header-cell table-col-active">Active</th>
+                                            <th class="table-header-cell table-col-actions">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -639,6 +704,8 @@
                 </div>
 
             </div>
+            <!-- Mobile drawer backdrop -->
+            <div class="mobile-drawer-backdrop" onclick={handleCloseMobileList} aria-hidden="true"></div>
             </template>
         </div>
 
