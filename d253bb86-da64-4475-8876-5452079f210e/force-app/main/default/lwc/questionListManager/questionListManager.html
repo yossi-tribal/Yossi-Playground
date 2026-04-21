@@ -810,11 +810,11 @@
 
         <!-- List Modal -->
         <template if:true={showListModal}>
-            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="lqw-list-modal-title" class="slds-modal slds-fade-in-open">
                 <div class="slds-modal__container custom-modal-container">
                     <header class="slds-modal__header custom-modal-header">
                         <lightning-icon icon-name="utility:list" size="small"></lightning-icon>
-                        <h2 class="slds-modal__title slds-hyphenate">{listModalTitle}</h2>
+                        <h2 id="lqw-list-modal-title" class="slds-modal__title slds-hyphenate">{listModalTitle}</h2>
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseListModal}>
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                         </button>
@@ -983,11 +983,11 @@
 
         <!-- Question Modal -->
         <template if:true={showQuestionModal}>
-            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="lqw-question-modal-title" class="slds-modal slds-fade-in-open slds-modal_large">
                 <div class="slds-modal__container custom-modal-container">
                     <header class="slds-modal__header custom-modal-header">
                         <lightning-icon icon-name="utility:questions_and_answers" size="small"></lightning-icon>
-                        <h2 class="slds-modal__title slds-hyphenate">{questionModalTitle}</h2>
+                        <h2 id="lqw-question-modal-title" class="slds-modal__title slds-hyphenate">{questionModalTitle}</h2>
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseQuestionModal}>
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                         </button>
@@ -1097,11 +1097,11 @@
 
         <!-- Clone Modal -->
         <template if:true={showCloneModal}>
-            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="lqw-clone-modal-title" class="slds-modal slds-fade-in-open">
                 <div class="slds-modal__container custom-modal-container">
                     <header class="slds-modal__header custom-modal-header">
                         <lightning-icon icon-name="utility:copy" size="small"></lightning-icon>
-                        <h2 class="slds-modal__title slds-hyphenate">Clone Question List</h2>
+                        <h2 id="lqw-clone-modal-title" class="slds-modal__title slds-hyphenate">Clone Question List</h2>
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseCloneModal}>
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                         </button>
@@ -1129,7 +1129,7 @@
 
         <!-- Conflict Modal -->
         <template if:true={showConflictModal}>
-            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="lqw-conflict-modal-title" class="slds-modal slds-fade-in-open">
                 <div class="slds-modal__container conflict-modal-container">
                     <header class="slds-modal__header conflict-modal-header">
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseConflictModal}>
@@ -1137,7 +1137,7 @@
                         </button>
                         <div class="conflict-modal-header-content">
                             <lightning-icon icon-name="utility:error" size="medium" variant="error" class="conflict-modal-icon"></lightning-icon>
-                            <h2 class="slds-modal__title slds-hyphenate">Assignment Rule Conflicts</h2>
+                            <h2 id="lqw-conflict-modal-title" class="slds-modal__title slds-hyphenate">Assignment Rule Conflicts</h2>
                         </div>
                     </header>
                     <div class="slds-modal__content slds-p-around_medium conflict-modal-content">

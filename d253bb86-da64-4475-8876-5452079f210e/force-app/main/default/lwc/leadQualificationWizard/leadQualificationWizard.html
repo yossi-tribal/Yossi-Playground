@@ -294,10 +294,10 @@
 
         <!-- Change Detection Modal -->
         <template if:true={showChangeModal}>
-            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="lqw-change-modal-title" class="slds-modal slds-fade-in-open">
                 <div class="slds-modal__container">
                     <header class="slds-modal__header">
-                        <h2 class="slds-modal__title slds-hyphenate">Question List Updated</h2>
+                        <h2 id="lqw-change-modal-title" class="slds-modal__title slds-hyphenate">Question List Updated</h2>
                     </header>
                     <div class="slds-modal__content slds-p-around_medium">
                         <p>{changeModalMessage}</p>
@@ -314,7 +314,7 @@
 
         <!-- Response History Modal -->
         <template if:true={showHistoryModal}>
-            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="lqw-history-modal-title" class="slds-modal slds-fade-in-open slds-modal_large">
                 <div class="slds-modal__container">
                     <header class="slds-modal__header">
                         <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
@@ -322,7 +322,7 @@
                             <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
                             <span class="slds-assistive-text">Close</span>
                         </button>
-                        <h2 class="slds-modal__title slds-hyphenate">Response History</h2>
+                        <h2 id="lqw-history-modal-title" class="slds-modal__title slds-hyphenate">Response History</h2>
                     </header>
                     <div class="slds-modal__content slds-p-around_medium">
                         <!-- Loading State -->
