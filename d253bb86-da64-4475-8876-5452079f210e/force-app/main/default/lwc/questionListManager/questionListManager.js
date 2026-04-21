@@ -2,8 +2,14 @@ import { LightningElement, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import USER_ID from '@salesforce/user/Id';
-import managerTours from './tours';
-import { legacyActionToContext, advanceChain } from './tourOrchestration';
+import managerTours from 'c/qlmTours';
+import { legacyActionToContext, advanceChain } from 'c/qlmTourOrchestration';
+import { buildAdminRequestText, copyTextToClipboard } from 'c/qlmAdminRequest';
+import {
+    listHasQuestions,
+    canListGoLive,
+    listActivationBlockReason
+} from 'c/qlmListStatus';
 import getAllQuestionLists from '@salesforce/apex/LQW_QuestionListManagerCtrl.getAllQuestionLists';
 import saveQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.saveQuestionList';
 import deleteQuestionList from '@salesforce/apex/LQW_QuestionListManagerCtrl.deleteQuestionList';
@@ -98,6 +104,11 @@ export default class QuestionListManager extends LightningElement {
     // drawer instead of a persistent sidebar. The CSS handles layout;
     // this flag just toggles the class that reveals the drawer.
     @track _mobileListOpen = false;
+
+    // Flips true for a couple of seconds after the admin handoff button is
+    // clicked so we can swap the label/icon to a "Copied" confirmation.
+    @track _adminRequestCopied = false;
+    _adminRequestCopiedTimeout = null;
 
     get tours() {
         return managerTours.map((tour) => ({
@@ -794,9 +805,11 @@ export default class QuestionListManager extends LightningElement {
     }
 
     get canActivateList() {
-        if (!this.selectedList) return false;
-        // Can activate if: (1) has criteria OR (2) is default fallback
-        return this.hasAssignmentCriteria || this.selectedList.isDefault;
+        return canListGoLive(this.selectedList, this.hasAssignmentCriteria);
+    }
+
+    get selectedListHasQuestions() {
+        return listHasQuestions(this.selectedList);
     }
 
     get listStatusText() {
@@ -811,13 +824,14 @@ export default class QuestionListManager extends LightningElement {
         if (!this.selectedList) return '';
         if (this.selectedList.isActive) {
             return 'Click to deactivate this list';
-        } else {
-            if (this.canActivateList) {
-                return 'Click to activate this list';
-            } else {
-                return 'Cannot activate - no assignment criteria set';
-            }
         }
+        if (this.canActivateList) {
+            return 'Click to activate this list';
+        }
+        if (!this.selectedListHasQuestions) {
+            return 'Cannot activate - add at least one question first';
+        }
+        return 'Cannot activate - no assignment criteria set';
     }
 
     formatOperator(operator) {
@@ -865,6 +879,31 @@ export default class QuestionListManager extends LightningElement {
         return this._mobileListOpen
             ? 'manager-container manager-container--list-drawer-open'
             : 'manager-container';
+    }
+
+    // The empty-state now hosts its own searchable list picker rather than
+    // asking the user to discover a sidebar / drawer. Reuses `searchTerm`
+    // and `filteredQuestionLists` so typing in either search box stays in
+    // sync — no need for a second piece of state.
+    get emptyStatePickerLists() {
+        return this.filteredQuestionLists;
+    }
+
+    get hasFilteredLists() {
+        return this.emptyStatePickerLists.length > 0;
+    }
+
+    handleClearEmptyStateSearch() {
+        this.searchTerm = '';
+    }
+
+    // Keyboard access for the empty-state list items: Enter or Space selects
+    // the focused list (so the picker isn't mouse-only).
+    handleEmptyStatePickerKeydown(event) {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            this.handleSelectList(event);
+        }
     }
 
     handleNewList() {
@@ -1276,19 +1315,88 @@ export default class QuestionListManager extends LightningElement {
         this.isAssignmentRulesExpanded = !this.isAssignmentRulesExpanded;
     }
 
+    get adminHandoffIcon() {
+        return this._adminRequestCopied ? 'utility:check' : 'utility:copy_to_clipboard';
+    }
+
+    get adminHandoffLabel() {
+        return this._adminRequestCopied
+            ? 'Copied — paste into email or Slack'
+            : 'Copy details for admin';
+    }
+
+    // Thin wrapper around the pure helper so the component's imperative
+    // state (selectedList + derived getters) can feed into the text
+    // builder without the builder having to know about LWC.
+    _buildAdminRequestText() {
+        return buildAdminRequestText({
+            list: this.selectedList,
+            hasCriteria: this.hasAssignmentCriteria,
+            parsedCriteriaRules: this.parsedCriteriaRules,
+            scoringTiers: this.scoringTiers,
+            formattedCriteria: this.formattedAssignmentCriteria
+        });
+    }
+
+    async handleCopyAdminRequest() {
+        const text = this._buildAdminRequestText();
+        const copied = await copyTextToClipboard(text);
+
+        if (copied) {
+            this._adminRequestCopied = true;
+            if (this._adminRequestCopiedTimeout) {
+                clearTimeout(this._adminRequestCopiedTimeout);
+            }
+            this._adminRequestCopiedTimeout = setTimeout(() => {
+                this._adminRequestCopied = false;
+                this._adminRequestCopiedTimeout = null;
+            }, 2500);
+            this.showToast(
+                'Copied to clipboard',
+                'Paste into email or Slack to send to your admin.',
+                'success'
+            );
+        } else {
+            this.showToast(
+                'Couldn\'t copy automatically',
+                'Your browser blocked clipboard access. Please copy the details manually.',
+                'warning'
+            );
+        }
+    }
+
     async handleToggleListStatus() {
         if (!this.selectedList) return;
 
         const newStatus = !this.selectedList.isActive;
 
-        // Guard logic: prevent activation if no criteria AND not default
-        if (newStatus && !this.canActivateList) {
-            this.showToast(
-                'Cannot Activate List',
-                'This list can\'t be activated without assignment criteria. Configure rules in Tribal first.',
-                'error'
+        // Guard logic: prevent activation when the list isn't ready. We ask
+        // the status helper *why* it's blocked so we can surface a precise
+        // message instead of a generic "can't activate".
+        if (newStatus) {
+            const blockReason = listActivationBlockReason(
+                this.selectedList,
+                this.hasAssignmentCriteria
             );
-            return;
+            if (blockReason === 'no-questions') {
+                this.showToast(
+                    'Cannot Activate List',
+                    'This list has no questions yet. Add at least one active question before going live.',
+                    'error'
+                );
+                return;
+            }
+            if (blockReason === 'no-criteria') {
+                this.showToast(
+                    'Cannot Activate List',
+                    'This list can\'t be activated without assignment criteria. Configure rules in Tribal first.',
+                    'error'
+                );
+                return;
+            }
+            if (blockReason) {
+                return;
+            }
         }
 
         // OPTIMISTIC UPDATE: Update local state immediately for instant UI feedback

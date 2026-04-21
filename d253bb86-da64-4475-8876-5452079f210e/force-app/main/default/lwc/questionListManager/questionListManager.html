@@ -105,14 +105,23 @@
                                      data-list-id={list.listId}
                                      onclick={handleSelectList}>
                                     <div class="list-item">
-                                        <div class="list-item-name">{list.listName}</div>
+                                        <div class="list-item-header">
+                                            <div class="list-item-name">{list.listName}</div>
+                                            <template if:true={list.isActive}>
+                                                <span class="list-item-badge list-item-badge--active" title="Active">
+                                                    <span class="list-item-badge-dot" aria-hidden="true"></span>Active
+                                                </span>
+                                            </template>
+                                            <template if:false={list.isActive}>
+                                                <span class="list-item-badge list-item-badge--inactive" title="Inactive">
+                                                    <span class="list-item-badge-dot" aria-hidden="true"></span>Inactive
+                                                </span>
+                                            </template>
+                                        </div>
                                         <div class="list-item-meta">
                                             <span class="list-item-stat">{list.totalQuestions} questions</span>
                                             <span class="list-item-divider">•</span>
                                             <span class="list-item-stat">{list.totalPossiblePoints} pts</span>
-                                            <template if:false={list.isActive}>
-                                                <span class="list-item-inactive-badge">Inactive</span>
-                                            </template>
                                         </div>
                                     </div>
                                 </div>
@@ -257,6 +266,19 @@
                                                 </div>
                                             </div>
                                         </template>
+
+                                        <!-- Admin handoff: copy list details + a proposed-criteria
+                                             template to clipboard so non-admin users can email/Slack
+                                             their Salesforce admin with everything needed. -->
+                                        <div class="admin-handoff">
+                                            <button class="admin-handoff-button"
+                                                    onclick={handleCopyAdminRequest}
+                                                    title="Copy list details with a template for proposed assignment criteria">
+                                                <lightning-icon icon-name={adminHandoffIcon} size="xx-small"></lightning-icon>
+                                                <span>{adminHandoffLabel}</span>
+                                            </button>
+                                            <p class="admin-handoff-hint">Pastes into email, Slack, or a ticket for your Salesforce admin. Includes list details with space for your proposed criteria.</p>
+                                        </div>
                                     </div>
                                 </template>
                             </div>
@@ -691,13 +713,90 @@
                     </div>
                 </template>
 
-                <!-- No Selection State -->
+                <!-- No Selection State.
+                     Two flavors, toggled by CSS media queries (no JS viewport
+                     sniffing, no flicker):
+                       • Desktop / tablet (>768px): sidebar is permanently visible
+                         with its own search + list, so a duplicate picker in the
+                         detail pane is just noise. We show a minimal pointer that
+                         directs attention at the existing sidebar list.
+                       • Mobile (≤768px): sidebar is an off-canvas drawer. The
+                         empty state is otherwise a dead end, so we show the full
+                         inline searchable picker as the primary selection UI. -->
                 <template if:false={hasSelectedList}>
                     <div class="detail-panel empty-detail-panel">
-                        <div class="empty-state">
-                            <lightning-icon icon-name="utility:einstein" size="large" class="empty-state-icon" alternative-text=""></lightning-icon>
-                            <p class="empty-state-text">Select a Question List</p>
-                            <p class="empty-state-subtext">Choose a list from the left panel to view and manage its questions</p>
+                        <!-- Desktop / tablet hint: just point at the sidebar. -->
+                        <div class="empty-state-sidebar-hint">
+                            <lightning-icon icon-name="utility:einstein" size="medium" class="empty-state-sidebar-hint-icon" alternative-text=""></lightning-icon>
+                            <h2 class="empty-state-sidebar-hint-title">Select a Question List</h2>
+                            <p class="empty-state-sidebar-hint-subtext">
+                                <span class="empty-state-sidebar-hint-arrow" aria-hidden="true">←</span>
+                                Pick a list from the panel on the left to manage its questions, scoring, and assignment rules.
+                            </p>
+                        </div>
+
+                        <!-- Mobile picker: search + scrollable list. -->
+                        <div class="empty-state-picker">
+                            <div class="empty-state-picker-heading">
+                                <lightning-icon icon-name="utility:einstein" size="medium" class="empty-state-picker-icon" alternative-text=""></lightning-icon>
+                                <h2 class="empty-state-picker-title">Select a Question List</h2>
+                                <p class="empty-state-picker-subtext">Pick a list to manage its questions, scoring, and assignment rules.</p>
+                            </div>
+                            <div class="empty-state-picker-searchbox">
+                                <lightning-input type="search"
+                                    label="Search your question lists"
+                                    variant="label-hidden"
+                                    value={searchTerm}
+                                    onchange={handleSearchChange}
+                                    placeholder="Search your question lists..."
+                                    class="empty-state-picker-search">
+                                </lightning-input>
+                            </div>
+                            <template if:true={hasFilteredLists}>
+                                <ul class="empty-state-picker-list" role="listbox" aria-label="Your question lists">
+                                    <template for:each={emptyStatePickerLists} for:item="list">
+                                        <li key={list.listId}
+                                            class="empty-state-picker-item"
+                                            data-list-id={list.listId}
+                                            role="option"
+                                            tabindex="0"
+                                            onclick={handleSelectList}
+                                            onkeydown={handleEmptyStatePickerKeydown}>
+                                            <div class="empty-state-picker-item-text">
+                                                <div class="empty-state-picker-item-header">
+                                                    <span class="empty-state-picker-item-name">{list.listName}</span>
+                                                    <template if:true={list.isActive}>
+                                                        <span class="list-item-badge list-item-badge--active" title="Active">
+                                                            <span class="list-item-badge-dot" aria-hidden="true"></span>Active
+                                                        </span>
+                                                    </template>
+                                                    <template if:false={list.isActive}>
+                                                        <span class="list-item-badge list-item-badge--inactive" title="Inactive">
+                                                            <span class="list-item-badge-dot" aria-hidden="true"></span>Inactive
+                                                        </span>
+                                                    </template>
+                                                </div>
+                                                <div class="empty-state-picker-item-meta">
+                                                    <span>{list.totalQuestions} questions</span>
+                                                    <span class="empty-state-picker-item-sep">•</span>
+                                                    <span>{list.totalPossiblePoints} pts</span>
+                                                </div>
+                                                <template if:true={list.description}>
+                                                    <p class="empty-state-picker-item-description">{list.description}</p>
+                                                </template>
+                                            </div>
+                                            <lightning-icon icon-name="utility:chevronright" size="xx-small" alternative-text="" class="empty-state-picker-item-chevron"></lightning-icon>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                            <template if:false={hasFilteredLists}>
+                                <div class="empty-state-picker-no-match">
+                                    <lightning-icon icon-name="utility:search" size="small" alternative-text=""></lightning-icon>
+                                    <p>No lists match <strong>"{searchTerm}"</strong></p>
+                                    <button class="empty-state-picker-clear" onclick={handleClearEmptyStateSearch}>Clear search</button>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </template>
