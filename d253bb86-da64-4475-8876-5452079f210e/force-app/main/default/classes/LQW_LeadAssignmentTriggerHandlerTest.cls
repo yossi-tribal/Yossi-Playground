@@ -445,58 +445,6 @@ private class LQW_LeadAssignmentTriggerHandlerTest {
             'List assignment should not change when non-relevant fields are updated');
     }
 
-    /**
-     * @description When the current user has the bypass custom permission,
-     * the trigger must not assign any Question List on insert.
-     */
-    @isTest
-    static void testBypassCustomPermission_SkipsAssignmentOnInsert() {
-        LQW_LeadAssignmentTriggerHandler.bypassOverrideForTest = true;
-
-        Test.startTest();
-
-        Lead testLead = new Lead();
-        testLead.LastName = 'Bypassed';
-        testLead.Company = 'Bypass Co';
-        testLead.LeadSource = 'Web';   // Would normally assign Enterprise Leads
-        testLead.Status = 'Open - Not Contacted';
-        insert testLead;
-
-        Test.stopTest();
-
-        Lead result = [SELECT Id, LQW_Question_List__c FROM Lead WHERE Id = :testLead.Id];
-        System.assertEquals(null, result.LQW_Question_List__c,
-            'Bypass permission should prevent any Question List from being assigned');
-    }
-
-    /**
-     * @description When the override is explicitly false (no bypass), the
-     * trigger behaves normally. Guards against the override leaking state
-     * between tests and documents the default-off branch.
-     */
-    @isTest
-    static void testBypassCustomPermission_WhenDisabled_AssignsAsUsual() {
-        LQW_Question_List__c enterpriseList = [
-            SELECT Id FROM LQW_Question_List__c WHERE LQW_List_Name__c = 'Enterprise Leads' LIMIT 1
-        ];
-        LQW_LeadAssignmentTriggerHandler.bypassOverrideForTest = false;
-
-        Test.startTest();
-
-        Lead testLead = new Lead();
-        testLead.LastName = 'NotBypassed';
-        testLead.Company = 'Assigned Co';
-        testLead.LeadSource = 'Web';
-        testLead.Status = 'Open - Not Contacted';
-        insert testLead;
-
-        Test.stopTest();
-
-        Lead result = [SELECT Id, LQW_Question_List__c FROM Lead WHERE Id = :testLead.Id];
-        System.assertEquals(enterpriseList.Id, result.LQW_Question_List__c,
-            'With override=false, normal assignment must still run');
-    }
-
     // ────────────────────────────────────────────────────────────────────
     // Declarative RULES table — operator coverage
     // ────────────────────────────────────────────────────────────────────

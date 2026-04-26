@@ -75,24 +75,6 @@ Walk through this 5-minute check to confirm everything works:
 6. Open the **Lead Qualification Admin** → **Question List Manager** tab. Confirm you can see your lists and edit a question.
 7. If you use Experience Cloud: log in as a portal user and confirm the wizard renders correctly there too.
 
-### H. Optional: Bypass Auto-Assignment for Data Loads
-
-Most customers can skip this section. It only matters if you plan to run **Data Loader** jobs or integrations that insert/update many Leads at a time and you want to skip the Question List auto-assignment trigger for those specific users.
-
-The trigger handler already checks a custom permission called `LQW_Bypass_Lead_Assignment` on every Lead DML. If the permission doesn't exist in your org, nothing happens — the trigger runs normally for every user. To opt a specific user (like a Data Loader service account) out, create the permission and grant it:
-
-1. **Setup → Custom Permissions → New**
-   - Label: `LQW Bypass Lead Assignment`
-   - Name: `LQW_Bypass_Lead_Assignment` *(must match exactly)*
-   - Save.
-2. **Setup → Permission Sets → New**
-   - Label: `LQW Bypass Auto Assignment` (or whatever you prefer)
-   - Under **Custom Permissions**, enable `LQW_Bypass_Lead_Assignment`.
-   - Save.
-3. **Setup → Permission Sets → [your new permission set] → Manage Assignments → Add Assignments** — assign it to your Data Loader / integration user(s).
-
-Any user with that permission set will now bypass auto-assignment on Lead insert/update. Regular sales users continue to get automatic assignment as before.
-
 ### Note on Reports & List Views
 
 The **Lead Quality** picklist stores values in all-caps `DISQUALIFIED` format and friendly `High_Quality` / `Medium_Quality` / `Low_Quality` API codes. The wizard displays these as "Disqualified" / "High Quality" / etc. Use the API codes (with underscores) in report filters, list view filters, and any automation. The friendly labels are for display only.

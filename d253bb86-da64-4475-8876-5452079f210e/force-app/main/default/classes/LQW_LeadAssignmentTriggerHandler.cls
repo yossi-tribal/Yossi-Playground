@@ -84,13 +84,6 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
 
     private static Boolean hasAutoCreatedExample = false;
 
-    @TestVisible
-    private static final String BYPASS_CUSTOM_PERMISSION = 'LQW_Bypass_Lead_Assignment';
-
-    // Test-only override for the bypass check. See comment on isAssignmentBypassed().
-    @TestVisible
-    private static Boolean bypassOverrideForTest = null;
-
     /**
      * @description Main handler method for after insert/update events
      * @param newLeads List of new/updated Lead records
@@ -98,12 +91,6 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
      */
     public void handleAfterInsertUpdate(List<Lead> newLeads, Map<Id, Lead> oldLeadMap) {
         try {
-            // Opt-out: skip entirely if the current user holds the bypass
-            // custom permission (e.g. data loader / integration user).
-            if (isAssignmentBypassed()) {
-                return;
-            }
-
             // Auto-create example list if no lists exist (one-time operation)
             ensureExampleListExists();
 
@@ -171,17 +158,6 @@ public with sharing class LQW_LeadAssignmentTriggerHandler {
                 'LQW_LeadAssignmentTriggerHandler failed: ' + e.getTypeName()
                 + ': ' + e.getMessage() + '\n' + e.getStackTraceString());
         }
-    }
-
-    /**
-     * @description Returns true when the current user holds the bypass custom
-     * permission, or a test has explicitly set the override.
-     */
-    private static Boolean isAssignmentBypassed() {
-        if (bypassOverrideForTest != null) {
-            return bypassOverrideForTest;
-        }
-        return FeatureManagement.checkPermission(BYPASS_CUSTOM_PERMISSION);
     }
 
     /**
