@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
-    <apiVersion>66.0</apiVersion>
-    <description>Admin interface for managing question lists and questions with master-detail layout, inline editing, point system summaries, and full CRUD operations.</description>
-    <isExposed>true</isExposed>
-    <masterLabel>Question List Manager</masterLabel>
-    <targets>
-        <target>lightning__AppPage</target>
-    </targets>
-</LightningComponentBundle>
+            <apiVersion>66.0</apiVersion>
+            <description>Admin interface with einstein/agent icon branding in header and empty states, assignment rules display, conflict detection, status badges, and Configure in Tribal CTAs.</description>
+            <isExposed>True</isExposed>
+            <masterLabel>Question List Manager</masterLabel>
+            <targets>
+                
+                <target>lightning__AppPage</target>
+                
+            </targets>
+        </LightningComponentBundle>
