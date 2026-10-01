@@ -11,19 +11,26 @@ This deployment delivers immediate business value by providing visibility into P
 - Assign the **POC_Member** permission set to team members who update existing POC records day-to-day (e.g., Solutions Engineers, Account Executives).
 - Assign the **POC_Manager** permission set to managers who create and own new POC engagements (e.g., Solutions Engineering managers, Sales leaders).
 
+**Tracking Board tab:**
+- The POC Tracker app now opens on **Tracking Board**. This Lightning page hosts the `pocTrackingBoard` component.
+- The board reads existing POC fields only. Sections from the target design that do not have fields yet (region, close date, team, tasks, contacts, meetings, channels, usage) display a **Coming soon** box.
+- Assigning any of the three POC permission sets grants access to the tab and to `POC_TrackingBoardController`.
+
 **Post-Deployment Validation:**
 - Verify that the POC tab appears in the app launcher and that users assigned to each permission set can access it according to their tier.
 - Test the validation rule by attempting to link a POC to an Opportunity on a different Account—the save should fail with the error message: "The selected Opportunity belongs to a different Account. Please select an Opportunity on the same Account as this POC."
 - Confirm that the native Kanban board on the "All POCs" list view displays columns in the correct order: Pre-POC, Active, Extended, Paused, Complete.
 - Verify that Tasks can be created and viewed directly from the POC record page via the Activities related list.
+- Open **Tracking Board** and confirm POCs land in the column that matches Lifecycle Status. Open a card and confirm Coming soon boxes for data that is not on the POC yet.
 
 No manual configuration of Quick Actions, WebLinks, or Flows is required for this deployment.
 
 ## 3. How to Use This Solution
 
 **Accessing POC Records:**
-1. Click the POC Tracker app in the app launcher to open the dedicated POC application.
-2. Use the POC tab to navigate to POC records and list views.
+1. Click the POC Tracker app in the app launcher. The app opens on **Tracking Board**.
+2. Use **Board** to scan POCs by lifecycle status. Select a card to open the detail panel. **Open record** goes to the POC page.
+3. **Overview**, **List**, and **Timeline** are placeholders. The **POCs** tab still has the native list views and Kanban.
 
 **Creating a New POC (Managers Only):**
 1. Click **New** on the POC list view.

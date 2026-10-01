@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>POC Tracking Board — local preview</title>
+    <link rel="stylesheet" href="../force-app/main/default/lwc/pocTrackingBoard/pocTrackingBoard.css">
+    <style>
+        html, body { margin: 0; background: #f4f5f8; font-family: "Segoe UI", system-ui, sans-serif; }
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            background: #1d2939;
+            color: #fff;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-size: 13px;
+            z-index: 60;
+            box-shadow: 0 8px 24px rgba(16, 24, 40, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        const COLUMNS = [
+            { value: 'Pre-POC', label: 'Pre-POC', dot: 'pre' },
+            { value: 'Active', label: 'Active', dot: 'active' },
+            { value: 'Extended', label: 'Extended', dot: 'extended' },
+            { value: 'Paused', label: 'Paused', dot: 'paused' },
+            { value: 'Complete', label: 'Complete', dot: 'complete' }
+        ];
+        const VIEWS = [
+            { id: 'overview', label: 'Overview' },
+            { id: 'board', label: 'Board' },
+            { id: 'list', label: 'List' },
+            { id: 'timeline', label: 'Timeline' }
+        ];
+        const VIEW_COPY = {
+            overview: 'Portfolio summary for every POC you can see.',
+            list: 'A table of every POC.',
+            timeline: 'Engagements laid out by start and end date.'
+        };
+        const RECORDS = [
+            row('1', 'Enersys', 'Pre-POC', 'Paid', '2 Weeks', 'Green', '2026-06-03', '2026-12-31', 'Kickoff meeting - week of July', 120000, 'Enersys', 'Enersys Expansion', 'Sarah Chen'),
+            row('2', 'Netafim', 'Pre-POC', 'Un-Paid', '2 Weeks', 'Green', '2026-04-27', '2026-07-19', 'Continue supporting Ruth on the trial', 50000, 'Netafim', null, 'Marcus Rivera'),
+            row('3', 'Strauss', 'Pre-POC', 'Un-Paid', null, 'Red', '2025-05-01', null, 'Help answer questions and unblock security review', null, 'Strauss', null, 'Aisha Patel'),
+            row('4', 'Cala', 'Active', 'Paid', '1 Month', 'Yellow', '2026-06-01', '2026-10-10', 'Engage and schedule time with the admin', 50400, 'Cala', 'Cala Renewal', 'Sarah Chen'),
+            row('5', 'Oryon Imaging', 'Active', 'Un-Paid', '6 Weeks', 'Red', '2026-08-08', '2026-11-01', 'Enable 2nd Admin - resolve SSO', 54000, 'Oryon Imaging', null, 'Marcus Rivera'),
+            row('6', 'MobiSys SMB', 'Active', 'Paid', '2 Weeks', null, '2026-09-28', '2026-10-30', 'Prepare success metrics for the pilot', 15000, 'MobiSys SMB', 'MobiSys Pilot', 'Aisha Patel'),
+            row('7', 'Ascertia', 'Extended', 'Paid', '1 Month', 'Green', '2026-09-01', '2026-10-31', 'Enable Ashley - set the tone for the extended pilot', 30000, 'Ascertia', 'Ascertia Expansion', 'Sarah Chen'),
+            row('8', 'K.K. Ashisuto', 'Paused', 'Paid', '2 Weeks', 'Yellow', '2026-09-11', '2026-10-02', 'Scheduled for Sept 8th - waiting on legal', 54000, 'K.K. Ashisuto', null, 'Marcus Rivera'),
+            row('9', 'Kornit Digital', 'Complete', 'Paid', '2 Months', 'Yellow', '2026-07-01', '2026-10-31', '3rd session went well - validate the metrics', 54000, 'Kornit Digital', 'Kornit Rollout', 'Aisha Patel'),
+            row('10', 'Salesforce SMB', 'Complete', 'Paid', '3 Months', 'Green', '2026-06-01', null, 'Finalize commercial terms and handoff', 250000, 'Salesforce SMB', 'Salesforce SMB', 'Sarah Chen')
+        ].map(decorate);
+
+        const state = { view: 'board', selectedId: null, toast: '' };
+        let toastTimer;
+
+        function row(id, name, lifecycleStatus, pocType, length, health, startDate, endDate, nextSteps, opportunityAmount, accountName, opportunityName, ownerName) {
+            return {
+                id, name, lifecycleStatus, pocType, length, health, startDate, endDate, nextSteps,
+                opportunityAmount, accountName, opportunityName, ownerName,
+                accountId: accountName ? 'acct-' + id : null,
+                opportunityId: opportunityName ? 'opp-' + id : null,
+                ownerId: ownerName
+            };
+        }
+
+        function decorate(record) {
+            const health = record.health || 'Not set';
+            const hasNext = Boolean(firstLine(record.nextSteps));
+            return Object.assign({}, record, {
+                healthLabel: health,
+                healthClass: healthClass(record.health),
+                statusClass: statusClass(record.lifecycleStatus),
+                statusLabel: record.lifecycleStatus || 'Not set',
+                typeLabel: record.pocType || '—',
+                typeClass: typeClass(record.pocType),
+                hasType: Boolean(record.pocType),
+                hasLength: Boolean(record.length),
+                nextAction: firstLine(record.nextSteps),
+                hasNextAction: hasNext,
+                nextStepsText: record.nextSteps && record.nextSteps.trim() ? record.nextSteps : 'No next steps yet.',
+                notesClass: record.nextSteps && record.nextSteps.trim() ? 'notes' : 'notes-empty',
+                amountLabel: formatMoney(record.opportunityAmount),
+                dateLabel: dateRange(record.startDate, record.endDate),
+                startLabel: formatDate(record.startDate) || '—',
+                endLabel: formatDate(record.endDate) || '—',
+                accountLabel: record.accountName || '—',
+                opportunityLabel: record.opportunityName || '—',
+                ownerInitials: initials(record.ownerName),
+                ownerAvatarClass: avatarClass(record.ownerName),
+                ownerAvatarSmClass: avatarClass(record.ownerName, 'sm'),
+                ownerAvatarLgClass: avatarClass(record.ownerName, 'lg'),
+                ownerLabel: record.ownerName || 'Unassigned'
+            });
+        }
+
+        function render() {
+            const selected = RECORDS.find((record) => record.id === state.selectedId);
+            document.getElementById('app').innerHTML = `
+                <div class="board-app">
+                    <header class="board-header">
+                        <div>
+                            <h1>POC Tracking Board</h1>
+                            <p class="subtitle">Proof-of-concept engagements grouped by lifecycle status.</p>
+                        </div>
+                        <div class="avatar-stack" aria-label="POC owners">${ownerStack()}</div>
+                    </header>
+                    <nav class="view-tabs" aria-label="Board views">${tabs()}</nav>
+                    ${state.view === 'board' ? board() : soonPage()}
+                    ${selected ? drawer(selected) : ''}
+                    ${state.toast ? `<div class="toast" role="status">${esc(state.toast)}</div>` : ''}
+                </div>`;
+        }
+
+        function tabs() {
+            return VIEWS.map((view) => `
+                <button type="button" class="${view.id === state.view ? 'view-tab active' : 'view-tab'}" data-view="${view.id}" aria-pressed="${view.id === state.view}">
+                    ${icon(view.id)} ${esc(view.label)}
+                </button>`).join('');
+        }
+
+        function icon(id) {
+            const paths = {
+                overview: '<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"></rect><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"></rect><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"></rect><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"></rect>',
+                board: '<rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="11" rx="1.5"></rect><rect x="17" y="4" width="4" height="14" rx="1.5"></rect>',
+                list: '<path d="M8 6h13M8 12h13M8 18h13"></path><circle cx="4" cy="6" r="1.2"></circle><circle cx="4" cy="12" r="1.2"></circle><circle cx="4" cy="18" r="1.2"></circle>',
+                timeline: '<circle cx="12" cy="12" r="8"></circle><path d="M12 8v5l3 2"></path>'
+            };
+            return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[id]}</svg>`;
+        }
+
+        function ownerStack() {
+            const seen = new Map();
+            RECORDS.forEach((record) => {
+                if (!seen.has(record.ownerId)) seen.set(record.ownerId, record);
+            });
+            const all = Array.from(seen.values());
+            const shown = all.slice(0, 4).map((record) => `<span class="${record.ownerAvatarClass}" title="${esc(record.ownerLabel)}">${esc(record.ownerInitials)}</span>`).join('');
+            const extra = all.length - 4;
+            return shown + (extra > 0 ? `<span class="extra-count">+${extra}</span>` : '');
+        }
+
+        function board() {
+            return `<div class="columns">${COLUMNS.map(columnMarkup).join('')}</div>`;
+        }
+
+        function columnMarkup(column) {
+            const cards = RECORDS.filter((record) => record.lifecycleStatus === column.value);
+            const body = cards.length
+                ? cards.map(cardMarkup).join('')
+                : '<p class="empty-col">No POCs in this stage</p>';
+            return `
+                <section class="column" aria-label="${esc(column.label)}">
+                    <header class="column-header">
+                        <div class="column-title">
+                            <span class="dot dot-${column.dot}" aria-hidden="true"></span>
+                            <h2>${esc(column.label)}</h2>
+                            <span class="count">${cards.length}</span>
+                        </div>
+                        <button type="button" class="icon-btn" data-new="${esc(column.value)}" aria-label="New ${esc(column.label)} POC">+</button>
+                    </header>
+                    <div class="column-body">${body}</div>
+                </section>`;
+        }
+
+        function cardMarkup(card) {
+            const selected = card.id === state.selectedId ? ' selected' : '';
+            const type = card.hasType ? `<span class="${card.typeClass}">${esc(card.pocType)}</span>` : '';
+            const length = card.hasLength ? `<span class="badge badge-length">${esc(card.length)}</span>` : '';
+            const next = card.hasNextAction
+                ? `<p class="next-text">${esc(card.nextAction)}</p>`
+                : '<p class="next-text muted">No next steps yet</p>';
+            return `
+                <div class="card${selected}" role="button" tabindex="0" data-card="${card.id}">
+                    <div class="card-top">
+                        <h3 class="card-title">${esc(card.name)}</h3>
+                        <span class="${card.healthClass}"><span class="mini-dot" aria-hidden="true"></span>${esc(card.healthLabel)}</span>
+                    </div>
+                    <div class="badge-row">${type}${length}</div>
+                    <div class="kicker">Next action</div>
+                    ${next}
+                    <div class="owner-row">
+                        <span class="kicker owner-kicker">Owner</span>
+                        <span class="${card.ownerAvatarSmClass}">${esc(card.ownerInitials)}</span>
+                        <span class="owner-name">${esc(card.ownerLabel)}</span>
+                    </div>
+                    <div class="card-foot">
+                        <span class="amount">Opp ${esc(card.amountLabel)}</span>
+                        <span class="dates">${esc(card.dateLabel)}</span>
+                    </div>
+                    <div class="account-line">${esc(card.accountLabel)}</div>
+                    <div class="soon-box soon-card">
+                        <span class="soon-flag">Coming soon</span>
+                        <p>Due date, last contact, region, and team</p>
+                    </div>
+                </div>`;
+        }
+
+        function soonPage() {
+            const title = (VIEWS.find((view) => view.id === state.view) || {}).label || 'Coming soon';
+            return `
+                <section class="soon-page">
+                    <div class="soon-page-card">
+                        <h2>${esc(title)}</h2>
+                        <div class="soon-box">
+                            <span class="soon-flag">Coming soon</span>
+                            <p>${esc(VIEW_COPY[state.view] || '')}</p>
+                        </div>
+                    </div>
+                </section>`;
+        }
+
+        function drawer(card) {
+            const account = card.accountId
+                ? `<button type="button" class="linkish" data-open-related="account">${esc(card.accountLabel)}</button>`
+                : `<span class="stat-value">${esc(card.accountLabel)}</span>`;
+            const opportunity = card.opportunityId
+                ? `<button type="button" class="linkish" data-open-related="opportunity">${esc(card.opportunityLabel)}</button>`
+                : `<span class="stat-value">${esc(card.opportunityLabel)}</span>`;
+            return `
+                <div class="backdrop" data-close="true"></div>
+                <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="poc-drawer-title">
+                    <div class="drawer-head">
+                        <div class="drawer-top">
+                            <div class="pill-row">
+                                <span class="${card.statusClass}">${esc(card.statusLabel)}</span>
+                                <span class="${card.healthClass}"><span class="mini-dot"></span>${esc(card.healthLabel)}</span>
+                            </div>
+                            <div class="drawer-actions">
+                                <button type="button" class="text-btn" data-open-record="true">Open record</button>
+                                <button type="button" class="drawer-close" data-close="true" aria-label="Close">×</button>
+                            </div>
+                        </div>
+                        <h2 id="poc-drawer-title" class="drawer-title">${esc(card.name)}</h2>
+                    </div>
+                    <div class="drawer-body">
+                        <div class="stat-grid">
+                            ${stat('Engagement type', `<span class="stat-value">${esc(card.typeLabel)}</span>`)}
+                            ${stat('Region', '<div class="soon-box soon-inline"><span class="soon-flag">Coming soon</span></div>')}
+                            ${stat('Opp amount', `<span class="stat-value">${esc(card.amountLabel)}</span>`)}
+                            ${stat('Close date', '<div class="soon-box soon-inline"><span class="soon-flag">Coming soon</span></div>')}
+                            ${stat('Length', `<span class="stat-value">${esc(card.lengthLabel || card.length || '—')}</span>`)}
+                            ${stat('Start date', `<span class="stat-value">${esc(card.startLabel)}</span>`)}
+                            ${stat('End date', `<span class="stat-value">${esc(card.endLabel)}</span>`)}
+                            ${stat('Account', account)}
+                            ${stat('Opportunity', opportunity)}
+                        </div>
+                        <section class="panel-section">
+                            <h3>${sectionIcon('people')} POC assignees</h3>
+                            <div class="person-row">
+                                <span class="${card.ownerAvatarLgClass}">${esc(card.ownerInitials)}</span>
+                                <div>
+                                    <div class="person-name">${esc(card.ownerLabel)}</div>
+                                    <div class="person-role">Owner</div>
+                                </div>
+                            </div>
+                            <div class="soon-box"><span class="soon-flag">Coming soon</span><p>Additional teammates and roles on this POC.</p></div>
+                        </section>
+                        <section class="panel-section">
+                            <h3>${sectionIcon('check')} Next steps and action items</h3>
+                            <div class="${card.notesClass}">${esc(card.nextStepsText)}</div>
+                            <div class="soon-box"><span class="soon-flag">Coming soon</span><p>Task checklist with owners and due dates.</p></div>
+                        </section>
+                        ${soonSection('book', 'Enablement sessions', 'Customer sessions and who has completed them.')}
+                        ${soonSection('person', 'Key client contacts', 'Customer contacts and their role on this POC.')}
+                        ${soonSection('calendar', 'Meeting history and schedule', 'Events captured against this POC.')}
+                        ${soonSection('chat', 'Communication channels', 'Slack, email, and other channels for this POC.')}
+                        ${soonSection('chart', 'Usage analytics', 'Tenant usage from PostHog and Logfire.')}
+                    </div>
+                </aside>`;
+        }
+
+        function stat(label, valueHtml) {
+            return `<div class="stat"><span class="stat-label">${label}</span>${valueHtml}</div>`;
+        }
+
+        function soonSection(iconName, title, copy) {
+            return `
+                <section class="panel-section">
+                    <h3>${sectionIcon(iconName)} ${esc(title)}</h3>
+                    <div class="soon-box"><span class="soon-flag">Coming soon</span><p>${esc(copy)}</p></div>
+                </section>`;
+        }
+
+        function sectionIcon(name) {
+            const paths = {
+                people: '<circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.2"></circle><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5S14 16 14.6 19"></path><path d="M16 14.6c1.8.2 3.3 1.3 4 3.4"></path>',
+                check: '<rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12.5l2.2 2.2L16 9"></path>',
+                book: '<path d="M4 19V6.5A2.5 2.5 0 0 1 6.5 4H20v13.5"></path><path d="M4 19a2.5 2.5 0 0 1 2.5-2.5H20"></path>',
+                person: '<circle cx="12" cy="8" r="3"></circle><path d="M5 19c.8-3.2 3.2-5 7-5s6.2 1.8 7 5"></path>',
+                calendar: '<rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4M16 3v4M4 10h16"></path>',
+                chat: '<path d="M5 6h14v9H8l-3 3V6z"></path>',
+                chart: '<path d="M4 19V5M4 19h16"></path><path d="M8 15l3-4 3 2 4-6"></path>'
+            };
+            return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
+        }
+
+        function showToast(message) {
+            state.toast = message;
+            render();
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                state.toast = '';
+                render();
+            }, 2400);
+        }
+
+        document.body.addEventListener('click', (event) => {
+            const view = event.target.closest('[data-view]');
+            const card = event.target.closest('[data-card]');
+            const newer = event.target.closest('[data-new]');
+            const closer = event.target.closest('[data-close]');
+            const record = event.target.closest('[data-open-record]');
+            const related = event.target.closest('[data-open-related]');
+            if (view) {
+                state.view = view.dataset.view;
+                if (state.view !== 'board') state.selectedId = null;
+                render();
+                return;
+            }
+            if (newer) {
+                showToast('In Salesforce this opens a new POC with Lifecycle Status set to ' + newer.dataset.new + '.');
+                return;
+            }
+            if (closer) {
+                state.selectedId = null;
+                render();
+                return;
+            }
+            if (record) {
+                showToast('In Salesforce this opens the POC record.');
+                return;
+            }
+            if (related) {
+                showToast('In Salesforce this opens the related ' + related.dataset.openRelated + '.');
+                return;
+            }
+            if (card) {
+                state.selectedId = card.dataset.card;
+                render();
+                const closeButton = document.querySelector('.drawer-close');
+                if (closeButton) closeButton.focus();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && state.selectedId) {
+                state.selectedId = null;
+                render();
+            }
+        });
+
+        function healthClass(health) {
+            if (health === 'Green') return 'pill health-green';
+            if (health === 'Yellow') return 'pill health-yellow';
+            if (health === 'Red') return 'pill health-red';
+            return 'pill health-none';
+        }
+        function statusClass(status) {
+            return {
+                'Pre-POC': 'pill status-pre',
+                Active: 'pill status-active',
+                Extended: 'pill status-extended',
+                Paused: 'pill status-paused',
+                Complete: 'pill status-complete'
+            }[status] || 'pill status-other';
+        }
+        function typeClass(type) {
+            if (type === 'Paid') return 'badge badge-paid';
+            if (type === 'Un-Paid') return 'badge badge-unpaid';
+            return 'badge';
+        }
+        function firstLine(text) {
+            if (!text) return null;
+            const line = text.split(/\r?\n/).map((part) => part.trim()).find(Boolean);
+            if (!line) return null;
+            return line.length > 90 ? line.slice(0, 87) + '…' : line;
+        }
+        function formatDate(value) {
+            if (!value) return null;
+            const parts = String(value).split('-');
+            const local = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(local);
+        }
+        function dateRange(start, end) {
+            const startLabel = formatDate(start);
+            const endLabel = formatDate(end);
+            if (startLabel && endLabel) return startLabel + ' – ' + endLabel;
+            if (startLabel) return 'Starts ' + startLabel;
+            if (endLabel) return 'Ends ' + endLabel;
+            return 'No dates';
+        }
+        function formatMoney(amount) {
+            if (amount === null || amount === undefined) return '—';
+            return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
+        }
+        function initials(name) {
+            const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return '?';
+            return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+        }
+        function avatarClass(name, size) {
+            let hash = 0;
+            const text = name || '';
+            for (let i = 0; i < text.length; i += 1) hash = (hash + text.charCodeAt(i) * (i + 1)) % 6;
+            return 'avatar av-' + hash + (size ? ' ' + size : '');
+        }
+        function esc(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        }
+
+        render();
+    </script>
+</body>
+</html>

@@ -11,6 +11,8 @@
             <label>POC Tracker</label>
             <navType>Standard</navType>
             
+            <tabs>POC_Tracking_Board</tabs>
+
             <tabs>POC__c</tabs>
 
             <tabs>standard-Account</tabs>
