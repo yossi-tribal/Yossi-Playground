@@ -1,0 +1,104 @@
+{
+  "introduction": "POC Tracker V1 is a native Salesforce application for tracking proof-of-concept (POC) engagements with prospective or existing customers. It introduces a single custom object, POC__c, linked to the standard Account and Opportunity objects, so sales and solutions teams can see every active and past POC tied to a customer relationship in one place. Each POC record tracks its type, duration, timeline, health, next steps, and lifecycle stage, and supports standard Salesforce Tasks for day-to-day follow-up. The application targets internal Salesforce users only \u2014 no external portal or customer-facing component is in scope for this version.\n\nThe goal of this V1 build is a small, functional, production-ready tracker rather than a full-featured platform: a native Kanban board grouped by lifecycle status gives teams an at-a-glance view of where every POC stands, three tiered permission sets (Viewer, Member, Manager) control who can view versus edit versus create records, and a validation rule keeps Opportunity linkage data-clean by enforcing that a POC's linked Opportunity belongs to the same Account. The primary users are POC owners (typically Solutions Engineers or Account Executives) who manage day-to-day POC execution, POC Members who update status and details on existing POCs, and POC Managers who set up and own new POC engagements. This build is intended for direct deployment to the production org.",
+  "requirements": [
+    {
+      "id": 1,
+      "title": "POC Data Model Setup",
+      "description": "As an admin, I want a POC__c custom object with the core fields and relationships defined so that the application has a solid data foundation for tracking POC engagements.",
+      "acceptance_criteria": [
+        "A new custom object POC__c is created with Activities (Tasks) enabled, so Tasks can be related to POC records via the standard activity relationship.",
+        "Account__c is a required Lookup field to Account \u2014 every POC must be tied to exactly one Account.",
+        "Primary_Opportunity__c is an optional Lookup field to Opportunity.",
+        "Lifecycle_Status__c is a required Picklist field with exactly five values: Pre-POC, Active, Extended, Paused, Complete \u2014 with Pre-POC set as the default value.",
+        "Start_Date__c is an optional Date field representing when the POC begins.",
+        "End_Date__c is an optional Date field representing when the POC is expected to end or ends.",
+        "POC_Type__c is an optional Picklist field with values Paid and Un-Paid.",
+        "Length__c is an optional field capturing the intended duration of the POC (e.g. 2 week, 1 month) as a Picklist.",
+        "Health__c is an optional Picklist field with values Green, Yellow, Red representing overall POC health.",
+        "Next_Steps__c is an optional Long Text Area field for free-text notes on next steps or actions.",
+        "The object uses the standard Owner field to represent the POC owner.",
+        "A validation rule on POC__c blocks save when Primary_Opportunity__c is populated and its Account does not match Account__c, with a clear error message directing the user to select an Opportunity on the same Account."
+      ],
+      "status": "approved",
+      "version": 1,
+      "related_elements": [
+        "CO_POC",
+        "LF_Account",
+        "LF_PrimaryOpportunity",
+        "PF_LifecycleStatus",
+        "PF_POCType",
+        "PF_Length",
+        "PF_Health",
+        "DF_StartDate",
+        "DF_EndDate",
+        "LTAF_NextSteps",
+        "VR_OpportunityAccountMatch"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Tiered Access via Permission Sets",
+      "description": "As an admin, I want three tiered permission sets for POC__c so that different user groups get the right level of access \u2014 from read-only visibility up to full record creation \u2014 without any group being able to delete POC records.",
+      "acceptance_criteria": [
+        "POC_Viewer permission set grants Read access only on POC__c (no Create, Edit, or Delete) and Read access on all POC__c custom fields.",
+        "POC_Member permission set grants Read and Edit access on POC__c (no Create, no Delete) and Edit access on all POC__c custom fields, so members can update existing POC records but not create new ones.",
+        "POC_Manager permission set grants Create, Read, and Edit access on POC__c (no Delete) and Edit access on all POC__c custom fields, so managers can create and fully manage POC records.",
+        "None of the three permission sets grant Delete access on POC__c.",
+        "All three permission sets grant access to the POC custom tab so assigned users can navigate to POC records."
+      ],
+      "status": "approved",
+      "version": 1,
+      "related_elements": [
+        "CT_POC",
+        "PS_POCViewer",
+        "PS_POCMember",
+        "PS_POCManager"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "POC Navigation, List Views, and Record Page",
+      "description": "As a POC owner, I want a dedicated tab, list views, and a record page for POC__c so that I can easily find, review, and manage my POC records and their related Tasks.",
+      "acceptance_criteria": [
+        "A custom tab is created for POC__c so users can navigate to POC records from the app menu.",
+        "A list view 'My POCs' filters POC__c records where Owner equals the current user.",
+        "A list view 'All POCs' shows all POC__c records with no owner filter.",
+        "A list view 'POCs Missing an Opportunity' filters POC__c records where Primary_Opportunity__c is blank.",
+        "The POC__c record page displays Account__c and Primary_Opportunity__c prominently, along with all other POC fields.",
+        "The POC__c record page includes the standard Activities/Tasks related list so users can view and log Tasks directly against the POC record."
+      ],
+      "status": "approved",
+      "version": 1,
+      "related_elements": [
+        "LF_Account",
+        "LF_PrimaryOpportunity",
+        "LV_MyPOCs",
+        "LV_AllPOCs",
+        "LV_POCsMissingOpportunity",
+        "CT_POC",
+        "RP_POCRecordPage",
+        "CA_POCTracker"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Native Kanban by Lifecycle Status",
+      "description": "As a POC owner, I want a native Kanban board grouped by Lifecycle_Status__c so that my team can see at a glance where every POC stands without opening individual records.",
+      "acceptance_criteria": [
+        "The POC__c list view is configured with native Kanban view grouped by the Lifecycle_Status__c field.",
+        "Kanban columns reflect the five Lifecycle_Status__c values in order: Pre-POC, Active, Extended, Paused, Complete.",
+        "Users can open a POC record directly from its Kanban card to view or edit details and related Tasks \u2014 no custom card component is used.\nKanban cards on the All POCs list view display: POC Name, Health__c, POC_Type__c, a read-only Opportunity Amount value, Start_Date__c/End_Date__c, and Next_Steps__c \u2014 replacing the previous default card fields (Account name, POC name, Opportunity name), which were all clickable and confusing.\nA new formula field Opportunity_Amount__c (Currency) is added to POC__c that returns Primary_Opportunity__c.Amount (blank when no Opportunity is linked), so the Opportunity's deal size can be shown on the Kanban card without a lookup field on the card itself."
+      ],
+      "status": "approved",
+      "version": 3,
+      "related_elements": [
+        "PF_LifecycleStatus",
+        "LV_AllPOCs",
+        "FF_OpportunityAmount"
+      ]
+    }
+  ],
+  "glossary": "POC (Proof of Concept): A time-bound evaluation engagement with a customer to validate a solution before a full purchase or rollout, tracked here as a POC__c record.\nPOC__c: The custom Salesforce object at the center of this application; one record represents one POC engagement, linked to an Account and optionally an Opportunity.\nAccount__c: Required lookup field on POC__c pointing to the standard Account object \\u2014 identifies which customer the POC is for.\nPrimary_Opportunity__c: Optional lookup field on POC__c pointing to the standard Opportunity object; if set, its Account must match POC__c.Account__c.\nLifecycle_Status__c: Required picklist field on POC__c tracking where the engagement stands. Values: Pre-POC (default), Active, Extended, Paused, Complete.\nPOC_Type__c: Optional picklist on POC__c indicating whether the engagement is Paid or Un-Paid.\nLength__c: Optional picklist on POC__c capturing the intended duration of the engagement (e.g. 2 week, 1 month).\nHealth__c: Optional picklist on POC__c indicating overall engagement health (Green, Yellow, Red).\nNext_Steps__c: Optional long text field on POC__c for free-text notes on upcoming actions.\nPOC_Viewer: Permission set granting read-only access to POC__c records and fields.\nPOC_Member: Permission set granting read and edit access to POC__c records and fields, but not create or delete.\nPOC_Manager: Permission set granting create, read, and edit access to POC__c records and fields, but not delete.\nKanban View: A native Salesforce list view display mode that shows records as cards grouped into columns by a picklist field \\u2014 here, grouped by Lifecycle_Status__c.\nValidation Rule: Declarative Salesforce logic that blocks a record from saving unless a defined condition is met \\u2014 used here to enforce that a linked Opportunity shares the same Account as the POC.\nActivities (Tasks): Standard Salesforce Task records related to a POC__c record via the standard activity relationship, used for day-to-day follow-up items.",
+  "existing_salesforce_elements": "",
+  "project_type": "New Application"
+}

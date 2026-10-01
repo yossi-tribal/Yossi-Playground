@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>Opportunity_Account_Match</fullName>
+            <active>true</active>
+            <description>Blocks save when Primary_Opportunity__c is populated and its Account does not match Account__c.</description>
+            <errorConditionFormula>NOT(ISBLANK(Primary_Opportunity__c)) &amp;&amp; Primary_Opportunity__r.AccountId &lt;&gt; Account__c</errorConditionFormula>
+            <errorDisplayField>Primary_Opportunity__c</errorDisplayField>
+            <errorMessage>The selected Opportunity belongs to a different Account. Please select an Opportunity on the same Account as this POC.</errorMessage>
+        </ValidationRule>

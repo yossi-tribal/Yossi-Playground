@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>Primary_Opportunity__c</fullName>
+            <label>Primary Opportunity</label>
+            <description>Optional lookup to the Opportunity this POC supports. When populated, must belong to the same Account as this POC.</description>
+            <type>Lookup</type>
+            <inlineHelpText>Optional. Select the deal this POC supports — it must sit on the same Account as this POC.</inlineHelpText>
+            <required>false</required>
+            <referenceTo>Opportunity</referenceTo>
+            <relationshipLabel>POCs</relationshipLabel>
+            <relationshipName>POC</relationshipName>
+            <deleteConstraint>SetNull</deleteConstraint>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            <unique>false</unique>
+            <externalId>false</externalId>
+        </CustomField>

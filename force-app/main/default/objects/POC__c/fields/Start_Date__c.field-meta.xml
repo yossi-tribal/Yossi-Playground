@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>Start_Date__c</fullName>
+            <label>Start Date</label>
+            <description>The date the POC begins.</description>
+            <type>Date</type>
+            <inlineHelpText>The date the POC actually begins, which may differ from the agreed Length.</inlineHelpText>
+            <required>false</required>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+        </CustomField>

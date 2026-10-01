@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>Next_Steps__c</fullName>
+            <label>Next Steps</label>
+            <description>Free-text notes on next steps or actions for this POC engagement.</description>
+            <inlineHelpText>Keep a short running note of upcoming actions. Use Tasks for items that need an owner and a due date.</inlineHelpText>
+            <type>LongTextArea</type>
+            <length>32768</length>
+            <visibleLines>5</visibleLines>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+
+        </CustomField>

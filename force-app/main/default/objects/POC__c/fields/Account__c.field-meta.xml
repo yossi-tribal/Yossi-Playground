@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>Account__c</fullName>
+            <label>Account</label>
+            <description>Required lookup to the Account this POC engagement is tied to. Every POC must be linked to exactly one Account.</description>
+            <type>Lookup</type>
+            <inlineHelpText>Select the customer Account this POC engagement is being run for.</inlineHelpText>
+            <required>true</required>
+            <referenceTo>Account</referenceTo>
+            <relationshipLabel>POCs</relationshipLabel>
+            <relationshipName>POC</relationshipName>
+            <deleteConstraint>Restrict</deleteConstraint>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            <unique>false</unique>
+            <externalId>false</externalId>
+        </CustomField>

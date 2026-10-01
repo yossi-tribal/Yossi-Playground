@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+            <deploymentStatus>Deployed</deploymentStatus>
+            <description>Tracks proof-of-concept (POC) engagements with prospective or existing customers. Each record captures the POC type, duration, timeline, health, next steps, and lifecycle stage, and is linked to an Account and optionally a primary Opportunity. Supports standard Tasks for day-to-day follow-up.</description>
+            <enableActivities>true</enableActivities>
+            <enableBulkApi>true</enableBulkApi>
+            <enableFeeds>true</enableFeeds>
+            <enableHistory>true</enableHistory>
+            <enableReports>true</enableReports>
+            <enableSearch>true</enableSearch>
+            <enableSharing>true</enableSharing>
+            <enableStreamingApi>true</enableStreamingApi>
+            <externalSharingModel>Private</externalSharingModel>
+            <label>POC</label>
+            <nameField>
+                <label>POC Name</label>
+                <type>Text</type>
+            </nameField>
+            <pluralLabel>POCs</pluralLabel>
+            <searchLayouts>
+                <searchFilterFields>NAME</searchFilterFields>
+                <searchResultsAdditionalFields>CREATED_DATE</searchResultsAdditionalFields>
+            </searchLayouts>
+            <sharingModel>ReadWrite</sharingModel>
+            <visibility>Public</visibility>
+        </CustomObject>

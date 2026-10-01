@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+            <fullName>Opportunity_Amount__c</fullName>
+            <label>Opportunity Amount</label>
+            <description>Currency value mirroring the linked Primary Opportunity&#x27;s Amount. Blank when no Opportunity is linked to this POC.</description>
+            <type>Currency</type>
+            <formula><![CDATA[IF(ISBLANK(Primary_Opportunity__c), NULL, Primary_Opportunity__r.Amount)]]></formula>
+            <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+            <trackHistory>false</trackHistory>
+            
+            <!-- Field Level Security - Visible and Editable for all profiles by default -->
+            <securityClassification>Public</securityClassification>
+            <complianceGroup>None</complianceGroup>
+            
+            <!-- Scale and Precision for Number, Currency, and Percent return types -->
+            
+            
+            <precision>18</precision>
+            <scale>2</scale>
+            
+            
+            <inlineHelpText>Mirrors the Amount on the linked Primary Opportunity. Blank when no Opportunity is linked.</inlineHelpText>
+        </CustomField>
