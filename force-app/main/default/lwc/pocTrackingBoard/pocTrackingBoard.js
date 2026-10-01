@@ -1,6 +1,8 @@
 import { LightningElement, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
+import { refreshApex } from '@salesforce/apex';
 import getPocs from '@salesforce/apex/POC_TrackingBoardController.getPocs';
+import updatePoc from '@salesforce/apex/POC_TrackingBoardController.updatePoc';
 
 const COLUMNS = [
     { value: 'Pre-POC', label: 'Pre-POC', dot: 'pre' },
@@ -23,6 +25,48 @@ const VIEW_COPY = {
     timeline: 'Engagements laid out by start and end date.'
 };
 
+const NONE = { label: '—', value: '' };
+
+const LIFECYCLE_OPTIONS = [
+    { label: 'Pre-POC', value: 'Pre-POC' },
+    { label: 'Active', value: 'Active' },
+    { label: 'Extended', value: 'Extended' },
+    { label: 'Paused', value: 'Paused' },
+    { label: 'Complete', value: 'Complete' }
+];
+
+const TYPE_OPTIONS = [NONE, { label: 'Paid', value: 'Paid' }, { label: 'Un-Paid', value: 'Un-Paid' }];
+
+const LENGTH_OPTIONS = [
+    NONE,
+    { label: '2 Weeks', value: '2 Weeks' },
+    { label: '1 Month', value: '1 Month' },
+    { label: '6 Weeks', value: '6 Weeks' },
+    { label: '2 Months', value: '2 Months' },
+    { label: '3 Months', value: '3 Months' },
+    { label: 'Other', value: 'Other' }
+];
+
+const HEALTH_OPTIONS = [
+    NONE,
+    { label: 'Green', value: 'Green' },
+    { label: 'Yellow', value: 'Yellow' },
+    { label: 'Red', value: 'Red' }
+];
+
+const EMPTY_ACCESS = {
+    name: false,
+    account: false,
+    opportunity: false,
+    lifecycleStatus: false,
+    pocType: false,
+    length: false,
+    health: false,
+    startDate: false,
+    endDate: false,
+    nextSteps: false
+};
+
 export default class PocTrackingBoard extends NavigationMixin(LightningElement) {
     records = [];
     currencyCode;
@@ -32,12 +76,29 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
     activeView = 'board';
     selectedId;
     pendingFocus = false;
+    canCreate = false;
+    canUpdate = false;
+    fieldAccess = { ...EMPTY_ACCESS };
+    isEditing = false;
+    isSaving = false;
+    saveError;
+    draft;
+    wiredResult;
+    lifecycleOptions = LIFECYCLE_OPTIONS;
+    typeOptions = TYPE_OPTIONS;
+    lengthOptions = LENGTH_OPTIONS;
+    healthOptions = HEALTH_OPTIONS;
 
     connectedCallback() {
         this.handleWindowKeydown = (event) => {
-            if (event.key === 'Escape' && this.selectedId) {
-                this.selectedId = undefined;
+            if (event.key !== 'Escape' || !this.selectedId) {
+                return;
             }
+            if (this.isEditing) {
+                this.resetEdit();
+                return;
+            }
+            this.selectedId = undefined;
         };
         window.addEventListener('keydown', this.handleWindowKeydown);
     }
@@ -58,19 +119,26 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
     }
 
     @wire(getPocs)
-    wiredPocs({ data, error }) {
+    wiredPocs(result) {
+        this.wiredResult = result;
         this.isLoading = false;
+        const { data, error } = result;
         if (data) {
             this.currencyCode = data.currencyCode;
             this.truncated = data.truncated === true;
+            this.canCreate = data.canCreate === true;
+            this.canUpdate = data.canUpdate === true;
+            this.fieldAccess = { ...EMPTY_ACCESS, ...(data.fields || {}) };
             this.records = (data.pocs || []).map((row) => this.decorate(row));
             this.errorMessage = undefined;
             if (this.selectedId && !this.records.some((row) => row.id === this.selectedId)) {
                 this.selectedId = undefined;
+                this.resetEdit();
             }
         } else if (error) {
             this.records = [];
             this.selectedId = undefined;
+            this.resetEdit();
             this.errorMessage = reduceError(error);
         }
     }
@@ -107,6 +175,45 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
 
     get isEmpty() {
         return this.records.length === 0;
+    }
+
+    get emptyMessage() {
+        return this.canCreate
+            ? 'No POC records yet. Managers can add one with the + on a column.'
+            : 'No POC records yet.';
+    }
+
+    get showEdit() {
+        return this.canUpdate && !this.isEditing;
+    }
+
+    get saveLabel() {
+        return this.isSaving ? 'Saving…' : 'Save';
+    }
+
+    get editFields() {
+        const editing = this.isEditing;
+        const access = this.fieldAccess;
+        return {
+            name: editing && access.name,
+            account: editing && access.account,
+            opportunity: editing && access.opportunity,
+            lifecycleStatus: editing && access.lifecycleStatus,
+            pocType: editing && access.pocType,
+            length: editing && access.length,
+            health: editing && access.health,
+            startDate: editing && access.startDate,
+            endDate: editing && access.endDate,
+            nextSteps: editing && access.nextSteps
+        };
+    }
+
+    get accountPickerValue() {
+        return this.draft?.accountId || '';
+    }
+
+    get opportunityPickerValue() {
+        return this.draft?.opportunityId || '';
     }
 
     get columns() {
@@ -156,6 +263,7 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
         this.activeView = event.currentTarget.dataset.view;
         if (this.activeView !== 'board') {
             this.selectedId = undefined;
+            this.resetEdit();
         }
     }
 
@@ -171,7 +279,109 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
     }
 
     handleClose() {
+        if (this.isSaving) {
+            return;
+        }
+        this.resetEdit();
         this.selectedId = undefined;
+    }
+
+    handleEdit() {
+        const selected = this.selected;
+        if (!selected || !this.canUpdate) {
+            return;
+        }
+        this.draft = {
+            name: selected.name || '',
+            accountId: selected.accountId || null,
+            opportunityId: selected.opportunityId || null,
+            lifecycleStatus: selected.lifecycleStatus || '',
+            pocType: selected.pocType || '',
+            length: selected.length || '',
+            health: selected.health || '',
+            startDate: selected.startDate || null,
+            endDate: selected.endDate || null,
+            nextSteps: selected.nextSteps || ''
+        };
+        this.saveError = undefined;
+        this.isEditing = true;
+    }
+
+    handleCancel() {
+        if (this.isSaving) {
+            return;
+        }
+        this.resetEdit();
+    }
+
+    handleDraftChange(event) {
+        const field = event.target.dataset.field;
+        if (!field || !this.draft) {
+            return;
+        }
+        this.draft = { ...this.draft, [field]: event.detail.value };
+        this.saveError = undefined;
+    }
+
+    handleAccountPick(event) {
+        this.draft = { ...this.draft, accountId: event.detail.recordId || null };
+        this.saveError = undefined;
+    }
+
+    handleOpportunityPick(event) {
+        this.draft = { ...this.draft, opportunityId: event.detail.recordId || null };
+        this.saveError = undefined;
+    }
+
+    async handleSave() {
+        if (this.isSaving || !this.isEditing || !this.draft) {
+            return;
+        }
+        this.template.querySelectorAll('[data-field]').forEach((element) => {
+            const field = element.dataset.field;
+            if (field && 'value' in element) {
+                this.draft = { ...this.draft, [field]: element.value };
+            }
+        });
+        const draft = this.draft;
+        if (this.fieldAccess.name && !String(draft.name || '').trim()) {
+            this.saveError = 'POC Name is required.';
+            return;
+        }
+        if (this.fieldAccess.account && !draft.accountId) {
+            this.saveError = 'Account is required.';
+            return;
+        }
+        if (this.fieldAccess.lifecycleStatus && !draft.lifecycleStatus) {
+            this.saveError = 'Lifecycle Status is required.';
+            return;
+        }
+
+        this.isSaving = true;
+        this.saveError = undefined;
+        try {
+            await updatePoc({
+                input: {
+                    id: this.selectedId,
+                    name: String(draft.name || '').trim(),
+                    accountId: draft.accountId || null,
+                    opportunityId: draft.opportunityId || null,
+                    lifecycleStatus: draft.lifecycleStatus || null,
+                    pocType: draft.pocType || null,
+                    length: draft.length || null,
+                    health: draft.health || null,
+                    startDate: draft.startDate || null,
+                    endDate: draft.endDate || null,
+                    nextSteps: draft.nextSteps
+                }
+            });
+            await refreshApex(this.wiredResult);
+            this.resetEdit();
+        } catch (error) {
+            this.saveError = reduceError(error);
+        } finally {
+            this.isSaving = false;
+        }
     }
 
     handleDrawerClick(event) {
@@ -203,8 +413,17 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
     }
 
     openRecord(id) {
+        if (id !== this.selectedId) {
+            this.resetEdit();
+        }
         this.selectedId = id;
         this.pendingFocus = true;
+    }
+
+    resetEdit() {
+        this.isEditing = false;
+        this.draft = undefined;
+        this.saveError = undefined;
     }
 
     openSalesforceRecord(recordId, objectApiName) {

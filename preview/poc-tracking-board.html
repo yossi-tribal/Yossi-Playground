@@ -20,6 +20,9 @@
             z-index: 60;
             box-shadow: 0 8px 24px rgba(16, 24, 40, 0.2);
         }
+        .role-note {
+            margin: 8px 0 0;
+        }
     </style>
 </head>
 <body>
@@ -43,6 +46,16 @@
             list: 'A table of every POC.',
             timeline: 'Engagements laid out by start and end date.'
         };
+        const ROLES = [
+            { id: 'manager', label: 'Manager', canCreate: true, canUpdate: true, note: 'Can create and edit POCs.' },
+            { id: 'member', label: 'Member', canCreate: false, canUpdate: true, note: 'Can edit existing POCs. Cannot create.' },
+            { id: 'viewer', label: 'Viewer', canCreate: false, canUpdate: false, note: 'Read-only. No edit controls and no Save.' }
+        ];
+        const LIFECYCLE = ['Pre-POC', 'Active', 'Extended', 'Paused', 'Complete'];
+        const TYPES = ['Paid', 'Un-Paid'];
+        const LENGTHS = ['2 Weeks', '1 Month', '6 Weeks', '2 Months', '3 Months', 'Other'];
+        const HEALTHS = ['Green', 'Yellow', 'Red'];
+        const MISMATCH = 'The selected Opportunity belongs to a different Account. Please select an Opportunity on the same Account as this POC.';
         const RECORDS = [
             row('1', 'Enersys', 'Pre-POC', 'Paid', '2 Weeks', 'Green', '2026-06-03', '2026-12-31', 'Kickoff meeting - week of July', 120000, 'Enersys', 'Enersys Expansion', 'Sarah Chen'),
             row('2', 'Netafim', 'Pre-POC', 'Un-Paid', '2 Weeks', 'Green', '2026-04-27', '2026-07-19', 'Continue supporting Ruth on the trial', 50000, 'Netafim', null, 'Marcus Rivera'),
@@ -56,7 +69,25 @@
             row('10', 'Salesforce SMB', 'Complete', 'Paid', '3 Months', 'Green', '2026-06-01', null, 'Finalize commercial terms and handoff', 250000, 'Salesforce SMB', 'Salesforce SMB', 'Sarah Chen')
         ].map(decorate);
 
-        const state = { view: 'board', selectedId: null, toast: '' };
+        const ACCOUNTS = [];
+        const OPPORTUNITIES = [];
+        RECORDS.forEach((record) => {
+            if (record.accountId && !ACCOUNTS.some((account) => account.id === record.accountId)) {
+                ACCOUNTS.push({ id: record.accountId, name: record.accountName });
+            }
+            if (record.opportunityId && !OPPORTUNITIES.some((opportunity) => opportunity.id === record.opportunityId)) {
+                OPPORTUNITIES.push({
+                    id: record.opportunityId,
+                    name: record.opportunityName,
+                    accountId: record.accountId,
+                    amount: record.opportunityAmount
+                });
+            }
+        });
+        ACCOUNTS.push({ id: 'acct-other', name: 'Other Customer' });
+        OPPORTUNITIES.push({ id: 'opp-other', name: 'Other Customer Deal', accountId: 'acct-other', amount: 80000 });
+
+        const state = { view: 'board', selectedId: null, toast: '', role: 'manager', editing: false, saveError: '', draft: null };
         let toastTimer;
 
         function row(id, name, lifecycleStatus, pocType, length, health, startDate, endDate, nextSteps, opportunityAmount, accountName, opportunityName, ownerName) {
@@ -67,6 +98,10 @@
                 opportunityId: opportunityName ? 'opp-' + id : null,
                 ownerId: ownerName
             };
+        }
+
+        function roleAccess() {
+            return ROLES.find((role) => role.id === state.role) || ROLES[0];
         }
 
         function decorate(record) {
@@ -81,6 +116,7 @@
                 typeClass: typeClass(record.pocType),
                 hasType: Boolean(record.pocType),
                 hasLength: Boolean(record.length),
+                lengthLabel: record.length || '—',
                 nextAction: firstLine(record.nextSteps),
                 hasNextAction: hasNext,
                 nextStepsText: record.nextSteps && record.nextSteps.trim() ? record.nextSteps : 'No next steps yet.',
@@ -100,6 +136,10 @@
         }
 
         function render() {
+            const active = document.activeElement;
+            const field = active && active.getAttribute ? active.getAttribute('data-field') : null;
+            const selectionStart = active && typeof active.selectionStart === 'number' ? active.selectionStart : null;
+            const selectionEnd = active && typeof active.selectionEnd === 'number' ? active.selectionEnd : null;
             const selected = RECORDS.find((record) => record.id === state.selectedId);
             document.getElementById('app').innerHTML = `
                 <div class="board-app">
@@ -107,6 +147,8 @@
                         <div>
                             <h1>POC Tracking Board</h1>
                             <p class="subtitle">Proof-of-concept engagements grouped by lifecycle status.</p>
+                            <button type="button" class="mode-toggle" data-role="cycle">Preview role: ${esc(roleAccess().label)}</button>
+                            <p class="field-hint role-note">${esc(roleAccess().note)}</p>
                         </div>
                         <div class="avatar-stack" aria-label="POC owners">${ownerStack()}</div>
                     </header>
@@ -115,6 +157,21 @@
                     ${selected ? drawer(selected) : ''}
                     ${state.toast ? `<div class="toast" role="status">${esc(state.toast)}</div>` : ''}
                 </div>`;
+            if (!field) {
+                return;
+            }
+            const next = document.querySelector('[data-field="' + CSS.escape(field) + '"]');
+            if (!next) {
+                return;
+            }
+            next.focus();
+            if (selectionStart !== null && typeof next.setSelectionRange === 'function' && next.type !== 'date') {
+                try {
+                    next.setSelectionRange(selectionStart, selectionEnd);
+                } catch (error) {
+                    /* Some inputs do not support a selection range. */
+                }
+            }
         }
 
         function tabs() {
@@ -154,6 +211,9 @@
             const body = cards.length
                 ? cards.map(cardMarkup).join('')
                 : '<p class="empty-col">No POCs in this stage</p>';
+            const create = roleAccess().canCreate
+                ? `<button type="button" class="icon-btn" data-new="${esc(column.value)}" aria-label="New ${esc(column.label)} POC">+</button>`
+                : '';
             return `
                 <section class="column" aria-label="${esc(column.label)}">
                     <header class="column-header">
@@ -162,7 +222,7 @@
                             <h2>${esc(column.label)}</h2>
                             <span class="count">${cards.length}</span>
                         </div>
-                        <button type="button" class="icon-btn" data-new="${esc(column.value)}" aria-label="New ${esc(column.label)} POC">+</button>
+                        ${create}
                     </header>
                     <div class="column-body">${body}</div>
                 </section>`;
@@ -216,39 +276,52 @@
         }
 
         function drawer(card) {
+            const access = roleAccess();
+            const editing = state.editing && access.canUpdate;
+            const draft = state.draft || {};
             const account = card.accountId
                 ? `<button type="button" class="linkish" data-open-related="account">${esc(card.accountLabel)}</button>`
                 : `<span class="stat-value">${esc(card.accountLabel)}</span>`;
             const opportunity = card.opportunityId
                 ? `<button type="button" class="linkish" data-open-related="opportunity">${esc(card.opportunityLabel)}</button>`
                 : `<span class="stat-value">${esc(card.opportunityLabel)}</span>`;
+            const actions = `
+                ${access.canUpdate && !editing ? '<button type="button" class="text-btn" data-edit="true">Edit</button>' : ''}
+                ${editing ? '<button type="button" class="text-btn" data-cancel="true">Cancel</button><button type="button" class="primary-btn" data-save="true">Save</button>' : ''}
+                <button type="button" class="text-btn" data-open-record="true">Open record</button>
+                <button type="button" class="drawer-close" data-close="true" aria-label="Close">×</button>`;
+            const status = editing
+                ? selectControl('Lifecycle Status', 'lifecycleStatus', draft.lifecycleStatus, LIFECYCLE, false)
+                : `<span class="${card.statusClass}">${esc(card.statusLabel)}</span>`;
+            const health = editing
+                ? selectControl('Health', 'health', draft.health, HEALTHS, true)
+                : `<span class="${card.healthClass}"><span class="mini-dot"></span>${esc(card.healthLabel)}</span>`;
             return `
                 <div class="backdrop" data-close="true"></div>
                 <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="poc-drawer-title">
                     <div class="drawer-head">
                         <div class="drawer-top">
-                            <div class="pill-row">
-                                <span class="${card.statusClass}">${esc(card.statusLabel)}</span>
-                                <span class="${card.healthClass}"><span class="mini-dot"></span>${esc(card.healthLabel)}</span>
-                            </div>
-                            <div class="drawer-actions">
-                                <button type="button" class="text-btn" data-open-record="true">Open record</button>
-                                <button type="button" class="drawer-close" data-close="true" aria-label="Close">×</button>
-                            </div>
+                            <div class="pill-row">${status}${health}</div>
+                            <div class="drawer-actions">${actions}</div>
                         </div>
                         <h2 id="poc-drawer-title" class="drawer-title">${esc(card.name)}</h2>
                     </div>
                     <div class="drawer-body">
+                        ${state.saveError ? `<div class="error-banner inline" role="alert">${esc(state.saveError)}</div>` : ''}
+                        ${editing ? `<div class="name-edit">${textControl('POC Name', 'name', draft.name)}</div>` : ''}
                         <div class="stat-grid">
-                            ${stat('Engagement type', `<span class="stat-value">${esc(card.typeLabel)}</span>`)}
+                            ${stat('Engagement type', editing ? selectControl('Engagement type', 'pocType', draft.pocType, TYPES, true) : `<span class="stat-value">${esc(card.typeLabel)}</span>`)}
                             ${stat('Region', '<div class="soon-box soon-inline"><span class="soon-flag">Coming soon</span></div>')}
                             ${stat('Opp amount', `<span class="stat-value">${esc(card.amountLabel)}</span>`)}
                             ${stat('Close date', '<div class="soon-box soon-inline"><span class="soon-flag">Coming soon</span></div>')}
-                            ${stat('Length', `<span class="stat-value">${esc(card.lengthLabel || card.length || '—')}</span>`)}
-                            ${stat('Start date', `<span class="stat-value">${esc(card.startLabel)}</span>`)}
-                            ${stat('End date', `<span class="stat-value">${esc(card.endLabel)}</span>`)}
-                            ${stat('Account', account)}
-                            ${stat('Opportunity', opportunity)}
+                            ${stat('Length', editing ? selectControl('Length', 'length', draft.length, LENGTHS, true) : `<span class="stat-value">${esc(card.lengthLabel)}</span>`)}
+                            ${stat('Start date', editing ? dateControl('Start date', 'startDate', draft.startDate) : `<span class="stat-value">${esc(card.startLabel)}</span>`)}
+                            ${stat('End date', editing ? dateControl('End date', 'endDate', draft.endDate) : `<span class="stat-value">${esc(card.endLabel)}</span>`)}
+                            ${stat('Account', editing ? selectControl('Account', 'accountId', draft.accountId, ACCOUNTS.map((account) => ({ value: account.id, label: account.name })), false) : account)}
+                            ${stat('Opportunity', editing ? selectControl('Opportunity', 'opportunityId', draft.opportunityId, OPPORTUNITIES.map((item) => {
+                                const owner = ACCOUNTS.find((account) => account.id === item.accountId);
+                                return { value: item.id, label: item.name + (owner ? ' (' + owner.name + ')' : '') };
+                            }), true) + '<p class="field-hint">Must be an opportunity on the same account. A mismatch is rejected on save.</p>' : opportunity)}
                         </div>
                         <section class="panel-section">
                             <h3>${sectionIcon('people')} POC assignees</h3>
@@ -263,7 +336,9 @@
                         </section>
                         <section class="panel-section">
                             <h3>${sectionIcon('check')} Next steps and action items</h3>
-                            <div class="${card.notesClass}">${esc(card.nextStepsText)}</div>
+                            ${editing
+                                ? `<label class="stat-label" for="field-nextSteps">Next steps</label><textarea id="field-nextSteps" class="field-control" data-field="nextSteps">${esc(draft.nextSteps || '')}</textarea>`
+                                : `<div class="${card.notesClass}">${esc(card.nextStepsText)}</div>`}
                             <div class="soon-box"><span class="soon-flag">Coming soon</span><p>Task checklist with owners and due dates.</p></div>
                         </section>
                         ${soonSection('book', 'Enablement sessions', 'Customer sessions and who has completed them.')}
@@ -276,7 +351,29 @@
         }
 
         function stat(label, valueHtml) {
+            if (valueHtml.indexOf('stat-label') !== -1 || valueHtml.indexOf('<label') !== -1) {
+                return `<div class="stat">${valueHtml}</div>`;
+            }
             return `<div class="stat"><span class="stat-label">${label}</span>${valueHtml}</div>`;
+        }
+
+        function selectControl(label, field, value, options, optional) {
+            const normalized = options.map((option) => (typeof option === 'string' ? { value: option, label: option } : option));
+            const choices = optional ? [{ value: '', label: '—' }].concat(normalized) : normalized;
+            const current = value || '';
+            const html = choices.map((option) => {
+                const selected = String(option.value) === String(current) ? ' selected' : '';
+                return `<option value="${esc(option.value)}"${selected}>${esc(option.label)}</option>`;
+            }).join('');
+            return `<label class="stat-label" for="field-${field}">${esc(label)}</label><select id="field-${field}" class="field-control" data-field="${field}">${html}</select>`;
+        }
+
+        function textControl(label, field, value) {
+            return `<label class="stat-label" for="field-${field}">${esc(label)}</label><input id="field-${field}" class="field-control" data-field="${field}" value="${esc(value || '')}">`;
+        }
+
+        function dateControl(label, field, value) {
+            return `<label class="stat-label" for="field-${field}">${esc(label)}</label><input id="field-${field}" class="field-control" type="date" data-field="${field}" value="${esc(value || '')}">`;
         }
 
         function soonSection(iconName, title, copy) {
@@ -300,6 +397,84 @@
             return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
         }
 
+        function startEdit(card) {
+            state.editing = true;
+            state.saveError = '';
+            state.draft = {
+                name: card.name || '',
+                accountId: card.accountId || '',
+                opportunityId: card.opportunityId || '',
+                lifecycleStatus: card.lifecycleStatus || '',
+                pocType: card.pocType || '',
+                length: card.length || '',
+                health: card.health || '',
+                startDate: card.startDate || '',
+                endDate: card.endDate || '',
+                nextSteps: card.nextSteps || ''
+            };
+            render();
+            const name = document.querySelector('[data-field="name"]');
+            if (name) name.focus();
+        }
+
+        function cancelEdit() {
+            state.editing = false;
+            state.draft = null;
+            state.saveError = '';
+            render();
+        }
+
+        function saveDraft() {
+            const index = RECORDS.findIndex((record) => record.id === state.selectedId);
+            if (index < 0 || !state.draft) {
+                return;
+            }
+            const draft = state.draft;
+            if (!String(draft.name || '').trim()) {
+                state.saveError = 'POC Name is required.';
+                render();
+                return;
+            }
+            if (!draft.accountId) {
+                state.saveError = 'Account is required.';
+                render();
+                return;
+            }
+            if (!draft.lifecycleStatus) {
+                state.saveError = 'Lifecycle Status is required.';
+                render();
+                return;
+            }
+            const opportunity = OPPORTUNITIES.find((item) => item.id === draft.opportunityId);
+            if (opportunity && opportunity.accountId !== draft.accountId) {
+                state.saveError = MISMATCH;
+                render();
+                return;
+            }
+            const account = ACCOUNTS.find((item) => item.id === draft.accountId);
+            const current = RECORDS[index];
+            const opportunityChanged = (draft.opportunityId || null) !== (current.opportunityId || null);
+            RECORDS[index] = decorate(Object.assign({}, current, {
+                name: String(draft.name).trim(),
+                accountId: draft.accountId,
+                accountName: account ? account.name : null,
+                opportunityId: opportunity ? opportunity.id : null,
+                opportunityName: opportunity ? opportunity.name : null,
+                opportunityAmount: opportunityChanged ? (opportunity ? opportunity.amount : null) : current.opportunityAmount,
+                lifecycleStatus: draft.lifecycleStatus,
+                pocType: draft.pocType || null,
+                length: draft.length || null,
+                health: draft.health || null,
+                startDate: draft.startDate || null,
+                endDate: draft.endDate || null,
+                nextSteps: String(draft.nextSteps || '').trim() ? draft.nextSteps : null
+            }));
+            state.editing = false;
+            state.draft = null;
+            state.saveError = '';
+            showToast('Saved. The card on the board is updated.');
+        }
+
         function showToast(message) {
             state.toast = message;
             render();
@@ -311,15 +486,35 @@
         }
 
         document.body.addEventListener('click', (event) => {
+            const role = event.target.closest('[data-role]');
             const view = event.target.closest('[data-view]');
             const card = event.target.closest('[data-card]');
             const newer = event.target.closest('[data-new]');
+            const edit = event.target.closest('[data-edit]');
+            const save = event.target.closest('[data-save]');
+            const cancel = event.target.closest('[data-cancel]');
             const closer = event.target.closest('[data-close]');
             const record = event.target.closest('[data-open-record]');
             const related = event.target.closest('[data-open-related]');
+            if (role) {
+                const index = ROLES.findIndex((item) => item.id === state.role);
+                state.role = ROLES[(index + 1) % ROLES.length].id;
+                if (!roleAccess().canUpdate) {
+                    state.editing = false;
+                    state.draft = null;
+                    state.saveError = '';
+                }
+                render();
+                return;
+            }
             if (view) {
                 state.view = view.dataset.view;
-                if (state.view !== 'board') state.selectedId = null;
+                if (state.view !== 'board') {
+                    state.selectedId = null;
+                    state.editing = false;
+                    state.draft = null;
+                    state.saveError = '';
+                }
                 render();
                 return;
             }
@@ -327,8 +522,24 @@
                 showToast('In Salesforce this opens a new POC with Lifecycle Status set to ' + newer.dataset.new + '.');
                 return;
             }
+            if (edit) {
+                const selected = RECORDS.find((item) => item.id === state.selectedId);
+                if (selected && roleAccess().canUpdate) startEdit(selected);
+                return;
+            }
+            if (cancel) {
+                cancelEdit();
+                return;
+            }
+            if (save) {
+                saveDraft();
+                return;
+            }
             if (closer) {
                 state.selectedId = null;
+                state.editing = false;
+                state.draft = null;
+                state.saveError = '';
                 render();
                 return;
             }
@@ -341,6 +552,11 @@
                 return;
             }
             if (card) {
+                if (card.dataset.card !== state.selectedId) {
+                    state.editing = false;
+                    state.draft = null;
+                    state.saveError = '';
+                }
                 state.selectedId = card.dataset.card;
                 render();
                 const closeButton = document.querySelector('.drawer-close');
@@ -348,8 +564,27 @@
             }
         });
 
+        function rememberField(event) {
+            const field = event.target.closest('[data-field]');
+            if (!field || !state.draft) {
+                return;
+            }
+            state.draft[field.dataset.field] = event.target.value;
+            if (state.saveError) {
+                state.saveError = '';
+                render();
+            }
+        }
+
+        document.body.addEventListener('input', rememberField);
+        document.body.addEventListener('change', rememberField);
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && state.selectedId) {
+                if (state.editing) {
+                    cancelEdit();
+                    return;
+                }
                 state.selectedId = null;
                 render();
             }

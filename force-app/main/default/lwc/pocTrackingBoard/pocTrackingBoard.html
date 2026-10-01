@@ -83,7 +83,7 @@
                 <p class="limit-note">Showing the first 500 POCs, ordered by name.</p>
             </template>
             <template lwc:if={isEmpty}>
-                <p class="empty-banner">No POC records yet. Managers can add one with the + on a column.</p>
+                <p class="empty-banner">{emptyMessage}</p>
             </template>
             <div class="columns">
                 <template for:each={columns} for:item="column">
@@ -94,7 +94,9 @@
                                 <h2>{column.label}</h2>
                                 <span class="count">{column.count}</span>
                             </div>
-                            <button type="button" class="icon-btn" data-status={column.value} onclick={handleNew} aria-label={column.newLabel}>+</button>
+                            <template lwc:if={canCreate}>
+                                <button type="button" class="icon-btn" data-status={column.value} onclick={handleNew} aria-label={column.newLabel}>+</button>
+                            </template>
                         </header>
                         <div class="column-body">
                             <template lwc:if={column.isEmpty}>
@@ -159,13 +161,49 @@
                 <div class="drawer-head">
                     <div class="drawer-top">
                         <div class="pill-row">
-                            <span class={selected.statusClass}>{selected.statusLabel}</span>
-                            <span class={selected.healthClass}>
-                                <span class="mini-dot" aria-hidden="true"></span>
-                                {selected.healthLabel}
-                            </span>
+                            <template lwc:if={editFields.lifecycleStatus}>
+                                <lightning-combobox
+                                    class="header-field"
+                                    label="Lifecycle Status"
+                                    variant="label-hidden"
+                                    value={draft.lifecycleStatus}
+                                    options={lifecycleOptions}
+                                    data-field="lifecycleStatus"
+                                    disabled={isSaving}
+                                    onchange={handleDraftChange}>
+                                </lightning-combobox>
+                            </template>
+                            <template lwc:else>
+                                <span class={selected.statusClass}>{selected.statusLabel}</span>
+                            </template>
+                            <template lwc:if={editFields.health}>
+                                <lightning-combobox
+                                    class="header-field"
+                                    label="Health"
+                                    variant="label-hidden"
+                                    value={draft.health}
+                                    options={healthOptions}
+                                    placeholder="Health"
+                                    data-field="health"
+                                    disabled={isSaving}
+                                    onchange={handleDraftChange}>
+                                </lightning-combobox>
+                            </template>
+                            <template lwc:else>
+                                <span class={selected.healthClass}>
+                                    <span class="mini-dot" aria-hidden="true"></span>
+                                    {selected.healthLabel}
+                                </span>
+                            </template>
                         </div>
                         <div class="drawer-actions">
+                            <template lwc:if={showEdit}>
+                                <button type="button" class="text-btn" onclick={handleEdit}>Edit</button>
+                            </template>
+                            <template lwc:if={isEditing}>
+                                <button type="button" class="text-btn" onclick={handleCancel} disabled={isSaving}>Cancel</button>
+                                <button type="button" class="primary-btn" onclick={handleSave} disabled={isSaving}>{saveLabel}</button>
+                            </template>
                             <button type="button" class="text-btn" onclick={handleOpenRecord}>Open record</button>
                             <button type="button" class="drawer-close" onclick={handleClose} aria-label="Close">×</button>
                         </div>
@@ -173,10 +211,38 @@
                     <h2 id="poc-drawer-title" class="drawer-title">{selected.name}</h2>
                 </div>
                 <div class="drawer-body">
+                    <template lwc:if={saveError}>
+                        <div class="error-banner inline" role="alert">{saveError}</div>
+                    </template>
+                    <template lwc:if={editFields.name}>
+                        <div class="name-edit">
+                            <lightning-input
+                                label="POC Name"
+                                value={draft.name}
+                                required
+                                data-field="name"
+                                disabled={isSaving}
+                                onchange={handleDraftChange}>
+                            </lightning-input>
+                        </div>
+                    </template>
                     <div class="stat-grid">
                         <div class="stat">
-                            <span class="stat-label">Engagement type</span>
-                            <span class="stat-value">{selected.typeLabel}</span>
+                            <template lwc:if={editFields.pocType}>
+                                <lightning-combobox
+                                    label="Engagement type"
+                                    value={draft.pocType}
+                                    options={typeOptions}
+                                    placeholder="Select type"
+                                    data-field="pocType"
+                                    disabled={isSaving}
+                                    onchange={handleDraftChange}>
+                                </lightning-combobox>
+                            </template>
+                            <template lwc:else>
+                                <span class="stat-label">Engagement type</span>
+                                <span class="stat-value">{selected.typeLabel}</span>
+                            </template>
                         </div>
                         <div class="stat">
                             <span class="stat-label">Region</span>
@@ -191,33 +257,96 @@
                             <div class="soon-box soon-inline"><span class="soon-flag">Coming soon</span></div>
                         </div>
                         <div class="stat">
-                            <span class="stat-label">Length</span>
-                            <span class="stat-value">{selected.lengthLabel}</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Start date</span>
-                            <span class="stat-value">{selected.startLabel}</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">End date</span>
-                            <span class="stat-value">{selected.endLabel}</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Account</span>
-                            <template lwc:if={selected.hasAccountLink}>
-                                <button type="button" class="linkish" data-id={selected.accountId} data-object="Account" onclick={handleOpenRelated}>{selected.accountLabel}</button>
+                            <template lwc:if={editFields.length}>
+                                <lightning-combobox
+                                    label="Length"
+                                    value={draft.length}
+                                    options={lengthOptions}
+                                    placeholder="Select length"
+                                    data-field="length"
+                                    disabled={isSaving}
+                                    onchange={handleDraftChange}>
+                                </lightning-combobox>
                             </template>
                             <template lwc:else>
-                                <span class="stat-value">{selected.accountLabel}</span>
+                                <span class="stat-label">Length</span>
+                                <span class="stat-value">{selected.lengthLabel}</span>
                             </template>
                         </div>
                         <div class="stat">
-                            <span class="stat-label">Opportunity</span>
-                            <template lwc:if={selected.hasOpportunityLink}>
-                                <button type="button" class="linkish" data-id={selected.opportunityId} data-object="Opportunity" onclick={handleOpenRelated}>{selected.opportunityLabel}</button>
+                            <template lwc:if={editFields.startDate}>
+                                <lightning-input
+                                    type="date"
+                                    label="Start date"
+                                    value={draft.startDate}
+                                    data-field="startDate"
+                                    disabled={isSaving}
+                                    onchange={handleDraftChange}>
+                                </lightning-input>
                             </template>
                             <template lwc:else>
-                                <span class="stat-value">{selected.opportunityLabel}</span>
+                                <span class="stat-label">Start date</span>
+                                <span class="stat-value">{selected.startLabel}</span>
+                            </template>
+                        </div>
+                        <div class="stat">
+                            <template lwc:if={editFields.endDate}>
+                                <lightning-input
+                                    type="date"
+                                    label="End date"
+                                    value={draft.endDate}
+                                    data-field="endDate"
+                                    disabled={isSaving}
+                                    onchange={handleDraftChange}>
+                                </lightning-input>
+                            </template>
+                            <template lwc:else>
+                                <span class="stat-label">End date</span>
+                                <span class="stat-value">{selected.endLabel}</span>
+                            </template>
+                        </div>
+                        <div class="stat">
+                            <template lwc:if={editFields.account}>
+                                <lightning-record-picker
+                                    label="Account"
+                                    placeholder="Search Accounts"
+                                    object-api-name="Account"
+                                    value={accountPickerValue}
+                                    required
+                                    disabled={isSaving}
+                                    onchange={handleAccountPick}>
+                                </lightning-record-picker>
+                            </template>
+                            <template lwc:else>
+                                <span class="stat-label">Account</span>
+                                <template lwc:if={selected.hasAccountLink}>
+                                    <button type="button" class="linkish" data-id={selected.accountId} data-object="Account" onclick={handleOpenRelated}>{selected.accountLabel}</button>
+                                </template>
+                                <template lwc:else>
+                                    <span class="stat-value">{selected.accountLabel}</span>
+                                </template>
+                            </template>
+                        </div>
+                        <div class="stat">
+                            <template lwc:if={editFields.opportunity}>
+                                <lightning-record-picker
+                                    label="Opportunity"
+                                    placeholder="Search Opportunities"
+                                    object-api-name="Opportunity"
+                                    value={opportunityPickerValue}
+                                    disabled={isSaving}
+                                    onchange={handleOpportunityPick}>
+                                </lightning-record-picker>
+                                <p class="field-hint">Must be an opportunity on the same account. A mismatch is rejected on save.</p>
+                            </template>
+                            <template lwc:else>
+                                <span class="stat-label">Opportunity</span>
+                                <template lwc:if={selected.hasOpportunityLink}>
+                                    <button type="button" class="linkish" data-id={selected.opportunityId} data-object="Opportunity" onclick={handleOpenRelated}>{selected.opportunityLabel}</button>
+                                </template>
+                                <template lwc:else>
+                                    <span class="stat-value">{selected.opportunityLabel}</span>
+                                </template>
                             </template>
                         </div>
                     </div>
@@ -245,7 +374,18 @@
                             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12.5l2.2 2.2L16 9"></path></svg>
                             Next steps and action items
                         </h3>
-                        <div class={selected.notesClass}>{selected.nextStepsText}</div>
+                        <template lwc:if={editFields.nextSteps}>
+                            <lightning-textarea
+                                label="Next steps"
+                                value={draft.nextSteps}
+                                data-field="nextSteps"
+                                disabled={isSaving}
+                                onchange={handleDraftChange}>
+                            </lightning-textarea>
+                        </template>
+                        <template lwc:else>
+                            <div class={selected.notesClass}>{selected.nextStepsText}</div>
+                        </template>
                         <div class="soon-box">
                             <span class="soon-flag">Coming soon</span>
                             <p>Task checklist with owners and due dates.</p>

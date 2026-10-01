@@ -139,9 +139,12 @@
 .view-tab:focus-visible,
 .icon-btn:focus-visible,
 .text-btn:focus-visible,
+.primary-btn:focus-visible,
 .drawer-close:focus-visible,
 .linkish:focus-visible,
-.card:focus-visible {
+.card:focus-visible,
+.mode-toggle:focus-visible,
+.field-control:focus-visible {
     outline: 2px solid #7a5af8;
     outline-offset: 2px;
 }
@@ -279,6 +282,11 @@
 .drawer-top {
     justify-content: space-between;
     gap: 8px;
+}
+
+.drawer-top {
+    flex-wrap: wrap;
+    align-items: flex-start;
 }
 
 .card-top {
@@ -481,6 +489,13 @@
     background: #fff6f6;
 }
 
+.error-banner.inline {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+}
+
 .empty-banner,
 .limit-note {
     margin: 0 0 12px;
@@ -546,6 +561,82 @@
     font-size: 13px;
     padding: 6px 8px;
     border-radius: 8px;
+}
+
+.primary-btn {
+    border: 0;
+    background: #7a5af8;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.primary-btn:hover {
+    background: #6941c6;
+}
+
+.primary-btn:disabled,
+.text-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.header-field {
+    display: block;
+    width: 11rem;
+}
+
+.name-edit {
+    margin-top: 16px;
+}
+
+.field-hint {
+    margin: 6px 0 0;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.field-control {
+    width: 100%;
+    margin-top: 2px;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    background: #fff;
+    color: #1d2939;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 10px;
+}
+
+textarea.field-control {
+    font-weight: 500;
+    min-height: 96px;
+    resize: vertical;
+    line-height: 1.45;
+}
+
+.mode-toggle {
+    margin-top: 10px;
+    border: 1px solid #d6ccff;
+    background: #f4f0ff;
+    color: #6941c6;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mode-toggle:hover {
+    background: #ebe4ff;
 }
 
 .drawer-title {
