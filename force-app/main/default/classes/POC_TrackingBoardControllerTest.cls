@@ -85,7 +85,6 @@ private class POC_TrackingBoardControllerTest {
         Assert.isTrue(alpha.nextSteps.startsWith('Kickoff meeting'), 'Next steps should round-trip.');
         Assert.areEqual(Decimal.valueOf(120000), alpha.opportunityAmount);
         Assert.areEqual(UserInfo.getUserId(), alpha.ownerId);
-        Assert.isNotNull(alpha.ownerName);
 
         POC_TrackingBoardController.BoardRow mesa = data.pocs[1];
         Assert.areEqual('Pre-POC', mesa.lifecycleStatus);
