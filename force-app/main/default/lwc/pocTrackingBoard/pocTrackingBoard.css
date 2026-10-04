@@ -526,7 +526,7 @@
 
 .backdrop {
     position: fixed;
-    top: 0;
+    top: 96px;
     right: 0;
     bottom: 0;
     left: 0;
@@ -536,9 +536,9 @@
 
 .drawer {
     position: fixed;
-    top: 0;
+    top: 96px;
     right: 0;
-    height: 100vh;
+    height: calc(100vh - 96px);
     width: min(520px, 100vw);
     background: #fff;
     z-index: 50;
