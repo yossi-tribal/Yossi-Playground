@@ -83,7 +83,7 @@ private class POC_TrackingBoardControllerTest {
         Assert.areEqual(Date.newInstance(2026, 6, 3), alpha.startDate);
         Assert.areEqual(Date.newInstance(2026, 12, 31), alpha.endDate);
         Assert.isTrue(alpha.nextSteps.startsWith('Kickoff meeting'), 'Next steps should round-trip.');
-        Assert.areEqual(0, alpha.opportunityAmount.compareTo(Decimal.valueOf(120000)));
+        Assert.areEqual(Decimal.valueOf(120000), alpha.opportunityAmount);
         Assert.areEqual(UserInfo.getUserId(), alpha.ownerId);
         Assert.isNotNull(alpha.ownerName);
 
@@ -161,7 +161,7 @@ private class POC_TrackingBoardControllerTest {
         Assert.areEqual(Date.newInstance(2026, 6, 10), saved.Start_Date__c);
         Assert.areEqual(Date.newInstance(2026, 8, 1), saved.End_Date__c);
         Assert.areEqual('Confirm the success plan', saved.Next_Steps__c);
-        Assert.areEqual(0, saved.Opportunity_Amount__c.compareTo(Decimal.valueOf(120000)));
+        Assert.areEqual(Decimal.valueOf(120000), saved.Opportunity_Amount__c);
 
         POC_TrackingBoardController.BoardData data = POC_TrackingBoardController.getPocs();
         POC_TrackingBoardController.BoardRow row = data.pocs[0];
