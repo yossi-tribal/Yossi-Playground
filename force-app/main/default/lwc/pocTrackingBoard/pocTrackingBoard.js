@@ -120,36 +120,43 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
     }
 
     // Salesforce's global header and tab bar sit above this component, so a
-    // viewport-anchored drawer would be clipped at the top. Anchor it to the
-    // bottom edge of the page's scroll container instead.
+    // viewport-anchored drawer would be clipped at the top. Hit-test down the
+    // drawer's edge to find the first row the drawer actually owns, and start
+    // the drawer there.
     positionDrawer() {
         const drawer = this.template.querySelector('.drawer');
         if (!drawer) {
             return;
         }
-        const top = Math.max(0, Math.round(this.findScrollContainerTop()));
         const backdrop = this.template.querySelector('.backdrop');
         [drawer, backdrop].forEach((element) => {
             if (element) {
-                element.style.top = `${top}px`;
+                element.style.top = '0px';
             }
         });
-        drawer.style.height = `calc(100vh - ${top}px)`;
+        drawer.style.height = '100vh';
+
+        const top = this.findVisibleTop(drawer);
+        if (top > 0) {
+            [drawer, backdrop].forEach((element) => {
+                if (element) {
+                    element.style.top = `${top}px`;
+                }
+            });
+            drawer.style.height = `calc(100vh - ${top}px)`;
+        }
     }
 
-    findScrollContainerTop() {
-        let node = this.template.host;
-        while (node) {
-            if (node instanceof Element) {
-                const { overflowY } = window.getComputedStyle(node);
-                if (
-                    (overflowY === 'auto' || overflowY === 'scroll') &&
-                    node.scrollHeight > node.clientHeight
-                ) {
-                    return node.getBoundingClientRect().top;
-                }
+    findVisibleTop(drawer) {
+        const rect = drawer.getBoundingClientRect();
+        const x = Math.round(rect.left + Math.min(rect.width / 2, 200));
+        const limit = Math.min(window.innerHeight - 1, 600);
+        const host = this.template.host;
+        for (let y = 0; y <= limit; y += 2) {
+            const hit = document.elementFromPoint(x, y);
+            if (hit && (hit === host || host.contains(hit) || this.template.contains(hit))) {
+                return y;
             }
-            node = node.parentElement || (node.getRootNode && node.getRootNode().host) || null;
         }
         return 0;
     }
