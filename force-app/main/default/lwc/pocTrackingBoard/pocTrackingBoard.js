@@ -108,6 +108,7 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
     }
 
     renderedCallback() {
+        this.positionDrawer();
         if (!this.pendingFocus) {
             return;
         }
@@ -116,6 +117,41 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
             closeButton.focus();
             this.pendingFocus = false;
         }
+    }
+
+    // Salesforce's global header and tab bar sit above this component, so a
+    // viewport-anchored drawer would be clipped at the top. Anchor it to the
+    // bottom edge of the page's scroll container instead.
+    positionDrawer() {
+        const drawer = this.template.querySelector('.drawer');
+        if (!drawer) {
+            return;
+        }
+        const top = Math.max(0, Math.round(this.findScrollContainerTop()));
+        const backdrop = this.template.querySelector('.backdrop');
+        [drawer, backdrop].forEach((element) => {
+            if (element) {
+                element.style.top = `${top}px`;
+            }
+        });
+        drawer.style.height = `calc(100vh - ${top}px)`;
+    }
+
+    findScrollContainerTop() {
+        let node = this.template.host;
+        while (node) {
+            if (node instanceof Element) {
+                const { overflowY } = window.getComputedStyle(node);
+                if (
+                    (overflowY === 'auto' || overflowY === 'scroll') &&
+                    node.scrollHeight > node.clientHeight
+                ) {
+                    return node.getBoundingClientRect().top;
+                }
+            }
+            node = node.parentElement || (node.getRootNode && node.getRootNode().host) || null;
+        }
+        return 0;
     }
 
     @wire(getPocs)
