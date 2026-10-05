@@ -46,20 +46,6 @@ public with sharing class POC_TrackingBoardController {
         @AuraEnabled public String ownerName;
     }
 
-    public class PocUpdate {
-        @AuraEnabled public Id id;
-        @AuraEnabled public String name;
-        @AuraEnabled public Id accountId;
-        @AuraEnabled public Id opportunityId;
-        @AuraEnabled public String lifecycleStatus;
-        @AuraEnabled public String pocType;
-        @AuraEnabled public String length;
-        @AuraEnabled public String health;
-        @AuraEnabled public Date startDate;
-        @AuraEnabled public Date endDate;
-        @AuraEnabled public String nextSteps;
-    }
-
     private static final Integer ROW_LIMIT = 500;
 
     @AuraEnabled(cacheable=true)
@@ -94,7 +80,7 @@ public with sharing class POC_TrackingBoardController {
     }
 
     @AuraEnabled
-    public static void updatePoc(PocUpdate input) {
+    public static void updatePoc(POC_TrackingBoardUpdate input) {
         if (input == null || input.id == null) {
             throw handled('A POC record is required.');
         }

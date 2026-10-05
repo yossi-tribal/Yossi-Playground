@@ -126,18 +126,23 @@ private class POC_TrackingBoardControllerTest {
         );
         insert poc;
 
-        POC_TrackingBoardController.PocUpdate input = new POC_TrackingBoardController.PocUpdate();
-        input.id = poc.Id;
-        input.name = 'Alpha Water POC Updated';
-        input.accountId = account.Id;
-        input.opportunityId = opportunity.Id;
-        input.lifecycleStatus = 'Active';
-        input.pocType = 'Paid';
-        input.length = '1 Month';
-        input.health = 'Green';
-        input.startDate = Date.newInstance(2026, 6, 10);
-        input.endDate = Date.newInstance(2026, 8, 1);
-        input.nextSteps = 'Confirm the success plan';
+        POC_TrackingBoardUpdate input = (POC_TrackingBoardUpdate) JSON.deserialize(
+            JSON.serialize(new Map<String, Object>{
+                'id' => poc.Id,
+                'name' => 'Alpha Water POC Updated',
+                'accountId' => account.Id,
+                'opportunityId' => opportunity.Id,
+                'lifecycleStatus' => 'Active',
+                'pocType' => 'Paid',
+                'length' => '1 Month',
+                'health' => 'Green',
+                'startDate' => '2026-06-10',
+                'endDate' => '2026-08-01',
+                'nextSteps' => 'Confirm the success plan'
+            }),
+            POC_TrackingBoardUpdate.class
+        );
+        Assert.areEqual(poc.Id, input.id, 'The LWC request must deserialize its record ID.');
 
         Test.startTest();
         POC_TrackingBoardController.updatePoc(input);
@@ -191,7 +196,7 @@ private class POC_TrackingBoardControllerTest {
         );
         insert poc;
 
-        POC_TrackingBoardController.PocUpdate input = new POC_TrackingBoardController.PocUpdate();
+        POC_TrackingBoardUpdate input = new POC_TrackingBoardUpdate();
         input.id = poc.Id;
         input.name = poc.Name;
         input.accountId = home.Id;
