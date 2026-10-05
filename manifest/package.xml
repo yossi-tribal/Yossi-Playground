@@ -3,6 +3,7 @@
     <types>
         <members>POC_TrackingBoardController</members>
         <members>POC_TrackingBoardControllerTest</members>
+        <members>POC_TrackingBoardUpdate</members>
         <name>ApexClass</name>
     </types>
     <types>
