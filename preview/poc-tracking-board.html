@@ -54,7 +54,12 @@
         const LIFECYCLE = ['Pre-POC', 'Active', 'Extended', 'Paused', 'Complete'];
         const TYPES = ['Paid', 'Un-Paid'];
         const LENGTHS = ['2 Weeks', '1 Month', '6 Weeks', '2 Months', '3 Months', 'Other'];
-        const HEALTHS = ['Green', 'Yellow', 'Red'];
+        const HEALTHS = [
+            { value: 'Green', label: 'Healthy' },
+            { value: 'Yellow', label: 'Needs Attention' },
+            { value: 'Red', label: 'Unhealthy' }
+        ];
+        const HEALTH_LABELS = { Green: 'Healthy', Yellow: 'Needs Attention', Red: 'Unhealthy' };
         const MISMATCH = 'The selected Opportunity belongs to a different Account. Please select an Opportunity on the same Account as this POC.';
         const RECORDS = [
             row('1', 'Enersys', 'Pre-POC', 'Paid', '2 Weeks', 'Green', '2026-06-03', '2026-12-31', 'Kickoff meeting - week of July', 120000, 'Enersys', 'Enersys Expansion', 'Sarah Chen'),
@@ -105,7 +110,7 @@
         }
 
         function decorate(record) {
-            const health = record.health || 'Not set';
+            const health = HEALTH_LABELS[record.health] || (record.health || 'Not set');
             const hasNext = Boolean(firstLine(record.nextSteps));
             return Object.assign({}, record, {
                 healthLabel: health,

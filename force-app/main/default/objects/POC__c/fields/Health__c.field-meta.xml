@@ -4,7 +4,7 @@
             <label>Health</label>
             <description>Overall health of the POC engagement, letting owners flag at-risk engagements at a glance.</description>
             <type>Picklist</type>
-            <inlineHelpText>Green on track, Yellow needs attention, Red at risk. Leave blank until the POC is underway.</inlineHelpText>
+            <inlineHelpText>Healthy is on track, Needs Attention requires follow-up, and Unhealthy is at risk. Leave blank until the POC is assessed.</inlineHelpText>
             <required>false</required>
             <trackHistory>false</trackHistory>
             
@@ -20,19 +20,19 @@
                     <value>
                         <fullName>Green</fullName>
                         <default>false</default>
-                        <label>Green</label>
+                        <label>Healthy</label>
                     </value>
                     
                     <value>
                         <fullName>Yellow</fullName>
                         <default>false</default>
-                        <label>Yellow</label>
+                        <label>Needs Attention</label>
                     </value>
                     
                     <value>
                         <fullName>Red</fullName>
                         <default>false</default>
-                        <label>Red</label>
+                        <label>Unhealthy</label>
                     </value>
                     
                 </valueSetDefinition>
