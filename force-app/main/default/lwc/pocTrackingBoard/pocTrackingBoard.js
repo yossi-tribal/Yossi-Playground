@@ -191,6 +191,10 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
         return this.isSaving ? 'Saving…' : 'Save';
     }
 
+    get statGridClass() {
+        return this.isEditing ? 'stat-grid stat-grid-editing' : 'stat-grid';
+    }
+
     get editFields() {
         const editing = this.isEditing;
         const access = this.fieldAccess;
@@ -450,6 +454,7 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
             })),
             count: cards.length,
             isEmpty: cards.length === 0,
+            columnClass: cards.length === 0 ? 'column column-empty' : 'column',
             newLabel: `New ${column.label} POC`
         };
     }
@@ -473,7 +478,7 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
             hasNextSteps: Boolean(row.nextSteps && row.nextSteps.trim()),
             notesClass: row.nextSteps && row.nextSteps.trim() ? 'notes' : 'notes-empty',
             amountLabel: formatMoney(row.opportunityAmount, this.currencyCode),
-            dateLabel: dateRange(row.startDate, row.endDate),
+            milestoneLabel: cardMilestone(row.startDate, row.endDate),
             startLabel: formatDate(row.startDate) || '—',
             endLabel: formatDate(row.endDate) || '—',
             accountLabel: row.accountName || '—',
@@ -556,19 +561,13 @@ function formatDate(value) {
     }).format(local);
 }
 
-function dateRange(start, end) {
-    const startLabel = formatDate(start);
+function cardMilestone(start, end) {
     const endLabel = formatDate(end);
-    if (startLabel && endLabel) {
-        return `${startLabel} – ${endLabel}`;
-    }
-    if (startLabel) {
-        return `Starts ${startLabel}`;
-    }
     if (endLabel) {
-        return `Ends ${endLabel}`;
+        return `POC end ${endLabel}`;
     }
-    return 'No dates';
+    const startLabel = formatDate(start);
+    return startLabel ? `Starts ${startLabel}` : 'No dates';
 }
 
 function formatMoney(amount, currencyCode) {
