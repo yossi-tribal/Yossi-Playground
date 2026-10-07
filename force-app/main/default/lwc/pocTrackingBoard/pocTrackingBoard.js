@@ -49,10 +49,16 @@ const LENGTH_OPTIONS = [
 
 const HEALTH_OPTIONS = [
     NONE,
-    { label: 'Green', value: 'Green' },
-    { label: 'Yellow', value: 'Yellow' },
-    { label: 'Red', value: 'Red' }
+    { label: 'Healthy', value: 'Green' },
+    { label: 'Needs Attention', value: 'Yellow' },
+    { label: 'Unhealthy', value: 'Red' }
 ];
+
+const HEALTH_LABELS = {
+    Green: 'Healthy',
+    Yellow: 'Needs Attention',
+    Red: 'Unhealthy'
+};
 
 const EMPTY_ACCESS = {
     name: false,
@@ -460,7 +466,7 @@ export default class PocTrackingBoard extends NavigationMixin(LightningElement) 
     }
 
     decorate(row) {
-        const health = row.health || 'Not set';
+        const health = HEALTH_LABELS[row.health] || (row.health || 'Not set');
         return {
             ...row,
             healthLabel: health,
